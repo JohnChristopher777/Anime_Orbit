@@ -11,7 +11,6 @@ function Gallery() {
   const [index, setIndex] = useState(0);
   const navigate = useNavigate();
 
-  // Fetch character data once when ID changes
   useEffect(() => {
     setLoadingCharacter(true);
     fetch(`https://api.jikan.moe/v4/characters/${id}`)
@@ -23,7 +22,7 @@ function Gallery() {
       })
       .finally(() => setLoadingCharacter(false));
 
-    getAnimePictures(id);
+        getAnimePictures(id);
 }, [id]);
 
   if (!pictures || pictures.length === 0) {

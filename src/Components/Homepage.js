@@ -5,7 +5,6 @@ import Airing from "./Airing";
 import AnimeItem from "./Animeitem";
 import { useGlobalContext } from "../context/global";
 import styled from "styled-components";
-import Sidebar from "./Sidebar";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 const Popular = lazy(() => import("./Popular"));
