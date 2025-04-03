@@ -49,7 +49,7 @@ function Popular({ rendered, popularAnime }) {
                   <div className="image-wrapper">
                     <img src={anime.images.jpg.large_image_url} alt={anime.title} />
                   </div>
-                  <p className="trending-title">{anime.title}</p> {/* Added title */}
+                  <p className="trending-title">{anime.title}</p>
                 </div>
               </Link>
             ))}
