@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
@@ -6,75 +7,95 @@ import { useGlobalContext } from '../context/global';
 function Gallery() {
   const { getAnimePictures, pictures } = useGlobalContext();
   const { id } = useParams();
-  const [characterName, setCharacterName] = useState('');
-  const [loadingCharacter, setLoadingCharacter] = useState(true);
+  const [characterName, setCharacterName] = useState('Loading...');
   const [index, setIndex] = useState(0);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setLoadingCharacter(true);
-    fetch(`https://api.jikan.moe/v4/characters/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.data?.name) {
-          setCharacterName(data.data.name);
+  useEffect(function () {
+    fetch('https://api.jikan.moe/v4/characters/' + id)
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('Failed to fetch character');
         }
+        return response.json();
       })
-      .finally(() => setLoadingCharacter(false));
+      .then(function (data) {
+        setCharacterName(data && data.data && data.data.name ? data.data.name : 'Unknown Character');
+      })
+      .catch(function (error) {
+        console.error('Error fetching character:', error.message);
+        setCharacterName('Error loading character');
+      });
 
-        getAnimePictures(id);
-}, [id]);
+    getAnimePictures(id);
+  }, [id, getAnimePictures]);
 
   if (!pictures || pictures.length === 0) {
-    return <LoadingStyled>Loading images, please wait...</LoadingStyled>;
+    return <LoadingStyled>Loading images...</LoadingStyled>;
   }
 
   return (
     <GalleryStyled>
       <div className="header">
         <div className="back">
-          <button onClick={() => navigate(-1)}>Back</button>
+          <button onClick={function () { navigate(-1); }}>Back</button>
         </div>
-        <h1 className="title">{loadingCharacter ? 'Loading character...' : characterName}</h1>
+        <h1 className="title">{characterName}</h1>
       </div>
       <div className="big-image-container">
-        <button className="prev" onClick={() => setIndex((prev) => Math.max(prev - 1, 0))}>
+        <button
+          className="prev"
+          onClick={function () { setIndex(function (prev) { return Math.max(prev - 1, 0); }); }}
+          disabled={index === 0}
+        >
           &lt;
         </button>
         <div className="big-image">
-          <img src={pictures[index]?.jpg?.image_url || ""} alt="Anime" />
+          <img
+            src={pictures[index] && pictures[index].jpg ? pictures[index].jpg.image_url : ''}
+            alt="Anime"
+            loading="lazy"
+          />
         </div>
-        <button className="next" onClick={() => setIndex((prev) => Math.min(prev + 1, pictures.length - 1))}>
+        <button
+          className="next"
+          onClick={function () { setIndex(function (prev) { return Math.min(prev + 1, pictures.length - 1); }); }}
+          disabled={index === pictures.length - 1}
+        >
           &gt;
         </button>
       </div>
 
       <div className="small-images">
-        {pictures.map((picture, i) => (
-          <div className="image-con" onClick={() => setIndex(i)} key={i}>
-            <img src={picture?.jpg?.image_url || ""}
-              style={{
-                border: i === index ? "4px solid #27AE60" : "4px solid #e5e7eb",
-                transform: i === index ? 'scale(1.1)' : 'scale(1)',
-                transition: 'all .3s ease-in-out'
-              }}
-              alt="Thumbnail" />
-          </div>
-        ))}
+        {pictures.map(function (picture, i) {
+          return (
+            <div className="image-con" onClick={function () { setIndex(i); }} key={i}>
+              <img
+                src={picture && picture.jpg ? picture.jpg.image_url : ''}
+                alt="Thumbnail"
+                loading="lazy"
+                style={{
+                  border: i === index ? '4px solid #27AE60' : '4px solid #e5e7eb',
+                  transform: i === index ? 'scale(1.1)' : 'scale(1)',
+                  transition: 'all .3s ease-in-out',
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
     </GalleryStyled>
   );
 }
 
-const GalleryStyled = styled.div`
-  background-color:rgb(44, 44, 44);
+var GalleryStyled = styled.div`
+  background-color: rgb(44, 44, 44);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding-top: 4rem;
   padding: 1rem 12%;
-
 
   .header {
     width: 100%;
@@ -106,7 +127,7 @@ const GalleryStyled = styled.div`
 
         &:hover {
           background: rgb(255, 39, 39);
-          border-color: rgb(255, 39, 39) ;
+          border-color: rgb(255, 39, 39);
           color: white;
         }
 
@@ -117,12 +138,14 @@ const GalleryStyled = styled.div`
     }
 
     .title {
-      font-family: "Bungee", cursive;
+      font-family: 'Bungee', cursive;
       font-size: 1.7rem;
       font-weight: 700;
       text-align: center;
       flex-grow: 1;
       color: rgb(255, 227, 18);
+      margin: 0; /* Ensure no extra spacing breaks layout */
+      padding: 0 3rem; /* Add padding to avoid overlap with back button */
     }
   }
 
@@ -133,7 +156,7 @@ const GalleryStyled = styled.div`
     position: relative;
     width: 100%;
     margin-top: 5rem;
-    padding:2px ;
+    padding: 2px;
 
     .prev,
     .next {
@@ -153,12 +176,12 @@ const GalleryStyled = styled.div`
       z-index: 10;
 
       &:hover {
-        background-color: #EB5757;
+        background-color: #eb5757;
         color: white;
       }
 
       &:active {
-        transform: scale(0.95);
+        transform: translateY(-50%) scale(0.95);
       }
 
       &:disabled {
@@ -199,20 +222,21 @@ const GalleryStyled = styled.div`
     background-color: rgb(131, 131, 131);
     border: 4px solid rgb(161, 161, 161);
 
-    img {
-      width: 5rem;
-      height: 5rem;
-      object-fit: cover;
-      cursor: pointer;
-      border-radius: 14px;
-      border: 3px solid;
-      border-color:rgb(157, 157, 157);
+    .image-con {
+      img {
+        width: 5rem;
+        height: 5rem;
+        object-fit: cover;
+        cursor: pointer;
+        border-radius: 14px;
+        border: 3px solid rgb(157, 157, 157);
+      }
     }
   }
 
   @media (max-width: 756px) {
-   padding: 0%;
-   background-color: rgb(41, 41, 41);
+    padding: 0%;
+    background-color: rgb(41, 41, 41);
 
     .header {
       padding: 1rem;
@@ -221,16 +245,15 @@ const GalleryStyled = styled.div`
         font-size: 1.2rem;
       }
     }
-  
-    .big-image img{
+
+    .big-image img {
       width: 90%;
       height: auto;
     }
   }
-  
 `;
 
-const LoadingStyled = styled.div`
+var LoadingStyled = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
@@ -238,8 +261,7 @@ const LoadingStyled = styled.div`
   font-size: 1.5rem;
   font-weight: bold;
   color: white;
-  background-color:rgb(44, 44, 44);
+  background-color: rgb(44, 44, 44);
 `;
-
 
 export default Gallery;

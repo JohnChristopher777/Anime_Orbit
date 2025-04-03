@@ -1,40 +1,4 @@
-// import React from "react";
-// import styled from "styled-components";
 
-// const AboutUs = () => {
-//   return (
-//     <Container>
-//       <Title>About AnimeVerse</Title>
-//       <Description>
-//         Welcome to AnimeVerse, your one-stop destination for everything anime! Dive into the world of epic stories, breathtaking animations, and unforgettable characters.
-//       </Description>
-//     </Container>
-//   );
-// };
-
-// export default AboutUs;
-
-// // Styled Components
-// const Container = styled.div`
-//   max-width: 800px;
-//   margin: 100px auto;
-//   text-align: center;
-//   padding: 20px;
-//   color: white;
-//   background: rgba(0, 0, 0, 0.8);
-//   border-radius: 10px;
-//   box-shadow: 0px 4px 10px rgba(255, 95, 95, 0.5);
-// `;
-
-// const Title = styled.h1`
-//   font-size: 2.5rem;
-//   margin-bottom: 10px;
-// `;
-
-// const Description = styled.p`
-//   font-size: 1.2rem;
-//   line-height: 1.6;
-// `;
 
 
 import React from "react";

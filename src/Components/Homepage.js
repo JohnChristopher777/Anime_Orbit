@@ -382,7 +382,7 @@ const HomepageStyled = styled.div`
 
   main {
     padding: 1rem;
-    flex: 1; /* Ensures main takes up remaining space */
+    flex: 1; 
   }
 
   .loading-spinner {
