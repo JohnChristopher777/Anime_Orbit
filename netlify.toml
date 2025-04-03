@@ -1,6 +1,6 @@
 [build]
   command = "npm run build"  # or the build command specific to your project
-  publish = "dist"  # Adjust to match your build output folder (e.g., 'build' for React, 'out' for Next.js)
+  publish = "build"  # Adjust to match your build output folder (e.g., 'build' for React, 'out' for Next.js)
 
 [[redirects]]
   from = "/*"
