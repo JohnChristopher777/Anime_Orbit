@@ -1,8 +1,23 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useGlobalContext } from '../context/global';
+
+// Memoize the Image component to prevent unnecessary re-renders
+const GalleryImage = memo(function GalleryImage({ src, alt, isSelected }) {
+  return (
+    <img
+      src={src || ''}
+      alt={alt}
+      loading="lazy"
+      style={{
+        border: isSelected ? '4px solid #27AE60' : '4px solid #e5e7eb',
+        transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+        transition: 'all .3s ease-in-out',
+      }}
+    />
+  );
+});
 
 function Gallery() {
   const { getAnimePictures, pictures } = useGlobalContext();
@@ -12,10 +27,12 @@ function Gallery() {
   const navigate = useNavigate();
 
   useEffect(function () {
+    console.log('Fetching character for ID:', id);
     fetch('https://api.jikan.moe/v4/characters/' + id)
       .then(function (response) {
         if (!response.ok) {
-          throw new Error('Failed to fetch character');
+          setCharacterName('Error loading character');
+          return null;
         }
         return response.json();
       })
@@ -30,8 +47,12 @@ function Gallery() {
     getAnimePictures(id);
   }, [id, getAnimePictures]);
 
-  if (!pictures || pictures.length === 0) {
-    return <LoadingStyled>Loading images...</LoadingStyled>;
+  // Optimize pictures: limit to 10, ensure array
+  const optimizedPictures = Array.isArray(pictures) ? pictures.slice(0, 10) : [];
+
+  // Prevent render if no pictures
+  if (optimizedPictures.length === 0) {
+    return <LoadingStyled>Loading gallery...</LoadingStyled>;
   }
 
   return (
@@ -45,40 +66,38 @@ function Gallery() {
       <div className="big-image-container">
         <button
           className="prev"
-          onClick={function () { setIndex(function (prev) { return Math.max(prev - 1, 0); }); }}
+          onClick={function () { setIndex(Math.max(index - 1, 0)); }}
           disabled={index === 0}
         >
           &lt;
         </button>
         <div className="big-image">
           <img
-            src={pictures[index] && pictures[index].jpg ? pictures[index].jpg.image_url : ''}
-            alt="Anime"
+            src={optimizedPictures[index]?.jpg?.image_url || ''}
+            alt="Selected Anime"
             loading="lazy"
           />
         </div>
         <button
           className="next"
-          onClick={function () { setIndex(function (prev) { return Math.min(prev + 1, pictures.length - 1); }); }}
-          disabled={index === pictures.length - 1}
+          onClick={function () { setIndex(Math.min(index + 1, optimizedPictures.length - 1)); }}
+          disabled={index === optimizedPictures.length - 1}
         >
           &gt;
         </button>
       </div>
-
       <div className="small-images">
-        {pictures.map(function (picture, i) {
+        {optimizedPictures.map(function (picture, i) {
           return (
-            <div className="image-con" onClick={function () { setIndex(i); }} key={i}>
-              <img
-                src={picture && picture.jpg ? picture.jpg.image_url : ''}
-                alt="Thumbnail"
-                loading="lazy"
-                style={{
-                  border: i === index ? '4px solid #27AE60' : '4px solid #e5e7eb',
-                  transform: i === index ? 'scale(1.1)' : 'scale(1)',
-                  transition: 'all .3s ease-in-out',
-                }}
+            <div
+              className="image-con"
+              onClick={function () { setIndex(i); }}
+              key={i}
+            >
+              <GalleryImage
+                src={picture?.jpg?.image_url}
+                alt={`Thumbnail ${i}`}
+                isSelected={i === index}
               />
             </div>
           );
@@ -104,7 +123,7 @@ var GalleryStyled = styled.div`
     align-items: center;
     padding: 1rem;
     background-color: black;
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     z-index: 10;
@@ -144,8 +163,8 @@ var GalleryStyled = styled.div`
       text-align: center;
       flex-grow: 1;
       color: rgb(255, 227, 18);
-      margin: 0; /* Ensure no extra spacing breaks layout */
-      padding: 0 3rem; /* Add padding to avoid overlap with back button */
+      margin: 0;
+      padding: 0 3rem;
     }
   }
 
@@ -208,6 +227,7 @@ var GalleryStyled = styled.div`
       img {
         width: 360px;
         height: auto;
+        max-width: 100%;
       }
     }
   }

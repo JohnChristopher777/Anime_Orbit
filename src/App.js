@@ -10,8 +10,7 @@ import { useEffect } from "react";
 
 function Layout({ children }) {
   const location = useLocation();
-
-  // Show Navbar only on Homepage ("/") & AnimeItem ("/anime/:id")
+  
   const showNavbar = location.pathname.startsWith("/anime");
 
   useEffect(() => {

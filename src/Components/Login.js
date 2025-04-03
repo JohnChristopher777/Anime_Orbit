@@ -90,7 +90,7 @@ const LoginSignup = () => {
 
   const toggleForm = () => {
     setIsLogin(!isLogin);
-    setMessage(""); // Reset error message when switching
+    setMessage(""); 
   };
 
   const handleSubmit = (e) => {

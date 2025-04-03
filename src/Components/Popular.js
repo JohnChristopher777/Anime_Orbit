@@ -9,8 +9,6 @@ function Popular({ rendered, popularAnime }) {
   const safePopularAnime = popularAnime || [];
   const safeTrendingAnime = trendingAnime || [];
 
-  console.log("Trending Anime in Popular.js (March 31, 2025):", safeTrendingAnime);
-  console.log("Popular Anime in Popular.js (March 31, 2025):", safePopularAnime);
 
   if (!safePopularAnime.length && !safeTrendingAnime.length) {
     return <p className="no-content">No anime available yet.</p>;
