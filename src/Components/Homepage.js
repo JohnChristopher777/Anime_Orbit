@@ -423,7 +423,7 @@ const HomepageStyled = styled.div`
       padding: 1rem 12%;
       .brand { font-size: 2.5rem; text-align: left; }
       .catchphrase { font-size: 1.1rem; }
-      .search-wrapper { margin-top: 0; }
+      .search-wrapper { margin: 0px; }
       .search-container .search-form .input-control input {
         width: ${(props) => (props.showSearch ? "300px" : "0")};
         padding: ${(props) => (props.showSearch ? "0.8rem" : "0")};

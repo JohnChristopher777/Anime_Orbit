@@ -75,8 +75,8 @@ export const GlobalContextProvider = ({ children }) => {
   const getPopularAnime = async () => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // 1s delay
-      const response = await fetch(`${baseUrl}/top/anime?filter=bypopularity&limit=25`);
+      await new Promise((resolve) => setTimeout(resolve, 10)); 
+      const response = await fetch(`${baseUrl}/top/anime?filter=bypopularity&limit=24`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       console.log("Popular Anime Data (All-Time):", data.data);
@@ -110,7 +110,7 @@ export const GlobalContextProvider = ({ children }) => {
   const getUpcomingAnime = async () => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       const response = await fetch(`${baseUrl}/top/anime?filter=upcoming&limit=25`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -125,7 +125,7 @@ export const GlobalContextProvider = ({ children }) => {
   const getAiringAnime = async () => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       const response = await fetch(`${baseUrl}/top/anime?filter=airing&limit=25`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -140,7 +140,7 @@ export const GlobalContextProvider = ({ children }) => {
   const searchAnime = async (anime) => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       const response = await fetch(
         `${baseUrl}/anime?q=${anime}&order_by=popularity&sort=asc&limit=25`
       );

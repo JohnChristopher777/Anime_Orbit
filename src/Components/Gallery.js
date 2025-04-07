@@ -91,7 +91,6 @@ function Gallery() {
   );
 }
 
-// Styled components (unchanged)
 const GalleryStyled = styled.div`
   background-color: rgb(44, 44, 44);
   min-height: 100vh;
@@ -224,21 +223,23 @@ const GalleryStyled = styled.div`
   }
 
   @media (max-width: 756px) {
-    padding: 0%;
+    padding: 2%;
     background-color: rgb(41, 41, 41);
 
     .header {
-      padding: 1rem;
+      padding: 1.5rem;
 
       .title {
         font-size: 1.2rem;
       }
     }
 
+  
+
     .big-image img {
       width: 90%;
       height: auto;
-    }
+  }
   }
 `;
 
