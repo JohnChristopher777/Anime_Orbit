@@ -231,6 +231,7 @@ const GalleryStyled = styled.div`
 
       .title {
         font-size: 1.2rem;
+        margin-left: 6px;
       }
     }
     .big-image img {

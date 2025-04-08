@@ -137,6 +137,11 @@ function Homepage() {
                   placeholder="Search for an Anime..."
                   value={search}
                   onChange={handleSearchChange}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.target.blur(); 
+                    }
+                  }}
                   className={showSearch ? "expanded" : ""}
                 />
                 {search && showSearch && (
@@ -416,73 +421,75 @@ const HomepageStyled = styled.div`
     100% { transform: scale(1); opacity: 0.8; }
   }
 
-  @media (min-width: 768px) {
-    .header-bar {
-      flex-direction: row;
-      padding: 1rem 12%;
-      .brand { font-size: 2.5rem; text-align: left; }
-      .catchphrase { font-size: 1.1rem; }
-      .search-wrapper { margin: 0px; }
-      .search-container .search-form .input-control input {
-        width: ${(props) => (props.showSearch ? "300px" : "0")};
-        padding: ${(props) => (props.showSearch ? "0.8rem" : "0")};
-        font-size: 1rem;
-        height: 40px;
-      }
-      .clear-btn { right: 50px; font-size: 1.2rem; }
-      .search-btn { padding: 0.5rem 1rem; font-size: 1.2rem; height: 40px; }
-      .search-toggle { padding: 0.5rem 1rem; font-size: 1.2rem; height: 40px; }
-    }
-
-    header { padding: 1rem 12%; }
-    .filter-buttons { gap: 1rem; }
-    .filter-btn { padding: 0.8rem 1.5rem; font-size: 1.1rem; }
-
-    main { padding: 2rem 12%; }
-    .footer { font-size: 0.8rem; }
-  }
-  @media (max-width: 380px) {
+  @media (max-width: 767px) {
   .header-bar {
-    padding: 0.5rem; 
+    padding: 0.5rem;
     .brand {
-      font-size: 1.5rem; 
+      font-size: 1.5rem;
     }
     .catchphrase {
-      font-size: 0.7rem; 
+      font-size: 0.7rem;
     }
     .search-wrapper {
-      flex-wrap: wrap; 
+      flex-wrap: wrap;
       justify-content: center;
-      padding: 0 0.5rem; 
+      padding: 0 0.5rem;
     }
     .search-container {
-      flex: 1; 
-      max-width: 100%; 
+      flex: 1;
+      max-width: 100%;
       .search-form {
         .input-control {
           input {
-            max-width: 200px; 
-            font-size: 0.8rem; 
-            padding: 0.6rem; 
-            height: 36px; 
+            max-width: 200px;
+            font-size: 0.8rem;
+            padding: 0.6rem;
+            height: 36px;
           }
           .clear-btn {
-            right: 40px; 
-            font-size: 0.9rem; 
+            right: 40px;
+            font-size: 0.9rem;
           }
           .search-btn {
-            padding: 0.3rem 0.6rem; 
-            font-size: 0.9rem; 
-            height: 36px; 
+            padding: 0.3rem 0.6rem;
+            font-size: 0.9rem;
+            height: 36px;
           }
         }
       }
     }
     .search-toggle {
-      padding: 0.4rem 0.6rem; 
-      font-size: 0.9rem; 
-      height: 36px; 
+      padding: 0.4rem 0.6rem;
+      font-size: 0.9rem;
+      height: 36px;
     }
+  }
+  header {
+    padding: 1rem; 
+    .filter-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.3rem; 
+      flex-wrap: nowrap;
+      .filter-btn {
+        padding: 0.4rem 0.7rem; 
+        font-size: 0.7rem; 
+        border-radius: 5px;
+        border-width: 1px;
+        i {
+          margin-right: 0.2rem; 
+          font-size: 0.8rem; 
+        }
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 1px 6px rgba(255, 215, 0, 0.3);
+        }
+      }
+    }
+  }
+  .footer {
+    padding: 0.05rem;
+    font-size: 0.6rem;
   }
 }
 `;

@@ -156,6 +156,19 @@ const UpcomingStyled = styled.div`
       font-size: 2rem;
     }
   }
+  @media (max-width: 767px) {
+  .anime-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+  .anime-card {
+    padding: 0.5rem;
+    .anime-title {
+      font-size: 0.9rem;
+      padding: 0 5px;
+    }
+  }
+}
 `;
 
 export default Upcoming;
