@@ -23,7 +23,6 @@ function Gallery() {
   const [index, setIndex] = useState(0);
   const navigate = useNavigate();
 
-  // Fetch character name
   useEffect(() => {
     let isMounted = true;
     console.log('Fetching character for ID:', id);
@@ -48,7 +47,6 @@ function Gallery() {
     };
   }, [id]);
 
-  
   useEffect(() => {
     getAnimePictures(id);
   }, [getAnimePictures,id]);
@@ -231,7 +229,7 @@ const GalleryStyled = styled.div`
 
       .title {
         font-size: 1.2rem;
-        margin-left: 6px;
+        margin-left: 8px;
       }
     }
     .big-image img {
@@ -243,11 +241,11 @@ const GalleryStyled = styled.div`
   .big-image-container {
     .prev,
     .next {
-      font-size: 1.4rem; 
+      font-size: 1.4rem;
       padding: 5px;
       background-color: rgb(198, 192, 192);
       border-radius: 15%;
-      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1); 
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
       &:hover {
         background-color: #eb5757;
         color: white;
@@ -260,14 +258,14 @@ const GalleryStyled = styled.div`
       }
     }
     .prev {
-      left: 5px; 
+      left: 5px;
     }
     .next {
-      right: 5px; 
+      right: 5px;
     }
     .big-image {
       img {
-        width: 100%; 
+        width: 100%;
         max-width: 300px;
         height: auto;
       }
@@ -275,23 +273,23 @@ const GalleryStyled = styled.div`
   }
 
   .small-images {
-    justify-content: center; 
+    justify-content: center;
     gap: 0.4rem;
-    padding: 1rem; 
-    width: 85%; 
+    padding: 1rem;
+    width: 85%;
 
     .image-con {
-      flex: 0 0 calc(33.33% - 0.5rem); 
+      flex: 0 0 calc(33.33% - 0.5rem);
       display: flex;
-      justify-content: center; 
+      justify-content: center;
       margin-top: 3px;
       margin-bottom: 2px;
       img {
-        width: 4rem; 
+        width: 4rem;
         height: 4rem;
         object-fit: cover;
         border-radius: 10px;
-        border: 2px solid rgb(157, 157, 157); 
+        border: 2px solid rgb(157, 157, 157);
       }
     }
   }
