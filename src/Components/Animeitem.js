@@ -6,12 +6,10 @@ import styled from "styled-components";
 function AnimeItem() {
   const { id } = useParams();
 
-  // State
   const [anime, setAnime] = useState({});
   const [characters, setCharacters] = useState([]);
   const [showMore, setShowMore] = useState(false);
 
-  // Destructure anime safely
   const {
     title,
     synopsis,
@@ -31,7 +29,6 @@ function AnimeItem() {
     genres,
   } = anime || {};
 
-  // Fetch anime details
   const getAnime = async (animeId) => {
     try {
       const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}`);
@@ -43,7 +40,6 @@ function AnimeItem() {
     }
   };
 
-  // Fetch characters
   const getCharacters = async (animeId) => {
     try {
       const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}/characters`);
@@ -55,9 +51,9 @@ function AnimeItem() {
     }
   };
 
-  // IMDb link and placeholder rating
+
   const imdbLink = title ? `https://www.imdb.com/find?q=${encodeURIComponent(title)}` : null;
-  const imdbRating = "N/A"; // Placeholder; use OMDB API for real data
+  const imdbRating = "N/A";
 
   useEffect(() => {
     if (id) {
@@ -208,7 +204,7 @@ const AnimeItemStyled = styled.div`
     transition: transform 0.3s ease-in-out, background 0.3s ease-in-out;
 
     &:hover {
-      transform: scale(1.02); /* Slight scale instead of slide */
+      transform: scale(1.02); 
       background: rgba(58, 58, 58, 0.4);
     }
   }
@@ -221,7 +217,7 @@ const AnimeItemStyled = styled.div`
     margin: 2rem 0 1rem;
     color: rgb(251, 249, 249);
     background: rgba(58, 58, 58, 0.2);
-    border-left: 4px solid black; /* Dark gray */
+    border-left: 4px solid black; 
     border-radius: 3 14px;
     text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
     transition: transform 0.3s ease-in-out, background 0.3s ease-in-out;
@@ -249,7 +245,7 @@ const AnimeItemStyled = styled.div`
     background: rgb(235, 235, 235);
     border-radius: 12px;
     padding: 2rem;
-    border: 4px solid #333; /* Dark gray */
+    border: 4px solid #333; 
     margin-bottom: 2rem;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 
@@ -278,18 +274,18 @@ const AnimeItemStyled = styled.div`
         flex: 2;
         display: flex;
         flex-direction: column;
-        gap: 0.8rem; /* Reduced line spacing */
+        gap: 0.8rem; 
 
         p {
           display: flex;
           gap: 0.5rem;
           font-size: 1.1rem;
-          font-weight: 570; /* Stronger font */
+          font-weight: 570; 
           color: rgb(0, 34, 87);
-          line-height: 1.4rem; /* Reduced line spacing */
+          line-height: 1.4rem; 
 
           span {
-            font-weight: 600; /* Slightly bolder for spans */
+            font-weight: 600; 
             color: rgb(0, 0, 0);
             font-size: large;
           }
@@ -334,8 +330,8 @@ const AnimeItemStyled = styled.div`
       margin-top: 1.5rem;
 
       .genre {
-        background: rgba(17, 69, 114, 0.1); /* Subtle gray */
-        border: 2px solid #333; /* Dark gray border */
+        background: rgba(17, 69, 114, 0.1); 
+        border: 2px solid #333; 
         padding: 0.4rem 1rem;
         border-radius: 12px;
         color: black;
@@ -367,7 +363,7 @@ const AnimeItemStyled = styled.div`
       max-width: 800px;
       height: 450px;
       border-radius: 14px;
-      border: 4px solid black; /* Dark gray */
+      border: 4px solid black; 
       background: #fff;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     }
@@ -392,7 +388,7 @@ const AnimeItemStyled = styled.div`
     background: rgba(209, 209, 209, 0.9);
     padding: 2rem;
     border-radius: 14px;
-    border: 4px solid #333; /* Dark gray */
+    border: 4px solid #333; 
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 
     .character {
@@ -400,13 +396,13 @@ const AnimeItemStyled = styled.div`
       padding: 0.8rem;
       border-radius: 14px;
       background:rgba(251, 251, 251, 0.59);
-      border: 2px solid rgb(191, 191, 191); /* Light gray outer border */
+      border: 2px solid rgb(191, 191, 191); 
       transition: all 0.3s ease-in-out;
 
       &:hover {
         transform: translateY(-8px);
         background: #e0e0e0;
-        border-color: rgb(0, 0, 0); /* Dark gray on hover */
+        border-color: rgb(0, 0, 0); 
         box-shadow: 0 6px 12px rgba(50, 50, 50, 0.59);
       }
 
@@ -415,7 +411,7 @@ const AnimeItemStyled = styled.div`
         height: auto;
         border-radius: 14px;
         border: solid;
-        border-color: rgb(155, 155, 155); /* Inner black border */
+        border-color: rgb(155, 155, 155); 
       }
 
       h4 {
@@ -427,7 +423,7 @@ const AnimeItemStyled = styled.div`
         text-decoration: none;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         padding-left: 0.5rem;
-        border-left: 3px solid #333; /* Dark gray */
+        border-left: 3px solid #333; 
       }
 
       p {

@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense, lazy } from "react";
 import Upcoming from "./Upcoming";
 import Airing from "./Airing";
@@ -382,7 +381,7 @@ const HomepageStyled = styled.div`
 
   main {
     padding: 1rem;
-    flex: 1; 
+    flex: 1;
   }
 
   .loading-spinner {
@@ -442,7 +441,52 @@ const HomepageStyled = styled.div`
     main { padding: 2rem 12%; }
     .footer { font-size: 0.8rem; }
   }
+  @media (max-width: 380px) {
+  .header-bar {
+    padding: 0.5rem; 
+    .brand {
+      font-size: 1.5rem; 
+    }
+    .catchphrase {
+      font-size: 0.7rem; 
+    }
+    .search-wrapper {
+      flex-wrap: wrap; 
+      justify-content: center;
+      padding: 0 0.5rem; 
+    }
+    .search-container {
+      flex: 1; 
+      max-width: 100%; 
+      .search-form {
+        .input-control {
+          input {
+            max-width: 200px; 
+            font-size: 0.8rem; 
+            padding: 0.6rem; 
+            height: 36px; 
+          }
+          .clear-btn {
+            right: 40px; 
+            font-size: 0.9rem; 
+          }
+          .search-btn {
+            padding: 0.3rem 0.6rem; 
+            font-size: 0.9rem; 
+            height: 36px; 
+          }
+        }
+      }
+    }
+    .search-toggle {
+      padding: 0.4rem 0.6rem; 
+      font-size: 0.9rem; 
+      height: 36px; 
+    }
+  }
+}
 `;
 
 export default Homepage;
+
 

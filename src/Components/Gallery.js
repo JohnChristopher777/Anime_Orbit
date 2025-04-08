@@ -44,21 +44,21 @@ function Gallery() {
       });
 
     return () => {
-      isMounted = false; // Cleanup to prevent memory leaks
+      isMounted = false;
     };
   }, [id]);
 
-  // Fetch anime pictures (Optimized)
+  
   useEffect(() => {
     getAnimePictures(id);
   }, [getAnimePictures,id]);
 
-  // Memoize event handlers
+  
   const handleBack = useCallback(() => navigate(-1), [navigate]);
   const handlePrev = useCallback(() => setIndex((i) => Math.max(i - 1, 0)), []);
   const handleNext = useCallback(() => setIndex((i) => Math.min(i + 1, pictures.length - 1)), [pictures]);
 
-  // Limit pictures to 10 & ensure array
+  
   const optimizedPictures = Array.isArray(pictures) ? pictures.slice(0, 10) : [];
 
   if (!optimizedPictures.length) return <LoadingStyled>Loading gallery...</LoadingStyled>;
@@ -223,7 +223,7 @@ const GalleryStyled = styled.div`
   }
 
   @media (max-width: 756px) {
-    padding: 2%;
+    padding: 5%;
     background-color: rgb(41, 41, 41);
 
     .header {
@@ -233,14 +233,68 @@ const GalleryStyled = styled.div`
         font-size: 1.2rem;
       }
     }
-
-  
-
     .big-image img {
       width: 90%;
       height: auto;
   }
   }
+  @media (max-width: 700px) {
+  .big-image-container {
+    .prev,
+    .next {
+      font-size: 1.4rem; 
+      padding: 5px;
+      background-color: rgb(198, 192, 192);
+      border-radius: 15%;
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1); 
+      &:hover {
+        background-color: #eb5757;
+        color: white;
+      }
+      &:active {
+        transform: translateY(-50%) scale(0.95);
+      }
+      &:disabled {
+        opacity: 0.5;
+      }
+    }
+    .prev {
+      left: 5px; 
+    }
+    .next {
+      right: 5px; 
+    }
+    .big-image {
+      img {
+        width: 100%; 
+        max-width: 300px;
+        height: auto;
+      }
+    }
+  }
+
+  .small-images {
+    justify-content: center; 
+    gap: 0.4rem;
+    padding: 1rem; 
+    width: 85%; 
+
+    .image-con {
+      flex: 0 0 calc(33.33% - 0.5rem); 
+      display: flex;
+      justify-content: center; 
+      margin-top: 3px;
+      margin-bottom: 2px;
+      img {
+        width: 4rem; 
+        height: 4rem;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 2px solid rgb(157, 157, 157); 
+      }
+    }
+  }
+}
 `;
 
 const LoadingStyled = styled.div`

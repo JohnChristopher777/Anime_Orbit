@@ -14,7 +14,7 @@ function Layout({ children }) {
   const showNavbar = location.pathname.startsWith("/anime");
 
   useEffect(() => {
-    window.scrollTo(0, 0); // Auto scroll to top on route change
+    window.scrollTo(0, 0); 
   }, [location]);
 
   return (

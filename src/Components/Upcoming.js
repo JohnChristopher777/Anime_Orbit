@@ -72,8 +72,8 @@ const UpcomingStyled = styled.div`
 
   a {
     display: block;
-    text-decoration: none; /* Ensure no underline on link */
-    color: inherit; /* Prevent blue default link color */
+    text-decoration: none; 
+    color: inherit; 
   }
 
   .anime-card {
@@ -120,7 +120,7 @@ const UpcomingStyled = styled.div`
       padding: 0 10px;
       line-height: 1.3;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      text-decoration: none; /* Explicitly remove underline */
+      text-decoration: none; 
     }
   }
 

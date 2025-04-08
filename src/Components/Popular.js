@@ -35,7 +35,6 @@ function Popular({ rendered, popularAnime }) {
         </div>
       )}
 
-      {/* Trending Anime Section (Top 10 Current Trending) */}
       {rendered !== "search" && safeTrendingAnime.length > 0 && (
         <div className="trending-anime">
           <h2>
@@ -97,8 +96,8 @@ const PopularStyled = styled.div`
 
   a {
     display: block;
-    text-decoration: none; /* Ensure no underline on links */
-    color: inherit; /* Prevent default link color */
+    text-decoration: none; 
+    color: inherit; 
   }
 
   .anime-card {
@@ -144,7 +143,7 @@ const PopularStyled = styled.div`
       padding: 0 10px;
       line-height: 1.3;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      text-decoration: none; /* Ensure no underline */
+      text-decoration: none; 
     }
   }
 
@@ -230,11 +229,11 @@ const PopularStyled = styled.div`
       padding: 0 5px;
       line-height: 1.2;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      text-decoration: none; /* Ensure no underline */
-      max-width: 130px; /* Match image width */
+      text-decoration: none; 
+      max-width: 130px; 
       white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis; /* Handle long titles */
+      text-overflow: ellipsis; 
     }
   }
 

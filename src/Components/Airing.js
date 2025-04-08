@@ -6,7 +6,6 @@ import styled from 'styled-components';
 function Airing() {
   const { airingAnime, isSearch, searchResults } = useGlobalContext();
 
-  // Conditional rendering for airing and search results
   const renderAnimeCards = (animeList) => {
     return animeList?.map((anime) => (
       <Link to={`/anime/${anime.mal_id}`} key={`airing-${anime.mal_id}`}>
@@ -63,7 +62,7 @@ const AiringStyled = styled.div`
   a {
     display: block;
     text-decoration: none;
-    color: inherit; /* Prevent default link color */
+    color: inherit; 
   }
 
   .anime-card {
@@ -110,7 +109,7 @@ const AiringStyled = styled.div`
       padding: 0 10px;
       line-height: 1.3;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      text-decoration: none; /* Ensure no underline */
+      text-decoration: none; 
     }
   }
 
