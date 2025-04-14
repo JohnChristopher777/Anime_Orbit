@@ -124,7 +124,7 @@ function Homepage() {
         <div className="brand">
           Anime Orbit
           <span className="catchphrase">
-            <span className="highlight">"Where</span> Viewers can{" "}
+            <span className="highlight">"Where</span> you can{" "}
             <span className="highlight">Orbit</span> around The vast Anime Galaxy"
           </span>
         </div>

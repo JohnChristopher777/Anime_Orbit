@@ -15,7 +15,6 @@ function Popular({ rendered, popularAnime }) {
 
   return (
     <PopularStyled>
-      {/* Popular Anime Section (First 25 Results) */}
       {safePopularAnime.length > 0 && (
         <div className="popular-anime">
           <h2>{rendered === "search" ? "Search Results" : "Popular Anime"}</h2>
@@ -107,6 +106,7 @@ const PopularStyled = styled.div`
     border: 2px solid #5a5a5a;
     border-radius: 14px;
     overflow: hidden;
+    min-height: 300px;
     background: #3a3a3a;
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
     transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
@@ -259,7 +259,7 @@ const PopularStyled = styled.div`
 
     .anime-card {
       padding: 0.75rem;
-
+      min-height: 270px;
       .anime-title {
         font-size: 1rem;
         padding: 0 5px;
@@ -282,7 +282,7 @@ const PopularStyled = styled.div`
 
       .image-wrapper {
         width: 80px;
-        height: 80px;
+        height: 110px;
       }
 
       .trending-title {

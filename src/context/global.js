@@ -153,10 +153,10 @@ export const GlobalContextProvider = ({ children }) => {
       dispatch({ type: SEARCH, payload: [] });
     }
   };
-
   const getAnimePictures = async (id) => {
     dispatch({ type: LOADING });
     try {
+      await new Promise((resolve) => setTimeout(resolve, 10));
       const response = await fetch(`${baseUrl}/characters/${id}/pictures`);
       const data = await response.json();
       dispatch({ type: GET_PICTURES, payload: data.data || [] });
@@ -164,7 +164,6 @@ export const GlobalContextProvider = ({ children }) => {
       console.error("Error fetching anime pictures:", error);
     }
   };
-
 
   React.useEffect(() => {
     const fetchData = async () => {

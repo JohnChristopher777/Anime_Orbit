@@ -4,7 +4,6 @@ import Homepage from "./Components/Homepage";
 import Gallery from "./Components/Gallery";
 import Navbar from "./Components/Navbar";
 import React from "react";
-import Login from "./Components/Login";
 import AboutUs from "./Components/AboutUs";
 import { useEffect } from "react";
 
@@ -30,7 +29,6 @@ function App() {
     <BrowserRouter>
       <Routes>
       <Route path="/about" element={<AboutUs />} />
-      <Route path="/login" element={<Login />} />
         {<Route path="/" element={<Layout><Homepage /></Layout>} /> }
         <Route path="/anime/:id" element={<Layout><AnimeItem /></Layout>} />
         <Route path="/character/:id" element={<Gallery />} />

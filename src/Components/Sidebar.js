@@ -48,7 +48,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     <SidebarContainer isOpen={isOpen}>
       <CloseButton onClick={toggleSidebar}>✖</CloseButton>
       <SidebarLink to="/about" onClick={toggleSidebar}>About Us</SidebarLink>
-      <SidebarLink to="/login" onClick={toggleSidebar}>Login</SidebarLink>
+     
     </SidebarContainer>
   );
 };

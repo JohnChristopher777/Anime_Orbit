@@ -48,7 +48,7 @@ const AboutUs = () => {
 
         <Title>Developer</Title>
         <Info><strong>Name:</strong> John Christopher</Info>
-        <Info><strong>Email:</strong> john.christopher@animeorbit.com</Info>
+        <Info><strong>Email:</strong>john.christopher@animeorbit.com</Info>
         <Info><strong>Address:</strong> 123 Anime Street, Tokyo, Japan</Info>
       </AboutBox>
 

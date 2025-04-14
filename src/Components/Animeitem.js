@@ -58,7 +58,7 @@ function AnimeItem() {
   };
 
   const imdbLink = title ? `https://www.imdb.com/find?q=${encodeURIComponent(title)}` : null;
-  const imdbRating = "N/A";
+
   const animeUrl = mal_id
     ? `https://shonenanimeorbit.netlify.app/anime/${mal_id}`
     : "https://shonenanimeorbit.netlify.app/";
@@ -168,7 +168,7 @@ function AnimeItem() {
                 <span>Duration:</span> {duration || "Not Available"}
               </p>
               <p>
-                <span>IMDb 🎬:</span> Rating: {imdbRating}{" "}
+                <span>IMDb 🎬:</span>
                 {imdbLink && (
                   <a href={imdbLink} target="_blank" rel="noopener noreferrer">
                     View on IMDb
@@ -518,6 +518,7 @@ const AnimeItemStyled = styled.div`
       p {
         font-size: 1.1rem;
         color: #27ae60;
+        font-weight: bold;
       }
     }
   }
@@ -561,7 +562,7 @@ const AnimeItemStyled = styled.div`
     }
 
     .characters {
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       padding: 1rem;
 
       .character h4 {
