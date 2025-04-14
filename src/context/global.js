@@ -90,12 +90,11 @@ export const GlobalContextProvider = ({ children }) => {
   const getTrendingAnime = async () => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // 1s delay
-      const response = await fetch(`${baseUrl}/top/anime?filter=airing&limit=25&sfw=true`); // Fetch more to sort
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch(`${baseUrl}/top/anime?filter=airing&limit=25&sfw=true`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       const airingData = data.data.filter((anime) => anime.status === "Currently Airing");
-      // Sort by popularity (lower = more popular) and take top 10
       const trendingData = airingData
         .sort((a, b) => (a.popularity || 999999) - (b.popularity || 999999))
         .slice(0, 10);
@@ -163,6 +162,7 @@ export const GlobalContextProvider = ({ children }) => {
       console.error("Error fetching anime pictures:", error);
     }
   };
+
 
   React.useEffect(() => {
     const fetchData = async () => {

@@ -89,6 +89,7 @@ function Gallery() {
   );
 }
 
+
 const GalleryStyled = styled.div`
   background-color: rgb(44, 44, 44);
   min-height: 100vh;
@@ -295,16 +296,29 @@ const GalleryStyled = styled.div`
   }
 }
 `;
-
 const LoadingStyled = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
+  background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
+  color: #ffd700;
   font-size: 1.5rem;
-  font-weight: bold;
-  color: white;
-  background-color: rgb(44, 44, 44);
+  font-family: 'Bungee', cursive;
+  &::after {
+    content: '';
+    border: 4px solid #ffd700;
+    border-top: 4px solid transparent;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+    margin-left: 1rem;
+  }
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 `;
 
 export default Gallery;
