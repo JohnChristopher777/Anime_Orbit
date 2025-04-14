@@ -63,9 +63,7 @@ const AiringStyled = styled.div`
     display: block;
     text-decoration: none;
     color: inherit; 
-  }
-
-  .anime-card {
+  }  .anime-card {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -124,7 +122,6 @@ const AiringStyled = styled.div`
     .anime-grid {
       gap: 1.5rem;
     }
-
     .anime-card {
       padding: 0.75rem;
 

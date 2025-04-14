@@ -140,7 +140,7 @@ const GalleryStyled = styled.div`
       flex-grow: 1;
       color: yellow;
       margin: 0;
-      padding: 0 3rem;
+      padding: 0 4rem;
     }
   }
   .big-image-container {

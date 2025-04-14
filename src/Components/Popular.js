@@ -97,7 +97,6 @@ const PopularStyled = styled.div`
     text-decoration: none; 
     color: inherit; 
   }
-
   .anime-card {
     display: flex;
     flex-direction: column;
@@ -106,7 +105,6 @@ const PopularStyled = styled.div`
     border: 2px solid #5a5a5a;
     border-radius: 14px;
     overflow: hidden;
-    min-height: 300px;
     background: #3a3a3a;
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
     transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
@@ -121,6 +119,7 @@ const PopularStyled = styled.div`
       width: 100%;
       overflow: hidden;
       border-radius: 8px;
+
       img {
         width: 100%;
         height: auto;
@@ -145,6 +144,7 @@ const PopularStyled = styled.div`
       text-decoration: none; 
     }
   }
+
 
   .trending-container {
     display: flex;
@@ -256,10 +256,9 @@ const PopularStyled = styled.div`
     .anime-grid {
       gap: 1.5rem;
     }
-
     .anime-card {
       padding: 0.75rem;
-      min-height: 270px;
+
       .anime-title {
         font-size: 1rem;
         padding: 0 5px;
