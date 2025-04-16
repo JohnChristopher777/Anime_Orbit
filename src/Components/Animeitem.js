@@ -563,7 +563,7 @@ const AnimeItemStyled = styled.div`
     }
 
     .characters {
-      grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
       padding: 1rem;
 
       .character h4 {

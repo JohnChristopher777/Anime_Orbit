@@ -238,7 +238,7 @@ const HomepageStyled = styled.div`
     padding: 1rem;
     background: #1a1a1a;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-
+   
     .brand {
       font-family: "Bungee", cursive;
       font-size: 1.8rem;
@@ -438,7 +438,7 @@ const HomepageStyled = styled.div`
     .search-wrapper {
       flex-wrap: wrap;
       justify-content: center;
-      padding: 14px;
+      padding-top: 14px;
       margin: auto;
     }
     .search-container {
