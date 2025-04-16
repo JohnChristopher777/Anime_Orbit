@@ -7,13 +7,14 @@ import React from "react";
 import AboutUs from "./Components/AboutUs";
 import { useEffect } from "react";
 
+
 function Layout({ children }) {
   const location = useLocation();
-  
+
   const showNavbar = location.pathname.startsWith("/anime");
 
   useEffect(() => {
-    window.scrollTo(0, 0); 
+    window.scrollTo(0, 0);
   }, [location]);
 
   return (
@@ -28,9 +29,25 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-      <Route path="/about" element={<AboutUs />} />
-        {<Route path="/" element={<Layout><Homepage /></Layout>} /> }
-        <Route path="/anime/:id" element={<Layout><AnimeItem /></Layout>} />
+        <Route path="/about" element={<AboutUs />} />
+        {
+          <Route
+            path="/"
+            element={
+              <Layout>
+                <Homepage />
+              </Layout>
+            }
+          />
+        }
+        <Route
+          path="/anime/:id"
+          element={
+            <Layout>
+              <AnimeItem />
+            </Layout>
+          }
+        />
         <Route path="/character/:id" element={<Gallery />} />
       </Routes>
     </BrowserRouter>
@@ -38,6 +55,4 @@ function App() {
 }
 
 export default App;
-
-
 

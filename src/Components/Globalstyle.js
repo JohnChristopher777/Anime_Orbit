@@ -1,8 +1,6 @@
 import { createGlobalStyle } from 'styled-components';
 
 const GlobalStyle = createGlobalStyle`
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-  @import url('https://fonts.googleapis.com/css2?family=Bungee&display=swap');
 
   * {
     margin: 0;
@@ -10,75 +8,71 @@ const GlobalStyle = createGlobalStyle`
     box-sizing: border-box;
     list-style: none;
     text-decoration: none;
-    font-family: 'Inter', sans-serif; 
   }
 
   body {
-    color: #e5e7eb; 
+    color: #e5e7eb;
     font-size: 1.2rem;
+    background-color: rgb(47, 47, 47);
     overflow-y: auto;
-    background-color: rgb(47, 47, 47); 
-    &::-webkit-scrollbar {
-      width: 9px;
-    }
-    &::-webkit-scrollbar-thumb {
-      background-color: rgb(180, 180, 180); 
-      border-radius: 10px;
-      transition: background-color 0.3s ease;
-    }
-    &::-webkit-scrollbar-thumb:hover {
-      background-color: #facc15; 
-    }
-    &::-webkit-scrollbar-track {
-      background-color: rgb(44, 44, 44); 
-    }
+    -webkit-overflow-scrolling: touch;
   }
 
-  h1, h2, h3, h4, button, .bungee-text {
-    font-family: 'Bungee', cursive;
+  ::-webkit-scrollbar {
+    width: 12px; 
+    height: 12px; 
   }
 
-  a, button {
-    transition: all 0.3s ease-in-out;
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.5); 
+    border-radius: 10px;
+    transition: all 0.3s ease;
   }
+
+  ::-webkit-scrollbar-track {
+    background-color: rgba(0, 0, 0, 0.2);
+  }
+
 
   @media (max-width: 767px) {
-    body {
-      -webkit-overflow-scrolling: touch;
-      touch-action: pan-y; 
-      overflow-y: scroll; 
-      -webkit-scrollbar-width: auto; 
-      &::-webkit-scrollbar {
-        width: 15px; 
-        height: 15px; 
-      }
-      &::-webkit-scrollbar-thumb {
-        background-color: rgb(180, 180, 180);
-        border-radius: 10px;
-        border: 3px solid rgb(44, 44, 44); 
-        box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.5);
-      }
-      &::-webkit-scrollbar-thumb:active {
-        background-color: #facc15;
-      }
-      &::-webkit-scrollbar-track {
-        background-color: rgb(44, 44, 44);
-        border-left: 1px solid rgb(60, 60, 60);
-      }
-    }
-   
-    body::after {
-      content: '';
-      position: fixed;
-      top: 0;
-      right: 0;
+    ::-webkit-scrollbar {
       width: 15px;
-      height: 100%;
-      background: transparent;
-      z-index: 9999;
-      pointer-events: auto;
+      height: 15px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.6);
+    }
+
+    ::-webkit-scrollbar-track {
+      background-color: rgba(0, 0, 0, 0.2);
     }
   }
+
+  body {
+    position: relative;
+  }
+
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 15px;
+    height: 100%;
+    background: transparent;
+    z-index: 9999;
+    pointer-events: none;
+    transition: all 0.3s ease;
+  }
+  
+ 
+  body.scrolling ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);  
+    height: 10px; 
+  }
+  
 `;
 
 export default GlobalStyle;

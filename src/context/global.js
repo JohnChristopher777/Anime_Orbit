@@ -5,7 +5,6 @@ const GlobalContext = createContext();
 
 const baseUrl = "https://api.jikan.moe/v4";
 
-// Actions
 const LOADING = "LOADING";
 const SEARCH = "SEARCH";
 const GET_POPULAR_ANIME = "GET_POPULAR_ANIME";
@@ -15,7 +14,6 @@ const SET_SEARCH_STATUS = "SET_SEARCH_STATUS";
 const GET_PICTURES = "GET_PICTURES";
 const GET_TRENDING_ANIME = "GET_TRENDING_ANIME";
 
-// Reducer
 const reducer = (state, action) => {
   switch (action.type) {
     case LOADING:
@@ -152,17 +150,21 @@ export const GlobalContextProvider = ({ children }) => {
       dispatch({ type: SEARCH, payload: [] });
     }
   };
+
   const getAnimePictures = async (id) => {
     dispatch({ type: LOADING });
     try {
-      const response = await fetch(`${baseUrl}/characters/${id}/pictures`);
-      const data = await response.json();
+      const res = await fetch(`https://api.jikan.moe/v4/characters/${id}/pictures`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
       dispatch({ type: GET_PICTURES, payload: data.data || [] });
     } catch (error) {
-      console.error("Error fetching anime pictures:", error);
+      console.error('Error fetching pictures:', error.message);
+      dispatch({ type: GET_PICTURES, payload: [] });
     }
   };
-
+  
+  
 
   React.useEffect(() => {
     const fetchData = async () => {
