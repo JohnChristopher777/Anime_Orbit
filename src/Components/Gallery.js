@@ -49,8 +49,12 @@ function Gallery() {
 
 
   useEffect(() => {
-    getAnimePictures(id);
-  }, [getAnimePictures, id]);
+    if (id) {
+      getAnimePictures(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+  
 
   useEffect(() => {
     const sliced = Array.isArray(pictures) ? pictures.slice(0, 10) : [];
@@ -145,7 +149,7 @@ const GalleryStyled = styled.div`
       left: 1.2rem;
 
       button {
-        font-weight: 600;
+        font-weight: 400;
         color: #f0f0f0;
         background:rgb(94, 94, 94);
         border: 2px solid rgb(0, 0, 0);
@@ -154,12 +158,12 @@ const GalleryStyled = styled.div`
         font-size: 0.7rem;
         cursor: pointer;
         transition: all 0.3s ease-in-out;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 
         &:hover {
           background:rgb(238, 218, 6);
           border-color: #ffea00;
-          color:rgb(55, 55, 55);
+          font-weight: bold;
+          color:rgb(0, 0, 0);
         }
         &:active {
           transform: scale(0.95);

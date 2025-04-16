@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useReducer } from "react";
 
 const GlobalContext = createContext();
@@ -73,7 +72,7 @@ export const GlobalContextProvider = ({ children }) => {
   const getPopularAnime = async () => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const response = await fetch(`${baseUrl}/top/anime?filter=bypopularity&limit=24&sfw=true`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -107,7 +106,7 @@ export const GlobalContextProvider = ({ children }) => {
   const getUpcomingAnime = async () => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const response = await fetch(`${baseUrl}/top/anime?filter=upcoming&limit=25&sfw=true`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -122,7 +121,7 @@ export const GlobalContextProvider = ({ children }) => {
   const getAiringAnime = async () => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const response = await fetch(`${baseUrl}/top/anime?filter=airing&limit=25&sfw=true`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -137,7 +136,7 @@ export const GlobalContextProvider = ({ children }) => {
   const searchAnime = async (anime) => {
     dispatch({ type: LOADING });
     try {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 100));
       const response = await fetch(
         `${baseUrl}/anime?q=${anime}&order_by=popularity&sort=asc&limit=25&sfw=true`
       );
@@ -151,19 +150,17 @@ export const GlobalContextProvider = ({ children }) => {
     }
   };
 
+  
   const getAnimePictures = async (id) => {
     dispatch({ type: LOADING });
     try {
       const res = await fetch(`https://api.jikan.moe/v4/characters/${id}/pictures`);
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const data = await res.json();
       dispatch({ type: GET_PICTURES, payload: data.data || [] });
-    } catch (error) {
-      console.error('Error fetching pictures:', error.message);
+    } catch {
       dispatch({ type: GET_PICTURES, payload: [] });
     }
   };
-  
   
 
   React.useEffect(() => {
@@ -198,3 +195,5 @@ export const GlobalContextProvider = ({ children }) => {
 export const useGlobalContext = () => {
   return useContext(GlobalContext);
 };
+
+
