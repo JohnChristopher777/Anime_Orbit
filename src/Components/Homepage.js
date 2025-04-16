@@ -232,9 +232,9 @@ const HomepageStyled = styled.div`
 
   .header-bar {
     display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: row;
+    justify-content: center;
+    text-align: center;
     padding: 1rem;
     background: #1a1a1a;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
@@ -245,7 +245,7 @@ const HomepageStyled = styled.div`
       font-weight: bold;
       letter-spacing: 1px;
       color: #ffd700;
-      text-align: center;
+      text-align:center; 
     }
 
     .catchphrase {
@@ -265,6 +265,7 @@ const HomepageStyled = styled.div`
       display: flex;
       align-items: center;
       margin-top: 0.5rem;
+      margin-left: 4rem;
     }
 
     .search-container {
@@ -424,6 +425,9 @@ const HomepageStyled = styled.div`
 
   @media (max-width: 767px) {
   .header-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     padding: 0.5rem;
     .brand {
       font-size: 1.5rem;
@@ -434,7 +438,8 @@ const HomepageStyled = styled.div`
     .search-wrapper {
       flex-wrap: wrap;
       justify-content: center;
-      padding: 0 0.5rem;
+      padding: 14px;
+      margin: auto;
     }
     .search-container {
       flex: 1;
@@ -474,7 +479,7 @@ const HomepageStyled = styled.div`
       flex-wrap: nowrap;
       .filter-btn {
         padding: 0.4rem 0.7rem; 
-        font-size: 0.7rem; 
+        font-size: 0.6rem; 
         border-radius: 5px;
         border-width: 1px;
         i {
