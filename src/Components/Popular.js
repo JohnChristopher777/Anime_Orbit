@@ -19,7 +19,7 @@ function Popular({ rendered, popularAnime }) {
         <div className="popular-anime">
           <h2>{rendered === "search" ? "Search Results" : "Popular Anime"}</h2>
           <div className="anime-grid">
-            {safePopularAnime.slice(0, 25).map((anime) => (
+            {safePopularAnime.slice(0, 24).map((anime) => (
               <Link to={`/anime/${anime.mal_id}`} key={`popular-${anime.mal_id}`}>
                 <div className="anime-card">
                   <div className="image-wrapper">
