@@ -6,37 +6,26 @@ import styled from 'styled-components';
 function Upcoming() {
   const { upcomingAnime, isSearch, searchResults } = useGlobalContext();
 
-  const conditionalRender = () => {
-    if (!isSearch) {
-      return upcomingAnime?.map((anime) => (
-        <Link to={`/anime/${anime.mal_id}`} key={`upcoming-${anime.mal_id}`}>
-          <div className="anime-card">
-            <div className="image-wrapper">
-              <img src={anime.images.jpg.large_image_url} alt={anime.title} />
-            </div>
-            <p className="anime-title">{anime.title}</p>
+  const renderAnimeCards = (animeList) => {
+    return animeList?.map((anime) => (
+      <Link to={`/anime/${anime.mal_id}`} key={`upcoming-${anime.mal_id}`}>
+        <div className="anime-card">
+          <div className="image-wrapper">
+            <img src={anime.images.jpg.large_image_url} alt={anime.title} />
           </div>
-        </Link>
-      ));
-    } else {
-      return searchResults?.map((anime) => (
-        <Link to={`/anime/${anime.mal_id}`} key={`search-${anime.mal_id}`}>
-          <div className="anime-card">
-            <div className="image-wrapper">
-              <img src={anime.images.jpg.large_image_url} alt={anime.title} />
-            </div>
-            <p className="anime-title">{anime.title}</p>
-          </div>
-        </Link>
-      ));
-    }
+          <p className="anime-title">{anime.title}</p>
+        </div>
+      </Link>
+    ));
   };
 
   return (
     <UpcomingStyled>
-      <div className="upcoming-anime">
+      <div className="airing-anime">
         <h2>{isSearch ? "Search Results" : "Upcoming Anime"}</h2>
-        <div className="anime-grid">{conditionalRender()}</div>
+        <div className="anime-grid">
+          {isSearch ? renderAnimeCards(searchResults) : renderAnimeCards(upcomingAnime)}
+        </div>
       </div>
     </UpcomingStyled>
   );
@@ -72,11 +61,9 @@ const UpcomingStyled = styled.div`
 
   a {
     display: block;
-    text-decoration: none; 
+    text-decoration: none;
     color: inherit; 
-  }
-
-  .anime-card {
+  }  .anime-card {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -133,9 +120,8 @@ const UpcomingStyled = styled.div`
     }
 
     .anime-grid {
-      gap: 1.5rem;
+      gap: 1.4rem;
     }
-
     .anime-card {
       padding: 0.75rem;
 
