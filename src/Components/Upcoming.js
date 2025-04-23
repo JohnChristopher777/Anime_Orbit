@@ -21,7 +21,7 @@ function Upcoming() {
 
   return (
     <UpcomingStyled>
-      <div className="airing-anime">
+      <div className="upcoming-anime">
         <h2>{isSearch ? "Search Results" : "Upcoming Anime"}</h2>
         <div className="anime-grid">
           {isSearch ? renderAnimeCards(searchResults) : renderAnimeCards(upcomingAnime)}
@@ -120,7 +120,7 @@ const UpcomingStyled = styled.div`
     }
 
     .anime-grid {
-      gap: 1.4rem;
+      gap: 1.5rem;
     }
     .anime-card {
       padding: 0.75rem;

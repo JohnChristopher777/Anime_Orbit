@@ -44,7 +44,7 @@ const AboutUs = () => {
     <AboutContainer>
       <AboutBox>
         <Title>About Us</Title>
-        <Info>Welcome to Anime Orbit! Your hub for everything anime.</Info>
+        <Info>Welcome to Anime Orbit! Your hub for everything about anime.</Info>
 
         <Title>Developer</Title>
         <Info><strong>Name:</strong> John Christopher</Info>
