@@ -1,10 +1,9 @@
 import React, { useState, Suspense, lazy } from "react";
-import Upcoming from "./Upcoming";
-import Airing from "./Airing";
-import AnimeItem from "./Animeitem";
-import { useGlobalContext } from "../context/global";
+import Upcoming from "./Upcoming.jsx";
+import Airing from "./Airing.jsx";
+import AnimeItem from "./Animeitem.jsx";
+import { useGlobalContext } from "../context/global.jsx";
 import styled from "styled-components";
-import "bootstrap/dist/css/bootstrap.min.css";
 
 const Popular = lazy(() => import("./Popular"));
 
@@ -52,7 +51,14 @@ function Homepage() {
     } else if (rendered === "airing" && airingAnime.length === 0 && !loading) {
       getAiringAnime();
     }
-  }, [rendered, upcomingAnime, airingAnime, loading, getUpcomingAnime, getAiringAnime]);
+  }, [
+    rendered,
+    upcomingAnime,
+    airingAnime,
+    loading,
+    getUpcomingAnime,
+    getAiringAnime,
+  ]);
 
   const switchComponent = () => {
     const safeSearchResults = Array.isArray(searchResults) ? searchResults : [];
@@ -66,16 +72,28 @@ function Homepage() {
 
     if (search) {
       if (safeSearchResults.length > 0) {
-        return <Popular rendered="search" popularAnime={safeSearchResults} onAnimeClick={handleAnimeClick} />;
+        return (
+          <Popular
+            rendered="search"
+            popularAnime={safeSearchResults}
+            onAnimeClick={handleAnimeClick}
+          />
+        );
       } else {
-        return <div className="no-data">No Anime available for this search</div>;
+        return (
+          <div className="no-data">No Anime available for this search</div>
+        );
       }
     }
 
     switch (rendered) {
       case "popular":
         return safePopularAnime.length > 0 ? (
-          <Popular rendered={rendered} popularAnime={safePopularAnime} onAnimeClick={handleAnimeClick} />
+          <Popular
+            rendered={rendered}
+            popularAnime={safePopularAnime}
+            onAnimeClick={handleAnimeClick}
+          />
         ) : (
           <div className="no-data">No popular anime available yet</div>
         );
@@ -93,7 +111,11 @@ function Homepage() {
         );
       default:
         return safePopularAnime.length > 0 ? (
-          <Popular rendered="popular" popularAnime={safePopularAnime} onAnimeClick={handleAnimeClick} />
+          <Popular
+            rendered="popular"
+            popularAnime={safePopularAnime}
+            onAnimeClick={handleAnimeClick}
+          />
         ) : (
           <div className="no-data">No popular anime available yet</div>
         );
@@ -125,7 +147,8 @@ function Homepage() {
           Anime Orbit
           <span className="catchphrase">
             <span className="highlight">"Where</span> you can{" "}
-            <span className="highlight">Orbit</span> around The vast Anime Galaxy"
+            <span className="highlight">Orbit</span> around The vast Anime
+            Galaxy"
           </span>
         </div>
         <div className="search-wrapper">
@@ -139,7 +162,7 @@ function Homepage() {
                   onChange={handleSearchChange}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      e.target.blur(); 
+                      e.target.blur();
                     }
                   }}
                   className={showSearch ? "expanded" : ""}
@@ -190,7 +213,9 @@ function Homepage() {
               <i className="bi bi-broadcast"></i> AIRING
             </button>
             <button
-              className={`filter-btn ${rendered === "upcoming" ? "active" : ""}`}
+              className={`filter-btn ${
+                rendered === "upcoming" ? "active" : ""
+              }`}
               onClick={() => {
                 setRendered("upcoming");
                 if (!upcomingAnime.length) getUpcomingAnime();
@@ -204,7 +229,9 @@ function Homepage() {
       )}
 
       <main>
-        <Suspense fallback={<div className="loading-spinner">Loading component...</div>}>
+        <Suspense
+          fallback={<div className="loading-spinner">Loading component...</div>}
+        >
           {selectedAnime ? (
             <AnimeItem anime={selectedAnime} onBack={handleBackClick} />
           ) : (
@@ -215,7 +242,8 @@ function Homepage() {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Anime Orbit | For fair use & educational purposes only
+          © {new Date().getFullYear()} Anime Orbit | For fair use & educational
+          purposes only
         </p>
       </footer>
     </HomepageStyled>
@@ -238,25 +266,33 @@ const HomepageStyled = styled.div`
     padding: 1rem;
     background: #1a1a1a;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-   
+
     .brand {
       font-family: "Bungee", cursive;
       font-size: 1.8rem;
       font-weight: bold;
-      letter-spacing: 1px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
       color: #ffd700;
-      text-align:center; 
+      text-align: center;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.5),
+        0 0 30px rgba(255, 215, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.5);
     }
 
     .catchphrase {
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: "Inter", "Noto Sans JP", sans-serif;
       display: block;
       font-size: 0.9rem;
       color: #b0b0b0;
       font-style: italic;
+      font-weight: 400;
+      letter-spacing: 0.02em;
       animation: pulse 3s infinite;
+      margin-top: 0.5rem;
+
       .highlight {
         color: #ffd700;
+        font-weight: 600;
         text-shadow: 0 0 5px rgba(255, 215, 0, 0.7);
       }
     }
@@ -363,21 +399,25 @@ const HomepageStyled = styled.div`
         border: 2px solid #ffd700;
         padding: 0.6rem 1rem;
         border-radius: 8px;
-        font-family: "Bungee", cursive;
+        font-family: "Montserrat", sans-serif;
         font-size: 0.9rem;
-        font-weight: bold;
-        letter-spacing: 1px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
         cursor: pointer;
         transition: all 0.3s ease;
+
         i {
           margin-right: 0.3rem;
         }
+
         &:hover {
           background: #ffd700;
           color: #1a1a1a;
           transform: translateY(-3px);
           box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
         }
+
         &.active {
           background: #ffd700;
           color: #1a1a1a;
@@ -418,88 +458,95 @@ const HomepageStyled = styled.div`
   }
 
   @keyframes pulse {
-    0% { transform: scale(1); opacity: 0.8; }
-    50% { transform: scale(1.02); opacity: 1; }
-    100% { transform: scale(1); opacity: 0.8; }
+    0% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
+    50% {
+      transform: scale(1.02);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 0.8;
+    }
   }
 
   @media (max-width: 767px) {
-  .header-bar {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 0.5rem;
-    .brand {
-      font-size: 1.5rem;
-    }
-    .catchphrase {
-      font-size: 0.7rem;
-    }
-    .search-wrapper {
-      flex-wrap: wrap;
-      justify-content: center;
-      padding-top: 14px;
-      margin: auto;
-    }
-    .search-container {
-      flex: 1;
-      max-width: 100%;
-      .search-form {
-        .input-control {
-          input {
-            max-width: 200px;
-            font-size: 0.8rem;
-            padding: 0.6rem;
-            height: 36px;
-          }
-          .clear-btn {
-            right: 40px;
-            font-size: 0.9rem;
-          }
-          .search-btn {
-            padding: 0.3rem 0.6rem;
-            font-size: 0.9rem;
-            height: 36px;
-          }
-        }
-      }
-    }
-    .search-toggle {
-      padding: 0.4rem 0.6rem;
-      font-size: 0.9rem;
-      height: 36px;
-    }
-  }
-  header {
-    padding: 1rem; 
-    .filter-buttons {
+    .header-bar {
       display: flex;
+      flex-direction: column;
       justify-content: center;
-      gap: 0.3rem; 
-      flex-wrap: nowrap;
-      .filter-btn {
-        padding: 0.4rem 0.7rem; 
-        font-size: 0.6rem; 
-        border-radius: 5px;
-        border-width: 1px;
-        i {
-          margin-right: 0.2rem; 
-          font-size: 0.8rem; 
+      padding: 0.5rem;
+      .brand {
+        font-size: 1.5rem;
+      }
+      .catchphrase {
+        font-size: 0.7rem;
+      }
+      .search-wrapper {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding-top: 14px;
+        margin: auto;
+      }
+      .search-container {
+        flex: 1;
+        max-width: 100%;
+        .search-form {
+          .input-control {
+            input {
+              max-width: 200px;
+              font-size: 0.8rem;
+              padding: 0.6rem;
+              height: 36px;
+            }
+            .clear-btn {
+              right: 40px;
+              font-size: 0.9rem;
+            }
+            .search-btn {
+              padding: 0.3rem 0.6rem;
+              font-size: 0.9rem;
+              height: 36px;
+            }
+          }
         }
-        &:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 1px 6px rgba(255, 215, 0, 0.3);
+      }
+      .search-toggle {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.9rem;
+        height: 36px;
+      }
+    }
+    header {
+      padding: 1rem;
+      .filter-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 0.3rem;
+        flex-wrap: nowrap;
+        .filter-btn {
+          padding: 0.4rem 0.7rem;
+          font-size: 0.6rem;
+          border-radius: 5px;
+          border-width: 1px;
+          i {
+            margin-right: 0.2rem;
+            font-size: 0.8rem;
+          }
+          &:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 1px 6px rgba(255, 215, 0, 0.3);
+          }
         }
       }
     }
+    .footer {
+      padding: 0.05rem;
+      font-size: 0.6rem;
+    }
   }
-  .footer {
-    padding: 0.05rem;
-    font-size: 0.6rem;
-  }
-}
 `;
 
 export default Homepage;
-
-

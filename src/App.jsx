@@ -1,12 +1,13 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import AnimeItem from "./Components/Animeitem";
-import Homepage from "./Components/Homepage";
-import Gallery from "./Components/Gallery";
-import Navbar from "./Components/Navbar";
+import AnimeItem from "./Components/Animeitem.jsx";
+import Homepage from "./Components/Homepage.jsx";
+import Gallery from "./Components/Gallery.jsx";
+import Navbar from "./Components/Navbar.jsx";
+import Favourites from "./Components/Favourites.jsx";
 import React from "react";
-import AboutUs from "./Components/AboutUs";
+import AboutUs from "./Components/AboutUs.jsx";
 import { useEffect } from "react";
-
+import ScrollButton from "./Components/ScrollButton.jsx";
 
 function Layout({ children }) {
   const location = useLocation();
@@ -21,6 +22,7 @@ function Layout({ children }) {
     <>
       {showNavbar && <Navbar />}
       <div style={{ marginTop: showNavbar ? "70px" : "0px" }}>{children}</div>
+      <ScrollButton />
     </>
   );
 }
@@ -48,6 +50,14 @@ function App() {
             </Layout>
           }
         />
+        <Route
+          path="/favourites"
+          element={
+            <Layout>
+              <Favourites />
+            </Layout>
+          }
+        />
         <Route path="/character/:id" element={<Gallery />} />
       </Routes>
     </BrowserRouter>
@@ -55,4 +65,3 @@ function App() {
 }
 
 export default App;
-

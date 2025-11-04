@@ -1,7 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import styled from "styled-components";
+import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { SiCrunchyroll, SiNetflix, SiPrime } from "react-icons/si";
+import { MdOndemandVideo } from "react-icons/md";
+import { useFavourites } from "../context/FavouritesContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import gsap from "gsap";
+import AuthModal from "./AuthModal";
 
 function AnimeItem() {
   const { id } = useParams();
@@ -10,6 +17,11 @@ function AnimeItem() {
   const [anime, setAnime] = useState({});
   const [characters, setCharacters] = useState([]);
   const [showMore, setShowMore] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const { addToFavourites, removeFromFavourites, isFavourite } =
+    useFavourites();
+  const { currentUser } = useAuth();
+  const detailsRef = useRef(null);
 
   const {
     title,
@@ -31,6 +43,8 @@ function AnimeItem() {
     mal_id,
   } = anime || {};
 
+  const isFav = mal_id ? isFavourite(mal_id) : false;
+
   const getAnime = async (animeId) => {
     try {
       const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}`);
@@ -46,7 +60,9 @@ function AnimeItem() {
 
   const getCharacters = async (animeId) => {
     try {
-      const response = await fetch(`https://api.jikan.moe/v4/anime/${animeId}/characters`);
+      const response = await fetch(
+        `https://api.jikan.moe/v4/anime/${animeId}/characters`
+      );
       if (!response.ok) throw new Error("Failed to fetch characters data");
       const data = await response.json();
       setCharacters(data.data || []);
@@ -57,7 +73,9 @@ function AnimeItem() {
     }
   };
 
-  const imdbLink = title ? `https://www.imdb.com/find?q=${encodeURIComponent(title)}` : null;
+  const imdbLink = title
+    ? `https://www.imdb.com/find?q=${encodeURIComponent(title)}`
+    : null;
 
   const animeUrl = mal_id
     ? `https://shonenanimeorbit.netlify.app/anime/${mal_id}`
@@ -70,7 +88,71 @@ function AnimeItem() {
     }
   }, [id]);
 
+  useEffect(() => {
+    if (detailsRef.current) {
+      gsap.fromTo(
+        detailsRef.current,
+        { opacity: 0, y: 50 },
+        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
+      );
+    }
+  }, [anime]);
+
   const handleBack = () => navigate(-1);
+
+  const handleFavouriteToggle = () => {
+    if (!currentUser) {
+      setAuthModalOpen(true);
+      return;
+    }
+
+    if (isFav) {
+      removeFromFavourites(mal_id);
+    } else {
+      addToFavourites(anime);
+    }
+  };
+
+  const watchLinks = [
+    {
+      name: "Crunchyroll",
+      url: `https://www.crunchyroll.com/search?q=${encodeURIComponent(
+        title || ""
+      )}`,
+      icon: <SiCrunchyroll />,
+      color: "#F47521",
+    },
+    {
+      name: "Netflix",
+      url: `https://www.netflix.com/search?q=${encodeURIComponent(
+        title || ""
+      )}`,
+      icon: <SiNetflix />,
+      color: "#E50914",
+    },
+    {
+      name: "Prime Video",
+      url: `https://www.amazon.com/s?k=${encodeURIComponent(
+        title || ""
+      )}&i=instant-video`,
+      icon: <SiPrime />,
+      color: "#00A8E1",
+    },
+    {
+      name: "Hulu",
+      url: `https://www.hulu.com/search?q=${encodeURIComponent(title || "")}`,
+      icon: <MdOndemandVideo />,
+      color: "#1CE783",
+    },
+    {
+      name: "Hianime",
+      url: `https://hianime.to/search?keyword=${encodeURIComponent(
+        title || ""
+      )}`,
+      icon: <MdOndemandVideo />,
+      color: "#FF6B9D",
+    },
+  ];
 
   return (
     <>
@@ -84,11 +166,16 @@ function AnimeItem() {
         />
         <meta
           name="keywords"
-          content={`${title || "anime"}, anime details, episode count, anime orbit, anime database`}
+          content={`${
+            title || "anime"
+          }, anime details, episode count, anime orbit, anime database`}
         />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={animeUrl} />
-        <meta property="og:title" content={`${title || "Anime"} - Anime Orbit`} />
+        <meta
+          property="og:title"
+          content={`${title || "Anime"} - Anime Orbit`}
+        />
         <meta
           property="og:description"
           content={`Details for ${title || "this anime"}: ${
@@ -97,11 +184,16 @@ function AnimeItem() {
         />
         <meta
           property="og:image"
-          content={images?.jpg?.large_image_url || "%PUBLIC_URL%/animeorbit.jpg"}
+          content={
+            images?.jpg?.large_image_url || "%PUBLIC_URL%/animeorbit.jpg"
+          }
         />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:url" content={animeUrl} />
-        <meta name="twitter:title" content={`${title || "Anime"} - Anime Orbit`} />
+        <meta
+          name="twitter:title"
+          content={`${title || "Anime"} - Anime Orbit`}
+        />
         <meta
           name="twitter:description"
           content={`Details for ${title || "this anime"}: ${
@@ -110,7 +202,9 @@ function AnimeItem() {
         />
         <meta
           name="twitter:image"
-          content={images?.jpg?.large_image_url || "%PUBLIC_URL%/animeorbit.jpg"}
+          content={
+            images?.jpg?.large_image_url || "%PUBLIC_URL%/animeorbit.jpg"
+          }
         />
       </Helmet>
 
@@ -127,7 +221,13 @@ function AnimeItem() {
         <div className="overlay"></div>
 
         <h1>{title || "Anime Title Not Available"}</h1>
-        <div className="details">
+
+        <FavouriteButton onClick={handleFavouriteToggle} isFav={isFav}>
+          {isFav ? <FaHeart /> : <FaRegHeart />}
+          <span>{isFav ? "Remove from Favourites" : "Add to Favourites"}</span>
+        </FavouriteButton>
+
+        <div className="details" ref={detailsRef}>
           <div className="detail">
             <div className="image">
               <img
@@ -199,6 +299,24 @@ function AnimeItem() {
           </p>
         </div>
 
+        <div className="watch-section">
+          <h3 className="title">Where to Watch:</h3>
+          <div className="watch-links">
+            {watchLinks.map((link, index) => (
+              <WatchLink
+                key={index}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                color={link.color}
+              >
+                <span className="icon">{link.icon}</span>
+                <span className="name">{link.name}</span>
+              </WatchLink>
+            ))}
+          </div>
+        </div>
+
         <div className="trailer-section">
           <h3 className="title">Trailer:</h3>
           <div className="trailer-con">
@@ -243,6 +361,10 @@ function AnimeItem() {
           )}
         </div>
       </AnimeItemStyled>
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+      />
     </>
   );
 }
@@ -257,8 +379,11 @@ const AnimeItemStyled = styled.div`
     top: 1rem;
     left: 1rem;
     padding: 0.5rem 1rem;
+    font-family: "Montserrat", sans-serif;
     font-size: 1rem;
-    font-family: "Bungee", cursive;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: white;
     background: rgba(58, 58, 58, 0.8);
     border: 2px solid white;
@@ -298,16 +423,18 @@ const AnimeItemStyled = styled.div`
   }
 
   h1 {
-    font-family: "Bungee", cursive;
-    font-size: 2.5rem;
+    font-family: "Staatliches", "Bebas Neue", cursive;
+    font-size: 2.8rem;
     text-align: center;
     padding: 0.7rem 1.5rem;
     margin-bottom: 2rem;
     color: rgb(251, 249, 249);
     background: rgba(58, 58, 58, 0.2);
     border-radius: 14px;
-    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.5);
     transition: transform 0.3s ease-in-out, background 0.3s ease-in-out;
+
     &:hover {
       transform: scale(1.02);
       background: rgba(58, 58, 58, 0.4);
@@ -315,8 +442,8 @@ const AnimeItemStyled = styled.div`
   }
 
   .title {
-    font-family: "Bungee", cursive;
-    font-size: 1.5rem;
+    font-family: "Staatliches", "Bebas Neue", cursive;
+    font-size: 1.8rem;
     text-align: left;
     padding: 0.5rem 1.2rem;
     margin: 2rem 0 1rem;
@@ -324,8 +451,10 @@ const AnimeItemStyled = styled.div`
     background: rgba(58, 58, 58, 0.2);
     border-left: 4px solid black;
     border-radius: 3px 14px;
-    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.05em;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
     transition: transform 0.3s ease-in-out, background 0.3s ease-in-out;
+
     &:hover {
       transform: translateX(5px);
       background: rgba(58, 58, 58, 0.4);
@@ -333,15 +462,17 @@ const AnimeItemStyled = styled.div`
   }
 
   .plot {
-    font-family: "Bungee", cursive;
+    font-family: "Montserrat", sans-serif;
     font-size: 1.5rem;
+    font-weight: 700;
     text-align: left;
     padding: 0.5rem 1.2rem;
     margin: 2rem 0 1rem;
     color: rgba(0, 0, 0, 0.9);
     border-left: 4px solid #333;
     border-radius: 0 14px 14px 0;
-    text-shadow: 2px 2px 6px rgba(101, 101, 101, 0.5);
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 2px rgba(101, 101, 101, 0.3);
   }
 
   .details {
@@ -379,14 +510,19 @@ const AnimeItemStyled = styled.div`
         p {
           display: flex;
           gap: 0.5rem;
-          font-size: 1.1rem;
-          font-weight: 570;
+          font-family: "Inter", "Noto Sans JP", sans-serif;
+          font-size: 1.05rem;
+          font-weight: 500;
           color: rgb(0, 34, 87);
-          line-height: 1.4rem;
+          line-height: 1.5rem;
+          letter-spacing: 0.01em;
           span {
-            font-weight: 600;
+            font-family: "Montserrat", sans-serif;
+            font-weight: 700;
             color: rgb(0, 0, 0);
-            font-size: large;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
           }
           a {
             color: #27ae60;
@@ -401,17 +537,24 @@ const AnimeItemStyled = styled.div`
     }
 
     .description {
+      font-family: "Inter", "Noto Sans JP", sans-serif;
+      font-size: 1rem;
+      font-weight: 400;
       color: rgba(44, 43, 43, 0.96);
       line-height: 1.7rem;
+      letter-spacing: 0.01em;
       margin-top: 1rem;
+
       button {
         background: none;
         border: none;
-        font-size: 1.1rem;
+        font-family: "Montserrat", sans-serif;
+        font-size: 1rem;
         font-weight: 600;
         color: #27ae60;
         cursor: pointer;
         transition: color 0.3s ease-in-out;
+
         &:hover {
           color: #218c54;
         }
@@ -424,14 +567,16 @@ const AnimeItemStyled = styled.div`
       gap: 0.5rem;
       margin-top: 1.5rem;
       .genre {
+        font-family: "Montserrat", sans-serif;
         background: rgba(17, 69, 114, 0.1);
         border: 2px solid #333;
         padding: 0.4rem 1rem;
         border-radius: 12px;
         color: black;
-        font-weight: 600;
-        font-size: 0.9rem;
+        font-weight: 700;
+        font-size: 0.85rem;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         transition: transform 0.3s ease-in-out, background 0.3s ease-in-out;
         &:hover {
@@ -443,8 +588,28 @@ const AnimeItemStyled = styled.div`
   }
 
   .trailer-section,
-  .characters-section {
+  .characters-section,
+  .watch-section {
     margin-bottom: 2rem;
+  }
+
+  .watch-section {
+    .watch-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      background: rgba(209, 209, 209, 0.1);
+      padding: 2rem;
+      border-radius: 14px;
+      border: 2px solid rgba(255, 215, 0, 0.3);
+      backdrop-filter: blur(10px);
+
+      @media (max-width: 768px) {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        padding: 1.5rem;
+      }
+    }
   }
 
   .trailer-con {
@@ -505,15 +670,17 @@ const AnimeItemStyled = styled.div`
         border-color: rgb(155, 155, 155);
       }
       h4 {
-        font-family: "Bungee", cursive;
+        font-family: "Inter", "Noto Sans JP", sans-serif;
         margin-top: 0.5rem;
         font-size: 1rem;
+        font-weight: 600;
         text-align: left;
         color: #333;
         text-decoration: none;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         padding-left: 0.5rem;
         border-left: 3px solid #333;
+        letter-spacing: 0.01em;
       }
       p {
         font-size: 1.1rem;
@@ -535,7 +702,8 @@ const AnimeItemStyled = styled.div`
       padding: 0.5rem 1rem;
     }
 
-    .title, .plot {
+    .title,
+    .plot {
       font-size: 1.2rem;
       padding: 0.4rem 1rem;
     }
@@ -553,7 +721,7 @@ const AnimeItemStyled = styled.div`
         .anime-details p {
           font-size: 1rem;
           line-height: 1.3rem;
-          text-overflow:hidden;
+          text-overflow: hidden;
         }
       }
     }
@@ -573,6 +741,104 @@ const AnimeItemStyled = styled.div`
 
     .footer {
       font-size: 0.8rem;
+    }
+  }
+`;
+
+const FavouriteButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  margin: 0 auto 2rem;
+  background: ${(props) =>
+    props.isFav
+      ? "linear-gradient(135deg, #ff4d4d 0%, #ff6b6b 100%)"
+      : "linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 237, 78, 0.2) 100%)"};
+  border: 2px solid ${(props) => (props.isFav ? "#ff4d4d" : "#ffd700")};
+  border-radius: 12px;
+  color: ${(props) => (props.isFav ? "white" : "#ffd700")};
+  font-family: "Montserrat", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px
+    ${(props) =>
+      props.isFav ? "rgba(255, 77, 77, 0.3)" : "rgba(255, 215, 0, 0.3)"};
+
+  svg {
+    font-size: 1.3rem;
+  }
+
+  &:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 6px 20px
+      ${(props) =>
+        props.isFav ? "rgba(255, 77, 77, 0.5)" : "rgba(255, 215, 0, 0.5)"};
+  }
+
+  &:active {
+    transform: translateY(-1px) scale(1.02);
+  }
+
+  @media (max-width: 768px) {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
+
+    span {
+      display: none;
+    }
+
+    svg {
+      font-size: 1.5rem;
+    }
+  }
+`;
+
+const WatchLink = styled.a`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid ${(props) => props.color || "#ffd700"};
+  border-radius: 12px;
+  color: ${(props) => props.color || "#ffd700"};
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+
+  .icon {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+  }
+
+  .name {
+    font-family: "Montserrat", sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  &:hover {
+    background: ${(props) => props.color || "#ffd700"};
+    color: white;
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px ${(props) => `${props.color || "#ffd700"}40`};
+  }
+
+  @media (max-width: 768px) {
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+
+    .icon {
+      font-size: 1.2rem;
     }
   }
 `;

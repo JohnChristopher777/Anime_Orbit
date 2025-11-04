@@ -1,17 +1,17 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useGlobalContext } from '../context/global';
-import styled from 'styled-components';
+import React, { useState, useEffect, memo, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useGlobalContext } from "../context/global.jsx";
+import styled from "styled-components";
 
 const GalleryImage = memo(({ src, alt, isSelected }) => (
   <img
-    src={src || ''}
+    src={src || ""}
     alt={alt}
     loading="lazy"
     style={{
-      border: isSelected ? '4px solid #27AE60' : '4px solid #e5e7eb',
-      transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-      transition: 'all .3s ease-in-out',
+      border: isSelected ? "4px solid #27AE60" : "4px solid #e5e7eb",
+      transform: isSelected ? "scale(1.1)" : "scale(1)",
+      transition: "all .3s ease-in-out",
     }}
   />
 ));
@@ -19,7 +19,7 @@ const GalleryImage = memo(({ src, alt, isSelected }) => (
 function Gallery() {
   const { getAnimePictures, pictures } = useGlobalContext();
   const { id } = useParams();
-  const [characterName, setCharacterName] = useState('Loading...');
+  const [characterName, setCharacterName] = useState("Loading...");
   const [index, setIndex] = useState(0);
   const [optimizedPictures, setOptimizedPictures] = useState([]);
   const navigate = useNavigate();
@@ -30,23 +30,24 @@ function Gallery() {
     const fetchCharacterName = async () => {
       try {
         const res = await fetch(`https://api.jikan.moe/v4/characters/${id}`);
-        if (!res.ok) throw new Error('Error loading character');
+        if (!res.ok) throw new Error("Error loading character");
         const data = await res.json();
         if (isMounted) {
-          setCharacterName(data?.data?.name || 'Unknown Character');
+          setCharacterName(data?.data?.name || "Unknown Character");
         }
       } catch (error) {
-        console.error('Error fetching character:', error.message);
+        console.error("Error fetching character:", error.message);
         if (isMounted) {
-          setCharacterName('Error loading character');
+          setCharacterName("Error loading character");
         }
       }
     };
 
     fetchCharacterName();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
-
 
   useEffect(() => {
     if (id) {
@@ -54,7 +55,6 @@ function Gallery() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-  
 
   useEffect(() => {
     const sliced = Array.isArray(pictures) ? pictures.slice(0, 10) : [];
@@ -63,7 +63,10 @@ function Gallery() {
 
   const handleBack = useCallback(() => navigate(-1), [navigate]);
   const handlePrev = useCallback(() => setIndex((i) => Math.max(i - 1, 0)), []);
-  const handleNext = useCallback(() => setIndex((i) => Math.min(i + 1, optimizedPictures.length - 1)), [optimizedPictures]);
+  const handleNext = useCallback(
+    () => setIndex((i) => Math.min(i + 1, optimizedPictures.length - 1)),
+    [optimizedPictures]
+  );
 
   if (!optimizedPictures.length) {
     return <LoadingStyled>Loading gallery...</LoadingStyled>;
@@ -73,7 +76,9 @@ function Gallery() {
     <GalleryStyled>
       <div className="header">
         <div className="back">
-          <button onClick={handleBack} aria-label="Go Back">Back</button>
+          <button onClick={handleBack} aria-label="Go Back">
+            Back
+          </button>
         </div>
         <h1 className="title">{characterName}</h1>
       </div>
@@ -90,7 +95,7 @@ function Gallery() {
 
         <div className="big-image">
           <img
-            src={optimizedPictures[index]?.jpg?.image_url || ''}
+            src={optimizedPictures[index]?.jpg?.image_url || ""}
             alt={characterName}
             loading="lazy"
           />
@@ -108,7 +113,11 @@ function Gallery() {
 
       <div className="small-images">
         {optimizedPictures.map((picture, i) => (
-          <div className="image-con" onClick={() => setIndex(i)} key={picture?.jpg?.image_url || i}>
+          <div
+            className="image-con"
+            onClick={() => setIndex(i)}
+            key={picture?.jpg?.image_url || i}
+          >
             <GalleryImage
               src={picture?.jpg?.image_url}
               alt={`Thumbnail ${i}`}
@@ -143,27 +152,29 @@ const GalleryStyled = styled.div`
     z-index: 20;
 
     .back {
-      font-family: "Bungee", cursive;
+      font-family: "Montserrat", sans-serif;
       position: absolute;
       top: 1rem;
       left: 1.2rem;
 
       button {
-        font-weight: 400;
+        font-weight: 700;
         color: #f0f0f0;
-        background:rgb(94, 94, 94);
+        background: rgb(94, 94, 94);
         border: 2px solid rgb(0, 0, 0);
         padding: 0.5rem 0.7rem;
         border-radius: 8px;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         cursor: pointer;
         transition: all 0.3s ease-in-out;
 
         &:hover {
-          background:rgb(238, 218, 6);
+          background: rgb(238, 218, 6);
           border-color: #ffea00;
           font-weight: bold;
-          color:rgb(0, 0, 0);
+          color: rgb(0, 0, 0);
         }
         &:active {
           transform: scale(0.95);
@@ -172,15 +183,17 @@ const GalleryStyled = styled.div`
     }
 
     .title {
-      font-family: "Bungee", cursive;
-      font-size: 1.7rem;
-      font-weight: 700;
+      font-family: "Staatliches", cursive;
+      font-size: 2.2rem;
+      font-weight: 400;
       text-align: center;
       flex-grow: 1;
       color: #ffea00;
       margin: 0;
       padding: 0 4rem;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.5);
     }
   }
 
@@ -195,8 +208,9 @@ const GalleryStyled = styled.div`
 
     .prev,
     .next {
-      font-family: "Bungee", cursive;
+      font-family: "Montserrat", sans-serif;
       font-size: 2rem;
+      font-weight: 700;
       background: #5a5a5a;
       border: none;
       cursor: pointer;
@@ -377,8 +391,10 @@ const LoadingStyled = styled.div`
   height: 100vh;
   background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
   color: #f0f0f0;
-  font-size: 1.5rem;
-  font-family: "Bungee", cursive;
+  font-family: "Inter", "Noto Sans JP", sans-serif;
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 
   &::after {
@@ -402,9 +418,4 @@ const LoadingStyled = styled.div`
   }
 `;
 
-
-
 export default Gallery;
-
-
-

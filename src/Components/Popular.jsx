@@ -1,13 +1,48 @@
-import React, { memo } from "react";
+import React, { memo, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { useGlobalContext } from "../context/global";
+import { useGlobalContext } from "../context/global.jsx";
 import styled from "styled-components";
+import gsap from "gsap";
 
 function Popular({ rendered, popularAnime }) {
   const { trendingAnime } = useGlobalContext();
   const safePopularAnime = popularAnime || [];
   const safeTrendingAnime = trendingAnime || [];
+  const cardsRef = useRef([]);
+  const trendingRef = useRef([]);
 
+  useEffect(() => {
+    if (cardsRef.current.length > 0) {
+      gsap.fromTo(
+        cardsRef.current,
+        { opacity: 0, y: 50, scale: 0.8 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.6,
+          stagger: 0.05,
+          ease: "back.out(1.2)",
+        }
+      );
+    }
+  }, [safePopularAnime]);
+
+  useEffect(() => {
+    if (trendingRef.current.length > 0) {
+      gsap.fromTo(
+        trendingRef.current,
+        { opacity: 0, x: -30 },
+        {
+          opacity: 1,
+          x: 0,
+          duration: 0.5,
+          stagger: 0.1,
+          ease: "power2.out",
+        }
+      );
+    }
+  }, [safeTrendingAnime]);
 
   if (!safePopularAnime.length && !safeTrendingAnime.length) {
     return <p className="no-content">No anime available yet.</p>;
@@ -19,11 +54,20 @@ function Popular({ rendered, popularAnime }) {
         <div className="popular-anime">
           <h2>{rendered === "search" ? "Search Results" : "Popular Anime"}</h2>
           <div className="anime-grid">
-            {safePopularAnime.slice(0, 24).map((anime) => (
-              <Link to={`/anime/${anime.mal_id}`} key={`popular-${anime.mal_id}`}>
-                <div className="anime-card">
+            {safePopularAnime.slice(0, 24).map((anime, index) => (
+              <Link
+                to={`/anime/${anime.mal_id}`}
+                key={`popular-${anime.mal_id}`}
+              >
+                <div
+                  className="anime-card"
+                  ref={(el) => (cardsRef.current[index] = el)}
+                >
                   <div className="image-wrapper">
-                    <img src={anime.images.jpg.large_image_url} alt={anime.title} />
+                    <img
+                      src={anime.images.jpg.large_image_url}
+                      alt={anime.title}
+                    />
                   </div>
                   <p className="anime-title">{anime.title}</p>
                 </div>
@@ -40,11 +84,20 @@ function Popular({ rendered, popularAnime }) {
           </h2>
           <div className="trending-container">
             {safeTrendingAnime.slice(0, 10).map((anime, index) => (
-              <Link to={`/anime/${anime.mal_id}`} key={`trending-${anime.mal_id}`}>
-                <div className="trending-card">
+              <Link
+                to={`/anime/${anime.mal_id}`}
+                key={`trending-${anime.mal_id}`}
+              >
+                <div
+                  className="trending-card"
+                  ref={(el) => (trendingRef.current[index] = el)}
+                >
                   <span className="number">{index + 1}</span>
                   <div className="image-wrapper">
-                    <img src={anime.images.jpg.large_image_url} alt={anime.title} />
+                    <img
+                      src={anime.images.jpg.large_image_url}
+                      alt={anime.title}
+                    />
                   </div>
                   <p className="trending-title">{anime.title}</p>
                 </div>
@@ -66,10 +119,13 @@ const PopularStyled = styled.div`
   background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
 
   h2 {
-    font-family: "Bungee", cursive;
+    font-family: "Staatliches", "Bebas Neue", cursive;
     color: #ffd700;
-    font-size: 1.5rem;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
     margin-bottom: 1.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 
     .bi-graph-up-arrow {
       margin-right: 0.5rem;
@@ -94,8 +150,8 @@ const PopularStyled = styled.div`
 
   a {
     display: block;
-    text-decoration: none; 
-    color: inherit; 
+    text-decoration: none;
+    color: inherit;
   }
   .anime-card {
     display: flex;
@@ -107,7 +163,8 @@ const PopularStyled = styled.div`
     overflow: hidden;
     background: #3a3a3a;
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
-    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out,
+      border-color 0.3s ease-in-out;
 
     &:hover {
       transform: translateY(-9px);
@@ -134,17 +191,18 @@ const PopularStyled = styled.div`
 
     .anime-title {
       margin-top: 10px;
-      font-size: 1.1rem;
+      font-family: "Inter", "Noto Sans JP", sans-serif;
+      font-size: 1.05rem;
       font-weight: 600;
       color: #f0f0f0;
       text-align: center;
       padding: 0 10px;
-      line-height: 1.3;
+      line-height: 1.4;
+      letter-spacing: 0.01em;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      text-decoration: none; 
+      text-decoration: none;
     }
   }
-
 
   .trending-container {
     display: flex;
@@ -221,18 +279,20 @@ const PopularStyled = styled.div`
 
     .trending-title {
       margin-top: 5px;
-      font-size: 0.9rem;
+      font-family: "Inter", "Noto Sans JP", sans-serif;
+      font-size: 0.85rem;
       font-weight: 500;
       color: #f0f0f0;
       text-align: center;
       padding: 0 5px;
-      line-height: 1.2;
+      line-height: 1.3;
+      letter-spacing: 0.01em;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      text-decoration: none; 
-      max-width: 130px; 
+      text-decoration: none;
+      max-width: 130px;
       white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis; 
+      text-overflow: ellipsis;
     }
   }
 
@@ -303,18 +363,18 @@ const PopularStyled = styled.div`
     }
   }
   @media (max-width: 767px) {
-  .anime-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
-  .anime-card {
-    padding: 0.5rem;
-    .anime-title {
-      font-size: 0.9rem;
-      padding: 0 5px;
+    .anime-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+    .anime-card {
+      padding: 0.5rem;
+      .anime-title {
+        font-size: 0.9rem;
+        padding: 0 5px;
+      }
     }
   }
-}
 `;
 
 export default memo(Popular);

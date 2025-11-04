@@ -1,7 +1,7 @@
-import React from 'react';
-import { useGlobalContext } from '../context/global';
-import { Link } from 'react-router-dom';
-import styled from 'styled-components';
+import React from "react";
+import { useGlobalContext } from "../context/global.jsx";
+import { Link } from "react-router-dom";
+import styled from "styled-components";
 
 function Upcoming() {
   const { upcomingAnime, isSearch, searchResults } = useGlobalContext();
@@ -24,7 +24,9 @@ function Upcoming() {
       <div className="upcoming-anime">
         <h2>{isSearch ? "Search Results" : "Upcoming Anime"}</h2>
         <div className="anime-grid">
-          {isSearch ? renderAnimeCards(searchResults) : renderAnimeCards(upcomingAnime)}
+          {isSearch
+            ? renderAnimeCards(searchResults)
+            : renderAnimeCards(upcomingAnime)}
         </div>
       </div>
     </UpcomingStyled>
@@ -40,10 +42,14 @@ const UpcomingStyled = styled.div`
   background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
 
   h2 {
-    font-family: "Bungee", cursive;
+    font-family: "Staatliches", cursive;
     color: #ffd700;
-    font-size: 1.5rem;
+    font-size: 2.5rem;
+    font-weight: 400;
     margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.6);
   }
 
   .upcoming-anime {
@@ -62,8 +68,9 @@ const UpcomingStyled = styled.div`
   a {
     display: block;
     text-decoration: none;
-    color: inherit; 
-  }  .anime-card {
+    color: inherit;
+  }
+  .anime-card {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -73,7 +80,8 @@ const UpcomingStyled = styled.div`
     overflow: hidden;
     background: #3a3a3a;
     box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
-    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out,
+      border-color 0.3s ease-in-out;
 
     &:hover {
       transform: translateY(-9px);
@@ -100,14 +108,16 @@ const UpcomingStyled = styled.div`
 
     .anime-title {
       margin-top: 10px;
-      font-size: 1.1rem;
+      font-family: "Inter", "Noto Sans JP", sans-serif;
+      font-size: 1.05rem;
       font-weight: 600;
       color: #f0f0f0;
       text-align: center;
       padding: 0 10px;
-      line-height: 1.3;
+      line-height: 1.4;
+      letter-spacing: 0.01em;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      text-decoration: none; 
+      text-decoration: none;
     }
   }
 
@@ -143,18 +153,18 @@ const UpcomingStyled = styled.div`
     }
   }
   @media (max-width: 767px) {
-  .anime-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-  }
-  .anime-card {
-    padding: 0.5rem;
-    .anime-title {
-      font-size: 0.9rem;
-      padding: 0 5px;
+    .anime-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+    .anime-card {
+      padding: 0.5rem;
+      .anime-title {
+        font-size: 0.9rem;
+        padding: 0 5px;
+      }
     }
   }
-}
 `;
 
 export default Upcoming;

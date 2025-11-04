@@ -84,6 +84,7 @@ export const GlobalContextProvider = ({ children }) => {
     }
   };
 
+  
   const getTrendingAnime = async () => {
     dispatch({ type: LOADING });
     try {

@@ -1,16 +1,16 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import { GlobalContextProvider } from './context/global';
-import { AuthProvider } from './context/AuthContext';
-import { FavouritesProvider } from './context/FavouritesContext';
-import GlobalStyle from './Components/Globalstyle';
-import Typography from './Components/Typography';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "./index.css";
+import App from "./App.jsx";
+import { GlobalContextProvider } from "./context/global.jsx";
+import { AuthProvider } from "./context/AuthContext.jsx";
+import { FavouritesProvider } from "./context/FavouritesContext.jsx";
+import GlobalStyle from "./Components/Globalstyle";
+import Typography from "./Components/Typography";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <GlobalStyle />

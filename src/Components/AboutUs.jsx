@@ -23,20 +23,32 @@ const AboutBox = styled.div`
 `;
 
 const Title = styled.h1`
-  font-size: 2rem;
+  font-family: 'Staatliches', cursive;
+  font-size: 2.5rem;
+  font-weight: 400;
   color: gold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
 `;
 
 const Info = styled.p`
   margin: 10px 0;
-  font-size: 1rem;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 400;
   color: #ddd;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
 `;
 
 const Footer = styled.footer`
   margin-top: 40px;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
   font-size: 0.9rem;
+  font-weight: 400;
   color: #aaa;
+  letter-spacing: 0.01em;
 `;
 
 const AboutUs = () => {
