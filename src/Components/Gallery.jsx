@@ -2,6 +2,15 @@ import React, { useState, useEffect, memo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGlobalContext } from "../context/global.jsx";
 import styled from "styled-components";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
+  Image as ImageIcon,
+} from "lucide-react";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { getCharacterDetails } from "../services/anilist";
 
 const GalleryImage = memo(({ src, alt, isSelected }) => (
   <img
@@ -26,14 +35,13 @@ function Gallery() {
 
   useEffect(() => {
     let isMounted = true;
+    let timeoutId;
 
     const fetchCharacterName = async () => {
       try {
-        const res = await fetch(`https://api.jikan.moe/v4/characters/${id}`);
-        if (!res.ok) throw new Error("Error loading character");
-        const data = await res.json();
+        const data = await getCharacterDetails(id);
         if (isMounted) {
-          setCharacterName(data?.data?.name || "Unknown Character");
+          setCharacterName(data?.name?.full || "Unknown Character");
         }
       } catch (error) {
         console.error("Error fetching character:", error.message);
@@ -44,10 +52,20 @@ function Gallery() {
     };
 
     fetchCharacterName();
+
+    // Auto-exit if no images after 8 seconds
+    timeoutId = setTimeout(() => {
+      if (isMounted && optimizedPictures.length === 0) {
+        console.log("No images found, returning to previous page");
+        navigate(-1);
+      }
+    }, 8000);
+
     return () => {
       isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [id]);
+  }, [id, navigate, optimizedPictures.length]);
 
   useEffect(() => {
     if (id) {
@@ -69,7 +87,31 @@ function Gallery() {
   );
 
   if (!optimizedPictures.length) {
-    return <LoadingStyled>Loading gallery...</LoadingStyled>;
+    return (
+      <LoadingStyled>
+        <ImageIcon size={48} className="loading-icon" />
+        <p>Loading gallery...</p>
+        <div className="skeleton-container">
+          <Skeleton
+            height={400}
+            width={360}
+            baseColor="#3a3a3a"
+            highlightColor="#5a5a5a"
+          />
+          <div className="thumbnails">
+            {[...Array(10)].map((_, i) => (
+              <Skeleton
+                key={i}
+                height={80}
+                width={80}
+                baseColor="#3a3a3a"
+                highlightColor="#5a5a5a"
+              />
+            ))}
+          </div>
+        </div>
+      </LoadingStyled>
+    );
   }
 
   return (
@@ -77,7 +119,8 @@ function Gallery() {
       <div className="header">
         <div className="back">
           <button onClick={handleBack} aria-label="Go Back">
-            Back
+            <ArrowLeft size={18} />
+            <span>Back</span>
           </button>
         </div>
         <h1 className="title">{characterName}</h1>
@@ -90,7 +133,7 @@ function Gallery() {
           disabled={index === 0}
           aria-label="Previous Image"
         >
-          &lt;
+          <ChevronLeft size={32} />
         </button>
 
         <div className="big-image">
@@ -99,6 +142,9 @@ function Gallery() {
             alt={characterName}
             loading="lazy"
           />
+          <div className="image-counter">
+            {index + 1} / {optimizedPictures.length}
+          </div>
         </div>
 
         <button
@@ -107,7 +153,7 @@ function Gallery() {
           disabled={index === optimizedPictures.length - 1}
           aria-label="Next Image"
         >
-          &gt;
+          <ChevronRight size={32} />
         </button>
       </div>
 
@@ -158,13 +204,16 @@ const GalleryStyled = styled.div`
       left: 1.2rem;
 
       button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         font-weight: 700;
         color: #f0f0f0;
         background: rgb(94, 94, 94);
         border: 2px solid rgb(0, 0, 0);
-        padding: 0.5rem 0.7rem;
+        padding: 0.6rem 1rem;
         border-radius: 8px;
-        font-size: 0.75rem;
+        font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         cursor: pointer;
@@ -175,9 +224,10 @@ const GalleryStyled = styled.div`
           border-color: #ffea00;
           font-weight: bold;
           color: rgb(0, 0, 0);
+          transform: translateX(-4px);
         }
         &:active {
-          transform: scale(0.95);
+          transform: scale(0.95) translateX(-4px);
         }
       }
     }
@@ -211,31 +261,44 @@ const GalleryStyled = styled.div`
       font-family: "Montserrat", sans-serif;
       font-size: 2rem;
       font-weight: 700;
-      background: #5a5a5a;
-      border: none;
+      background: rgba(90, 90, 90, 0.9);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 234, 0, 0.3);
       cursor: pointer;
-      padding: 10px;
+      padding: 1rem;
       color: #f0f0f0;
       transition: all 0.3s ease-in-out;
-      border-radius: 15%;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
       z-index: 9;
       will-change: transform;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
 
       &:hover {
         background: #ffea00;
         color: #1a1a1a;
+        border-color: #ffea00;
+        transform: translateY(-50%) scale(1.1);
+        box-shadow: 0 6px 20px rgba(255, 234, 0, 0.4);
       }
       &:active {
         transform: translateY(-50%) scale(0.95);
       }
       &:disabled {
         cursor: not-allowed;
-        opacity: 0.5;
-        background: #5a5a5a;
+        opacity: 0.3;
+        background: rgba(90, 90, 90, 0.5);
+        border-color: rgba(90, 90, 90, 0.3);
+        &:hover {
+          transform: translateY(-50%);
+        }
       }
     }
 
@@ -251,15 +314,33 @@ const GalleryStyled = styled.div`
       display: inline-block;
       margin: 2rem 0;
       background: #3a3a3a;
-      border-radius: 9px;
+      border-radius: 12px;
       border: 5px solid #5a5a5a;
       overflow: hidden;
+      position: relative;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 
       img {
         width: 360px;
         height: auto;
         max-width: 100%;
         display: block;
+        transition: transform 0.3s ease;
+      }
+
+      .image-counter {
+        position: absolute;
+        bottom: 1rem;
+        right: 1rem;
+        background: rgba(26, 26, 26, 0.9);
+        backdrop-filter: blur(10px);
+        color: #ffea00;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-family: "Montserrat", sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 2px solid rgba(255, 234, 0, 0.3);
       }
     }
   }
@@ -386,34 +467,52 @@ const GalleryStyled = styled.div`
 
 const LoadingStyled = styled.div`
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100vh;
   background: linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 100%);
   color: #f0f0f0;
   font-family: "Inter", "Noto Sans JP", sans-serif;
-  font-size: 1.3rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  padding: 2rem;
 
-  &::after {
-    content: "";
-    border: 4px solid #ffea00;
-    border-top: 4px solid transparent;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    animation: spin 1s linear infinite;
-    margin-left: 1rem;
+  .loading-icon {
+    color: #ffea00;
+    animation: pulse 2s ease-in-out infinite;
+    margin-bottom: 1rem;
   }
 
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
+  p {
+    font-size: 1.3rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    margin-bottom: 2rem;
+  }
+
+  .skeleton-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+
+    .thumbnails {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
     }
+  }
+
+  @keyframes pulse {
+    0%,
     100% {
-      transform: rotate(360deg);
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(1.1);
     }
   }
 `;

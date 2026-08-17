@@ -1,8 +1,15 @@
-import React, { createContext, useContext, useReducer } from "react";
+import React, { createContext, useContext, useReducer, useCallback } from "react";
+import {
+  getPopularAnime as fetchPopularAnime,
+  getTrendingAnime as fetchTrendingAnime,
+  getUpcomingAnime as fetchUpcomingAnime,
+  getAiringAnime as fetchAiringAnime,
+  searchAnime as fetchSearchAnime,
+  getCharacterPictures as fetchCharacterPictures,
+  getTopAiringAnime as fetchTopAiringAnime,
+} from "../services/anilist";
 
 const GlobalContext = createContext();
-
-const baseUrl = "https://api.jikan.moe/v4";
 
 const LOADING = "LOADING";
 const SEARCH = "SEARCH";
@@ -12,17 +19,34 @@ const GET_AIRING_ANIME = "GET_AIRING_ANIME";
 const SET_SEARCH_STATUS = "SET_SEARCH_STATUS";
 const GET_PICTURES = "GET_PICTURES";
 const GET_TRENDING_ANIME = "GET_TRENDING_ANIME";
+const GET_TOP_AIRING_ANIME = "GET_TOP_AIRING_ANIME";
 
 const reducer = (state, action) => {
   switch (action.type) {
     case LOADING:
       return { ...state, loading: true };
     case GET_POPULAR_ANIME:
-      return { ...state, popularAnime: action.payload, loading: false };
+      return {
+        ...state,
+        popularAnime: action.payload.page === 1
+          ? action.payload.data
+          : [...state.popularAnime, ...action.payload.data],
+        popularPage: action.payload.page,
+        hasMorePopular: action.payload.hasNextPage,
+        loading: false,
+      };
     case SEARCH:
       return { ...state, searchResults: action.payload, loading: false };
     case GET_UPCOMING_ANIME:
-      return { ...state, upcomingAnime: action.payload, loading: false };
+      return {
+        ...state,
+        upcomingAnime: action.payload.page === 1
+          ? action.payload.data
+          : [...state.upcomingAnime, ...action.payload.data],
+        upcomingPage: action.payload.page,
+        hasMoreUpcoming: action.payload.hasNextPage,
+        loading: false,
+      };
     case GET_AIRING_ANIME:
       return { ...state, airingAnime: action.payload, loading: false };
     case SET_SEARCH_STATUS:
@@ -30,7 +54,17 @@ const reducer = (state, action) => {
     case GET_PICTURES:
       return { ...state, pictures: action.payload, loading: false };
     case GET_TRENDING_ANIME:
-      return { ...state, trendingAnime: action.payload, loading: false };
+      return {
+        ...state,
+        trendingAnime: action.payload.page === 1
+          ? action.payload.data
+          : [...state.trendingAnime, ...action.payload.data],
+        trendingPage: action.payload.page,
+        hasMoreTrending: action.payload.hasNextPage,
+        loading: false,
+      };
+    case GET_TOP_AIRING_ANIME:
+      return { ...state, topAiringAnime: action.payload, loading: false };
     default:
       return state;
   }
@@ -42,10 +76,17 @@ export const GlobalContextProvider = ({ children }) => {
     upcomingAnime: [],
     airingAnime: [],
     trendingAnime: [],
+    topAiringAnime: [],
     searchResults: [],
     pictures: [],
     isSearch: false,
     loading: false,
+    popularPage: 1,
+    trendingPage: 1,
+    upcomingPage: 1,
+    hasMorePopular: true,
+    hasMoreTrending: true,
+    hasMoreUpcoming: true,
   };
 
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -69,65 +110,101 @@ export const GlobalContextProvider = ({ children }) => {
     }
   };
 
-  const getPopularAnime = async () => {
-    dispatch({ type: LOADING });
+  const getPopularAnime = useCallback(async (page = 1) => {
+    if (page === 1) {
+      dispatch({ type: LOADING });
+    }
     try {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const response = await fetch(`${baseUrl}/top/anime?filter=bypopularity&limit=24&sfw=true`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      console.log("Popular Anime Data (All-Time):", data.data);
-      dispatch({ type: GET_POPULAR_ANIME, payload: data.data || [] });
+      const result = await fetchPopularAnime(24, page);
+      console.log(`Popular Anime Page ${page} Data:`, result);
+      dispatch({
+        type: GET_POPULAR_ANIME,
+        payload: {
+          data: result.media || [],
+          page: page,
+          hasNextPage: result.pageInfo?.hasNextPage ?? false,
+        },
+      });
     } catch (error) {
       console.error("Error fetching popular anime:", error);
-      dispatch({ type: GET_POPULAR_ANIME, payload: [] });
+      dispatch({
+        type: GET_POPULAR_ANIME,
+        payload: { data: [], page, hasNextPage: false },
+      });
     }
-  };
+  }, []);
 
-  
-  const getTrendingAnime = async () => {
-    dispatch({ type: LOADING });
+  const getTrendingAnime = useCallback(async (page = 1) => {
+    if (page === 1) {
+      dispatch({ type: LOADING });
+    }
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const response = await fetch(`${baseUrl}/top/anime?filter=airing&limit=25&sfw=true`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      const airingData = data.data.filter((anime) => anime.status === "Currently Airing");
-      const trendingData = airingData
-        .sort((a, b) => (a.popularity || 999999) - (b.popularity || 999999))
-        .slice(0, 10);
-      console.log("Trending Anime Data (Airing, Sorted by Popularity):", trendingData);
-      dispatch({ type: GET_TRENDING_ANIME, payload: trendingData || [] });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const result = await fetchTrendingAnime(24, page);
+      console.log(`Trending Anime Page ${page} Data:`, result);
+      dispatch({
+        type: GET_TRENDING_ANIME,
+        payload: {
+          data: result.media || [],
+          page: page,
+          hasNextPage: result.pageInfo?.hasNextPage ?? false,
+        },
+      });
     } catch (error) {
       console.error("Error fetching trending anime:", error);
-      dispatch({ type: GET_TRENDING_ANIME, payload: [] });
+      dispatch({
+        type: GET_TRENDING_ANIME,
+        payload: { data: [], page, hasNextPage: false },
+      });
     }
-  };
+  }, []);
 
-  const getUpcomingAnime = async () => {
+  const getTopAiringAnime = useCallback(async () => {
     dispatch({ type: LOADING });
     try {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const response = await fetch(`${baseUrl}/top/anime?filter=upcoming&limit=25&sfw=true`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      console.log("Upcoming Anime Data:", data.data);
-      dispatch({ type: GET_UPCOMING_ANIME, payload: data.data || [] });
+      const data = await fetchTopAiringAnime(5);
+      console.log("Top Airing Anime Data (Current Weekly Top 5):", data);
+      dispatch({ type: GET_TOP_AIRING_ANIME, payload: data || [] });
+    } catch (error) {
+      console.error("Error fetching top airing anime:", error);
+      dispatch({ type: GET_TOP_AIRING_ANIME, payload: [] });
+    }
+  }, []);
+
+  const getUpcomingAnime = useCallback(async (page = 1) => {
+    if (page === 1) {
+      dispatch({ type: LOADING });
+    }
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const result = await fetchUpcomingAnime(24, page);
+      console.log(`Upcoming Anime Page ${page} Data:`, result);
+      dispatch({
+        type: GET_UPCOMING_ANIME,
+        payload: {
+          data: result.media || [],
+          page: page,
+          hasNextPage: result.pageInfo?.hasNextPage ?? false,
+        },
+      });
     } catch (error) {
       console.error("Error fetching upcoming anime:", error);
-      dispatch({ type: GET_UPCOMING_ANIME, payload: [] });
+      dispatch({
+        type: GET_UPCOMING_ANIME,
+        payload: { data: [], page, hasNextPage: false },
+      });
     }
-  };
+  }, []);
 
   const getAiringAnime = async () => {
     dispatch({ type: LOADING });
     try {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const response = await fetch(`${baseUrl}/top/anime?filter=airing&limit=25&sfw=true`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      console.log("Airing Anime Data:", data.data);
-      dispatch({ type: GET_AIRING_ANIME, payload: data.data || [] });
+      const data = await fetchAiringAnime(25);
+      console.log("Airing Anime Data:", data);
+      dispatch({ type: GET_AIRING_ANIME, payload: data || [] });
     } catch (error) {
       console.error("Error fetching airing anime:", error);
       dispatch({ type: GET_AIRING_ANIME, payload: [] });
@@ -138,36 +215,30 @@ export const GlobalContextProvider = ({ children }) => {
     dispatch({ type: LOADING });
     try {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const response = await fetch(
-        `${baseUrl}/anime?q=${anime}&order_by=popularity&sort=asc&limit=25&sfw=true`
-      );
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      console.log("Search Anime Data:", data.data);
-      dispatch({ type: SEARCH, payload: data.data || [] });
+      const data = await fetchSearchAnime(anime, 25);
+      console.log("Search Anime Data:", data);
+      dispatch({ type: SEARCH, payload: data || [] });
     } catch (error) {
       console.error("Error searching anime:", error);
       dispatch({ type: SEARCH, payload: [] });
     }
   };
 
-  
   const getAnimePictures = async (id) => {
     dispatch({ type: LOADING });
     try {
-      const res = await fetch(`https://api.jikan.moe/v4/characters/${id}/pictures`);
-      const data = await res.json();
-      dispatch({ type: GET_PICTURES, payload: data.data || [] });
+      const data = await fetchCharacterPictures(id);
+      dispatch({ type: GET_PICTURES, payload: data || [] });
     } catch {
       dispatch({ type: GET_PICTURES, payload: [] });
     }
   };
-  
 
   React.useEffect(() => {
     const fetchData = async () => {
-      await getPopularAnime();
-      await getTrendingAnime();
+      await getPopularAnime(1);
+      await getTrendingAnime(1);
+      await getTopAiringAnime();
     };
     fetchData();
   }, []);
@@ -180,12 +251,13 @@ export const GlobalContextProvider = ({ children }) => {
         handleSubmit,
         searchAnime,
         search,
+        setSearch,
         getPopularAnime,
         getUpcomingAnime,
         getAiringAnime,
         getTrendingAnime,
+        getTopAiringAnime,
         getAnimePictures,
-        
       }}
     >
       {children}

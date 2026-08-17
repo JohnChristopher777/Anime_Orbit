@@ -1,72 +1,28 @@
 import React, { useState, Suspense, lazy } from "react";
 import Upcoming from "./Upcoming.jsx";
 import Airing from "./Airing.jsx";
-import AnimeItem from "./Animeitem.jsx";
 import { useGlobalContext } from "../context/global.jsx";
 import styled from "styled-components";
+import HeroCarousel from "./HeroCarousel.jsx";
+import { Flame, Radio, Calendar } from "lucide-react";
 
 const Popular = lazy(() => import("./Popular"));
 
 function Homepage() {
   const {
-    handleSubmit,
     search,
     handleChange,
-    getUpcomingAnime,
-    getAiringAnime,
     popularAnime,
-    upcomingAnime,
-    airingAnime,
     searchResults,
     loading,
-    searchAnime,
+    topAiringAnime,
   } = useGlobalContext();
-
-  const [rendered, setRendered] = useState("popular");
-  const [showSearch, setShowSearch] = useState(false);
-  const [selectedAnime, setSelectedAnime] = useState(null);
-
-  const debounce = (func, delay) => {
-    let timeoutId;
-    return (...args) => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => func(...args), delay);
-    };
-  };
-
-  const handleSearchChange = (e) => {
-    handleChange(e);
-    if (e.target.value) {
-      debouncedSearch(e.target.value);
-    }
-  };
-
-  const debouncedSearch = debounce((query) => {
-    searchAnime(query);
-  }, 500);
-
-  React.useEffect(() => {
-    if (rendered === "upcoming" && upcomingAnime.length === 0 && !loading) {
-      getUpcomingAnime();
-    } else if (rendered === "airing" && airingAnime.length === 0 && !loading) {
-      getAiringAnime();
-    }
-  }, [
-    rendered,
-    upcomingAnime,
-    airingAnime,
-    loading,
-    getUpcomingAnime,
-    getAiringAnime,
-  ]);
 
   const switchComponent = () => {
     const safeSearchResults = Array.isArray(searchResults) ? searchResults : [];
     const safePopularAnime = Array.isArray(popularAnime) ? popularAnime : [];
-    const safeUpcomingAnime = Array.isArray(upcomingAnime) ? upcomingAnime : [];
-    const safeAiringAnime = Array.isArray(airingAnime) ? airingAnime : [];
 
-    if (loading) {
+    if (loading && !safePopularAnime.length && !safeSearchResults.length) {
       return <div className="loading-spinner">Loading anime...</div>;
     }
 
@@ -76,7 +32,6 @@ function Homepage() {
           <Popular
             rendered="search"
             popularAnime={safeSearchResults}
-            onAnimeClick={handleAnimeClick}
           />
         );
       } else {
@@ -86,157 +41,25 @@ function Homepage() {
       }
     }
 
-    switch (rendered) {
-      case "popular":
-        return safePopularAnime.length > 0 ? (
-          <Popular
-            rendered={rendered}
-            popularAnime={safePopularAnime}
-            onAnimeClick={handleAnimeClick}
-          />
-        ) : (
-          <div className="no-data">No popular anime available yet</div>
-        );
-      case "upcoming":
-        return safeUpcomingAnime.length > 0 ? (
-          <Upcoming rendered={rendered} upcomingAnime={safeUpcomingAnime} />
-        ) : (
-          <div className="no-data">No upcoming anime available yet</div>
-        );
-      case "airing":
-        return safeAiringAnime.length > 0 ? (
-          <Airing rendered={rendered} airingAnime={safeAiringAnime} />
-        ) : (
-          <div className="no-data">No airing anime available yet</div>
-        );
-      default:
-        return safePopularAnime.length > 0 ? (
-          <Popular
-            rendered="popular"
-            popularAnime={safePopularAnime}
-            onAnimeClick={handleAnimeClick}
-          />
-        ) : (
-          <div className="no-data">No popular anime available yet</div>
-        );
-    }
-  };
-
-  const handleAnimeClick = (anime) => {
-    setSelectedAnime(anime);
-    setRendered(null);
-  };
-
-  const toggleSearch = () => {
-    setShowSearch(!showSearch);
-    if (showSearch) {
-      setSelectedAnime(null);
-      setRendered("popular");
-    }
-  };
-
-  const handleBackClick = () => {
-    setSelectedAnime(null);
-    setRendered("popular");
+    return safePopularAnime.length > 0 ? (
+      <Popular
+        rendered="popular"
+        popularAnime={safePopularAnime}
+      />
+    ) : (
+      <div className="no-data">No popular anime available yet</div>
+    );
   };
 
   return (
-    <HomepageStyled showSearch={showSearch}>
-      <div className="header-bar">
-        <div className="brand">
-          Anime Orbit
-          <span className="catchphrase">
-            <span className="highlight">"Where</span> you can{" "}
-            <span className="highlight">Orbit</span> around The vast Anime
-            Galaxy"
-          </span>
-        </div>
-        <div className="search-wrapper">
-          <div className="search-container">
-            <form className="search-form" onSubmit={handleSubmit}>
-              <div className="input-control">
-                <input
-                  type="text"
-                  placeholder="Search for an Anime..."
-                  value={search}
-                  onChange={handleSearchChange}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.target.blur();
-                    }
-                  }}
-                  className={showSearch ? "expanded" : ""}
-                />
-                {search && showSearch && (
-                  <button
-                    type="button"
-                    className="clear-btn"
-                    onClick={() => handleChange({ target: { value: "" } })}
-                  >
-                    <i className="bi bi-x-lg"></i>
-                  </button>
-                )}
-                {showSearch && (
-                  <button type="submit" className="search-btn">
-                    <i className="bi bi-search"></i>
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-          <button className="search-toggle" onClick={toggleSearch}>
-            <i className={`bi ${showSearch ? "bi-house" : "bi-search"}`}></i>
-          </button>
-        </div>
-      </div>
+    <HomepageStyled>
+      {!search && <HeroCarousel trendingAnime={topAiringAnime} />}
 
-      {showSearch && (
-        <header>
-          <div className="filter-buttons">
-            <button
-              className={`filter-btn ${rendered === "popular" ? "active" : ""}`}
-              onClick={() => {
-                setRendered("popular");
-                setSelectedAnime(null);
-              }}
-            >
-              <i className="bi bi-fire"></i> POPULAR
-            </button>
-            <button
-              className={`filter-btn ${rendered === "airing" ? "active" : ""}`}
-              onClick={() => {
-                setRendered("airing");
-                if (!airingAnime.length) getAiringAnime();
-                setSelectedAnime(null);
-              }}
-            >
-              <i className="bi bi-broadcast"></i> AIRING
-            </button>
-            <button
-              className={`filter-btn ${
-                rendered === "upcoming" ? "active" : ""
-              }`}
-              onClick={() => {
-                setRendered("upcoming");
-                if (!upcomingAnime.length) getUpcomingAnime();
-                setSelectedAnime(null);
-              }}
-            >
-              <i className="bi bi-calendar-event"></i> UPCOMING
-            </button>
-          </div>
-        </header>
-      )}
-
-      <main>
+      <main className={search ? "search-active" : ""}>
         <Suspense
           fallback={<div className="loading-spinner">Loading component...</div>}
         >
-          {selectedAnime ? (
-            <AnimeItem anime={selectedAnime} onBack={handleBackClick} />
-          ) : (
-            switchComponent()
-          )}
+          {switchComponent()}
         </Suspense>
       </main>
 
@@ -429,6 +252,9 @@ const HomepageStyled = styled.div`
   main {
     padding: 1rem;
     flex: 1;
+    &.search-active {
+      margin-top: 90px;
+    }
   }
 
   .loading-spinner {

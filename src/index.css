@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Shakuro Font */
+/* Shakuro Custom Font - Add font files to public/fonts/ directory */
+/* Uncomment when font files are available */
+/*
+@font-face {
+  font-family: 'Shakuro';
+  src: local('Shakuro'), 
+       url('./fonts/Shakuro-Regular.woff2') format('woff2'), 
+       url('./fonts/Shakuro-Regular.woff') format('woff'), 
+       url('./fonts/Shakuro-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+/* Alternative: Import display font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Staatliches&display=swap');
+
 /* Custom global styles */
 * {
     margin: 0;

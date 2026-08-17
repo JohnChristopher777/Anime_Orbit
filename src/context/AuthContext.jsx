@@ -6,7 +6,8 @@ import {
     onAuthStateChanged,
     GoogleAuthProvider,
     signInWithPopup,
-    updateProfile
+    updateProfile,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 import { toast } from 'react-toastify';
@@ -99,6 +100,23 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // Reset password
+    const resetPassword = async (email) => {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            toast.success('Password reset email sent! Please check your inbox. 📧');
+        } catch (error) {
+            let errorMessage = 'Failed to reset password';
+            if (error.code === 'auth/user-not-found') {
+                errorMessage = 'No account found with this email';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'Invalid email address';
+            }
+            toast.error(errorMessage);
+            throw error;
+        }
+    };
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setCurrentUser(user);
@@ -114,6 +132,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         signInWithGoogle,
+        resetPassword,
         loading
     };
 

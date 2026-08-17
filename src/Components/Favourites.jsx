@@ -1,15 +1,17 @@
 import React, { useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
 import styled from "styled-components";
+import { useNavigate } from "react-router-dom";
 import { useFavourites } from "../context/FavouritesContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { FaHeart, FaTrash } from "react-icons/fa";
+import { Heart } from "lucide-react";
 import gsap from "gsap";
+import AnimeCard from "./AnimeCard.jsx";
 
 const Favourites = () => {
   const { favourites, loading, removeFromFavourites } = useFavourites();
   const { currentUser } = useAuth();
   const cardsRef = useRef([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (favourites.length > 0 && cardsRef.current.length > 0) {
@@ -32,7 +34,7 @@ const Favourites = () => {
     return (
       <FavouritesStyled>
         <EmptyState>
-          <FaHeart size={80} color="#ffd700" />
+          <Heart size={80} color="#ffd700" />
           <h2>Sign in to view your favourites</h2>
           <p>Keep track of your favorite anime by signing in!</p>
         </EmptyState>
@@ -52,12 +54,12 @@ const Favourites = () => {
     return (
       <FavouritesStyled>
         <EmptyState>
-          <FaHeart size={80} color="#ffd700" />
+          <Heart size={80} color="#ffd700" />
           <h2>No favourites yet</h2>
           <p>Start adding your favorite anime to see them here!</p>
-          <Link to="/">
-            <BrowseButton>Browse Anime</BrowseButton>
-          </Link>
+          <BrowseButton onClick={() => navigate("/")}>
+            Browse Anime
+          </BrowseButton>
         </EmptyState>
       </FavouritesStyled>
     );
@@ -66,7 +68,7 @@ const Favourites = () => {
   return (
     <FavouritesStyled>
       <Header>
-        <FaHeart size={30} color="#ffd700" />
+        <Heart size={30} color="#ffd700" fill="#ffd700" />
         <h1>My Favourites</h1>
         <p>{favourites.length} anime in your collection</p>
       </Header>
@@ -75,31 +77,10 @@ const Favourites = () => {
         {favourites.map((anime, index) => (
           <AnimeCard
             key={anime.mal_id}
+            anime={anime}
+            onRemove={removeFromFavourites}
             ref={(el) => (cardsRef.current[index] = el)}
-          >
-            <Link to={`/anime/${anime.mal_id}`}>
-              <ImageWrapper>
-                <img src={anime.image} alt={anime.title} />
-                <ScoreBadge>{anime.score || "N/A"}</ScoreBadge>
-              </ImageWrapper>
-              <CardContent>
-                <AnimeTitle>{anime.title}</AnimeTitle>
-                <AnimeInfo>
-                  {anime.episodes
-                    ? `${anime.episodes} Episodes`
-                    : "Episodes: N/A"}
-                </AnimeInfo>
-              </CardContent>
-            </Link>
-            <RemoveButton
-              onClick={(e) => {
-                e.preventDefault();
-                removeFromFavourites(anime.mal_id);
-              }}
-            >
-              <FaTrash /> Remove
-            </RemoveButton>
-          </AnimeCard>
+          />
         ))}
       </AnimeGrid>
     </FavouritesStyled>
@@ -154,118 +135,9 @@ const Header = styled.div`
 
 const AnimeGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 2rem;
   margin-bottom: 2rem;
-
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 1.5rem;
-  }
-`;
-
-const AnimeCard = styled.div`
-  background: rgba(58, 58, 58, 0.5);
-  border-radius: 14px;
-  overflow: hidden;
-  border: 2px solid #444;
-  transition: all 0.3s ease;
-  position: relative;
-
-  &:hover {
-    transform: translateY(-8px);
-    border-color: #ffd700;
-    box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
-  }
-
-  a {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-  }
-`;
-
-const ImageWrapper = styled.div`
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-
-  img {
-    width: 100%;
-    height: auto;
-    display: block;
-    transition: transform 0.3s ease;
-  }
-
-  &:hover img {
-    transform: scale(1.05);
-  }
-`;
-
-const ScoreBadge = styled.div`
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #ffd700;
-  padding: 0.4rem 0.7rem;
-  border-radius: 8px;
-  font-family: "Montserrat", sans-serif;
-  font-weight: 700;
-  font-size: 0.9rem;
-  border: 2px solid #ffd700;
-`;
-
-const CardContent = styled.div`
-  padding: 1rem;
-`;
-
-const AnimeTitle = styled.h3`
-  font-family: "Inter", "Noto Sans JP", sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 0.5rem;
-  line-height: 1.4;
-  letter-spacing: 0.01em;
-  min-height: 2.6rem;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-`;
-
-const AnimeInfo = styled.p`
-  font-family: "Inter", "Noto Sans JP", sans-serif;
-  color: #b0b0b0;
-  font-size: 0.9rem;
-  font-weight: 400;
-  letter-spacing: 0.01em;
-`;
-
-const RemoveButton = styled.button`
-  width: 100%;
-  padding: 0.8rem;
-  background: rgba(255, 77, 77, 0.2);
-  border: none;
-  border-top: 2px solid rgba(255, 77, 77, 0.3);
-  color: #ff4d4d;
-  font-family: "Montserrat", sans-serif;
-  font-weight: 700;
-  font-size: 0.95rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-
-  &:hover {
-    background: rgba(255, 77, 77, 0.3);
-    color: white;
-  }
 `;
 
 const EmptyState = styled.div`

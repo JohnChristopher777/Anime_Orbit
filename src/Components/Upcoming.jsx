@@ -1,21 +1,38 @@
-import React from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import { useGlobalContext } from "../context/global.jsx";
-import { Link } from "react-router-dom";
 import styled from "styled-components";
+import AnimeCard from "./AnimeCard.jsx";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 function Upcoming() {
-  const { upcomingAnime, isSearch, searchResults } = useGlobalContext();
+  const { upcomingAnime, isSearch, searchResults, getUpcomingAnime, upcomingPage, hasMoreUpcoming, loading } = useGlobalContext();
+
+  useEffect(() => {
+    if (!upcomingAnime || upcomingAnime.length === 0) {
+      getUpcomingAnime(1);
+    }
+  }, []);
+
+  // Infinite scroll observer
+  const observerRef = useRef(null);
+  const sentinelRef = useCallback(
+    (node) => {
+      if (loading) return;
+      if (observerRef.current) observerRef.current.disconnect();
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMoreUpcoming && !loading) {
+          getUpcomingAnime(upcomingPage + 1);
+        }
+      }, { rootMargin: "200px" });
+      if (node) observerRef.current.observe(node);
+    },
+    [loading, hasMoreUpcoming, upcomingPage, getUpcomingAnime]
+  );
 
   const renderAnimeCards = (animeList) => {
     return animeList?.map((anime) => (
-      <Link to={`/anime/${anime.mal_id}`} key={`upcoming-${anime.mal_id}`}>
-        <div className="anime-card">
-          <div className="image-wrapper">
-            <img src={anime.images.jpg.large_image_url} alt={anime.title} />
-          </div>
-          <p className="anime-title">{anime.title}</p>
-        </div>
-      </Link>
+      <AnimeCard anime={anime} key={`upcoming-${anime.mal_id}`} />
     ));
   };
 
@@ -23,11 +40,31 @@ function Upcoming() {
     <UpcomingStyled>
       <div className="upcoming-anime">
         <h2>{isSearch ? "Search Results" : "Upcoming Anime"}</h2>
-        <div className="anime-grid">
-          {isSearch
-            ? renderAnimeCards(searchResults)
-            : renderAnimeCards(upcomingAnime)}
-        </div>
+
+        {loading && (!upcomingAnime || upcomingAnime.length === 0) ? (
+          <div className="anime-grid">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} style={{ padding: '1rem', background: '#3a3a3a', borderRadius: '14px', height: '320px' }}>
+                <Skeleton height={200} borderRadius={8} baseColor="#2c2c2c" highlightColor="#3a3a3a" />
+                <Skeleton width="80%" height={20} baseColor="#2c2c2c" highlightColor="#3a3a3a" style={{ marginTop: '1rem', marginBottom: '0.5rem' }} />
+                <Skeleton width="40%" height={15} baseColor="#2c2c2c" highlightColor="#3a3a3a" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="anime-grid">
+              {isSearch
+                ? renderAnimeCards(searchResults)
+                : renderAnimeCards(upcomingAnime)}
+            </div>
+            {!isSearch && hasMoreUpcoming && (
+              <LoadingMore ref={sentinelRef}>
+                {loading ? "Loading more anime..." : ""}
+              </LoadingMore>
+            )}
+          </>
+        )}
       </div>
     </UpcomingStyled>
   );
@@ -165,6 +202,15 @@ const UpcomingStyled = styled.div`
       }
     }
   }
+`;
+
+const LoadingMore = styled.div`
+  text-align: center;
+  padding: 2rem;
+  color: #ffd700;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
 `;
 
 export default Upcoming;

@@ -1,21 +1,14 @@
 import React from "react";
 import { useGlobalContext } from "../context/global.jsx";
-import { Link } from "react-router-dom";
 import styled from "styled-components";
+import AnimeCard from "./AnimeCard.jsx";
 
 function Airing() {
   const { airingAnime, isSearch, searchResults } = useGlobalContext();
 
   const renderAnimeCards = (animeList) => {
     return animeList?.map((anime) => (
-      <Link to={`/anime/${anime.mal_id}`} key={`airing-${anime.mal_id}`}>
-        <div className="anime-card">
-          <div className="image-wrapper">
-            <img src={anime.images.jpg.large_image_url} alt={anime.title} />
-          </div>
-          <p className="anime-title">{anime.title}</p>
-        </div>
-      </Link>
+      <AnimeCard anime={anime} key={`airing-${anime.mal_id}`} />
     ));
   };
 

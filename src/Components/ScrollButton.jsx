@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 const ScrollButton = () => {
     const [isAtTop, setIsAtTop] = useState(true);
@@ -49,7 +49,7 @@ const ScrollButton = () => {
 
     return (
         <ScrollButtonStyled onClick={handleClick} isAtTop={isAtTop}>
-            {isAtTop ? <FaArrowDown size={20} /> : <FaArrowUp size={20} />}
+            {isAtTop ? <ArrowDown size={20} /> : <ArrowUp size={20} />}
         </ScrollButtonStyled>
     );
 };

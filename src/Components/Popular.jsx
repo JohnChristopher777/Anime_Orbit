@@ -1,20 +1,25 @@
-import React, { memo, useEffect, useRef } from "react";
+import React, { memo, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useGlobalContext } from "../context/global.jsx";
 import styled from "styled-components";
 import gsap from "gsap";
+import AnimeCard from "./AnimeCard.jsx";
+import { TrendingUp } from "lucide-react";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 function Popular({ rendered, popularAnime }) {
-  const { trendingAnime } = useGlobalContext();
+  const { trendingAnime, popularPage, hasMorePopular, getPopularAnime, loading } = useGlobalContext();
   const safePopularAnime = popularAnime || [];
   const safeTrendingAnime = trendingAnime || [];
   const cardsRef = useRef([]);
   const trendingRef = useRef([]);
 
   useEffect(() => {
-    if (cardsRef.current.length > 0) {
+    const validRefs = cardsRef.current.filter(Boolean);
+    if (validRefs.length > 0) {
       gsap.fromTo(
-        cardsRef.current,
+        validRefs,
         { opacity: 0, y: 50, scale: 0.8 },
         {
           opacity: 1,
@@ -29,9 +34,10 @@ function Popular({ rendered, popularAnime }) {
   }, [safePopularAnime]);
 
   useEffect(() => {
-    if (trendingRef.current.length > 0) {
+    const validRefs = trendingRef.current.filter(Boolean);
+    if (validRefs.length > 0) {
       gsap.fromTo(
-        trendingRef.current,
+        validRefs,
         { opacity: 0, x: -30 },
         {
           opacity: 1,
@@ -44,6 +50,42 @@ function Popular({ rendered, popularAnime }) {
     }
   }, [safeTrendingAnime]);
 
+  // Infinite scroll observer
+  const observerRef = useRef(null);
+  const sentinelRef = useCallback(
+    (node) => {
+      if (rendered === "search") return;
+      if (loading) return;
+      if (observerRef.current) observerRef.current.disconnect();
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMorePopular && !loading) {
+          getPopularAnime(popularPage + 1);
+        }
+      }, { rootMargin: "200px" });
+      if (node) observerRef.current.observe(node);
+    },
+    [loading, hasMorePopular, popularPage, getPopularAnime, rendered]
+  );
+
+  if (loading && !safePopularAnime.length) {
+    return (
+      <PopularStyled>
+        <div className="popular-anime">
+          <h2>Popular Anime</h2>
+          <div className="anime-grid">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} style={{ padding: '1rem', background: '#3a3a3a', borderRadius: '14px', height: '320px' }}>
+                <Skeleton height={200} borderRadius={8} baseColor="#2c2c2c" highlightColor="#3a3a3a" />
+                <Skeleton width="80%" height={20} baseColor="#2c2c2c" highlightColor="#3a3a3a" style={{ marginTop: '1rem', marginBottom: '0.5rem' }} />
+                <Skeleton width="40%" height={15} baseColor="#2c2c2c" highlightColor="#3a3a3a" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </PopularStyled>
+    );
+  }
+
   if (!safePopularAnime.length && !safeTrendingAnime.length) {
     return <p className="no-content">No anime available yet.</p>;
   }
@@ -54,33 +96,26 @@ function Popular({ rendered, popularAnime }) {
         <div className="popular-anime">
           <h2>{rendered === "search" ? "Search Results" : "Popular Anime"}</h2>
           <div className="anime-grid">
-            {safePopularAnime.slice(0, 24).map((anime, index) => (
-              <Link
-                to={`/anime/${anime.mal_id}`}
+            {safePopularAnime.map((anime, index) => (
+              <AnimeCard
+                ref={(el) => (cardsRef.current[index] = el)}
+                anime={anime}
                 key={`popular-${anime.mal_id}`}
-              >
-                <div
-                  className="anime-card"
-                  ref={(el) => (cardsRef.current[index] = el)}
-                >
-                  <div className="image-wrapper">
-                    <img
-                      src={anime.images.jpg.large_image_url}
-                      alt={anime.title}
-                    />
-                  </div>
-                  <p className="anime-title">{anime.title}</p>
-                </div>
-              </Link>
+              />
             ))}
           </div>
+          {rendered !== "search" && hasMorePopular && (
+            <LoadingMore ref={sentinelRef}>
+              {loading ? "Loading more anime..." : ""}
+            </LoadingMore>
+          )}
         </div>
       )}
 
       {rendered !== "search" && safeTrendingAnime.length > 0 && (
         <div className="trending-anime">
           <h2>
-            <i className="bi bi-graph-up-arrow"></i> Top 10 Current Trending
+            <TrendingUp size={24} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} /> Top 10 Current Trending
           </h2>
           <div className="trending-container">
             {safeTrendingAnime.slice(0, 10).map((anime, index) => (
@@ -95,7 +130,7 @@ function Popular({ rendered, popularAnime }) {
                   <span className="number">{index + 1}</span>
                   <div className="image-wrapper">
                     <img
-                      src={anime.images.jpg.large_image_url}
+                      src={anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || ""}
                       alt={anime.title}
                     />
                   </div>
@@ -375,6 +410,15 @@ const PopularStyled = styled.div`
       }
     }
   }
+`;
+
+const LoadingMore = styled.div`
+  text-align: center;
+  padding: 2rem;
+  color: #ffd700;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
 `;
 
 export default memo(Popular);
