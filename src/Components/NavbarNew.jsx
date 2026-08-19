@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Calendar,
   MessageCircle,
+  MessageSquare,
 } from "lucide-react";
 
 const Navbar = () => {
@@ -125,7 +126,7 @@ const Navbar = () => {
 
           <Logo to="/">
             <span className="anime">ANIME</span>
-            <span className="orbit">ORBIT</span>
+            <span className="orbit">Orbit </span>
           </Logo>
 
           <NavLinks>
@@ -260,6 +261,15 @@ const Navbar = () => {
                     <MessageCircle size={18} />
                     <span>My Reviews</span>
                   </DropdownItem>
+                  <DropdownItem
+                    onClick={() => {
+                      navigate("/my-comments");
+                      setUserMenuOpen(false);
+                    }}
+                  >
+                    <MessageSquare size={18} />
+                    <span>My Comments</span>
+                  </DropdownItem>
                   <DropdownDivider />
                   <DropdownItem onClick={handleLogout} className="logout">
                     <LogOut size={18} />
@@ -349,12 +359,10 @@ const MenuButton = styled.button`
 `;
 
 const Logo = styled(Link)`
-  font-family: "Shakuro", "Bungee", cursive;
+  font-family: "Montserrat", sans-serif;
   font-size: 2rem;
-  font-weight: bold;
+  font-weight: 900;
   text-decoration: none;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   display: flex;
   gap: 0.5rem;
   align-items: center;

@@ -1,11 +1,10 @@
 import { createGlobalStyle } from 'styled-components';
 
 const Typography = createGlobalStyle`
-  /* Import Japanese-inspired fonts */
-  @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Bebas+Neue&family=Staatliches&family=Bangers&display=swap');
+  /* Import Japanese-inspired and modern fonts */
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Bebas+Neue&family=Staatliches&family=Bangers&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700;900&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
   :root {
     /* Typography Scale */
@@ -21,8 +20,8 @@ const Typography = createGlobalStyle`
     --font-size-6xl: 3.75rem;    /* 60px */
 
     /* Font Families */
-    /* Special Japanese-style display font for "Anime Orbit" logo only */
-    --font-logo: 'Bungee', 'Bebas Neue', cursive;
+    /* Brand logo font */
+    --font-logo: 'Montserrat', sans-serif;
     
     /* Headings - Bold and impactful */
     --font-heading: 'Staatliches', 'Bebas Neue', cursive;

@@ -1,7 +1,7 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 // Firebase configuration using environment variables
 const firebaseConfig = {
@@ -14,11 +14,22 @@ const firebaseConfig = {
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase safely (avoid multiple initializations)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// Initialize Firebase Analytics
-export const analytics = getAnalytics(app);
+// Initialize Firebase Analytics safely (only in supported browser environments with valid config)
+export let analytics = null;
+if (typeof window !== 'undefined' && firebaseConfig.projectId && firebaseConfig.measurementId) {
+    isSupported()
+        .then((supported) => {
+            if (supported) {
+                analytics = getAnalytics(app);
+            }
+        })
+        .catch(() => {
+            // Gracefully ignore analytics failure in unsupported environments
+        });
+}
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
@@ -27,3 +38,4 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 export default app;
+

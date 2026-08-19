@@ -1,6 +1,4 @@
 import React, { useState, Suspense, lazy } from "react";
-import Upcoming from "./Upcoming.jsx";
-import Airing from "./Airing.jsx";
 import { useGlobalContext } from "../context/global.jsx";
 import styled from "styled-components";
 import HeroCarousel from "./HeroCarousel.jsx";
@@ -91,9 +89,9 @@ const HomepageStyled = styled.div`
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 
     .brand {
-      font-family: "Bungee", cursive;
+      font-family: "Montserrat", sans-serif;
       font-size: 1.8rem;
-      font-weight: bold;
+      font-weight: 900;
       letter-spacing: 0.05em;
       text-transform: uppercase;
       color: #ffd700;

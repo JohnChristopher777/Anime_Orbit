@@ -1,7 +1,7 @@
 import { createGlobalStyle } from 'styled-components';
 
 const GlobalStyle = createGlobalStyle`
-  @import url('https://fonts.googleapis.com/css2?family=Bungee&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
 
   * {
     margin: 0;
@@ -53,7 +53,8 @@ const GlobalStyle = createGlobalStyle`
   }
 
   .logo-text, .brand-text {
-    font-family: 'Bungee', cursive;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
   }
 
   a, button {

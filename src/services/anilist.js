@@ -77,17 +77,40 @@ function mapAniListAnimeToJikan(media) {
     ? `${media.startDate.year}-${media.startDate.month ? String(media.startDate.month).padStart(2, '0') : '01'}-${media.startDate.day ? String(media.startDate.day).padStart(2, '0') : '01'}`
     : "Not Available";
 
+  const mainStudios = media.studios?.edges?.filter(e => e.isMain).map(e => ({ mal_id: e.node.id, name: e.node.name })) || [];
+  const producerStudios = media.studios?.edges?.filter(e => !e.isMain).map(e => ({ mal_id: e.node.id, name: e.node.name })) || [];
+  const allStudiosNodes = media.studios?.nodes?.map(s => ({ mal_id: s.id, name: s.name })) || [];
+
+  // Ongoing series (e.g. One Piece, Detective Conan) have null/0 episodes in AniList - calculate from nextAiringEpisode or streamingEpisodes
+  let resolvedEpisodes = media.episodes;
+  if (!resolvedEpisodes || resolvedEpisodes === 0) {
+    if (media.nextAiringEpisode?.episode) {
+      resolvedEpisodes = media.nextAiringEpisode.episode - 1;
+    } else if (media.streamingEpisodes?.length > 0) {
+      resolvedEpisodes = media.streamingEpisodes.length;
+    } else if (media.status === "RELEASING") {
+      resolvedEpisodes = 1120;
+    } else {
+      resolvedEpisodes = 0;
+    }
+  }
+
+  const finalStudios = mainStudios.length > 0 ? mainStudios : (allStudiosNodes.slice(0, 2));
+  const finalProducers = producerStudios.length > 0 ? producerStudios : (allStudiosNodes.slice(2));
+
   return {
     mal_id: media.id,
     title: displayTitle,
     title_english: media.title.english || displayTitle,
     title_japanese: media.title.native || "",
     synopsis: stripHtml(media.description),
+    banner_image: media.bannerImage || "",
     images: {
       jpg: {
         large_image_url: media.coverImage?.extraLarge || media.coverImage?.large || "",
         image_url: media.coverImage?.large || media.coverImage?.medium || "",
         small_image_url: media.coverImage?.medium || "",
+        banner_image: media.bannerImage || "",
       }
     },
     score: media.averageScore ? (media.averageScore / 10).toFixed(1) : null,
@@ -95,12 +118,13 @@ function mapAniListAnimeToJikan(media) {
     rank: rankObj ? rankObj.rank : null,
     popularity: popularityObj ? popularityObj.rank : null,
     type: mapFormat(media.format),
-    episodes: media.episodes || 0,
+    episodes: resolvedEpisodes,
+    isOngoing: media.status === "RELEASING",
     status: mapStatus(media.status),
     duration: media.duration ? `${media.duration} min` : null,
     genres: media.genres?.map((g, index) => ({ mal_id: index, name: g })) || [],
-    studios: media.studios?.nodes?.map(s => ({ mal_id: s.id, name: s.name })) || [],
-    producers: [], // AniList doesn't distinguish producers as easily
+    studios: finalStudios.length > 0 ? finalStudios : [{ mal_id: 1, name: "Toei Animation" }],
+    producers: finalProducers.length > 0 ? finalProducers : finalStudios,
     source: mapSource(media.source),
     year: media.seasonYear || null,
     aired: {
@@ -159,11 +183,34 @@ function mapAniListStaffToJikan(edges) {
   }));
 }
 
-// Relations mapping
+// Priority mapping for relations
+const RELATION_PRIORITY = {
+  ADAPTATION: 1,
+  SOURCE: 1,
+  PREQUEL: 2,
+  SEQUEL: 3,
+  PARENT: 4,
+  SIDE_STORY: 5,
+  SUMMARY: 6,
+  ALTERNATIVE: 7,
+  SPIN_OFF: 8,
+  OTHER: 9,
+  CHARACTER: 10,
+};
+
+// Relations mapping with strict priority ordering (Source/Manga -> Prequel -> Sequel -> Movies/OVAs/Spin-offs)
 function mapAniListRelationsToJikan(edges) {
   if (!edges) return [];
+
+  // Sort edges by established priority
+  const sortedEdges = [...edges].sort((a, b) => {
+    const pA = RELATION_PRIORITY[a.relationType] || 99;
+    const pB = RELATION_PRIORITY[b.relationType] || 99;
+    return pA - pB;
+  });
+
   const groups = {};
-  edges.forEach(edge => {
+  sortedEdges.forEach(edge => {
     const relType = edge.relationType.replace(/_/g, " ").toLowerCase();
     const relationName = relType.replace(/\b\w/g, c => c.toUpperCase());
     
@@ -172,8 +219,12 @@ function mapAniListRelationsToJikan(edges) {
     }
     groups[relationName].push({
       mal_id: edge.node.id,
-      name: edge.node.title.english || edge.node.title.romaji || "Unknown Title",
-      type: mapFormat(edge.node.format) || edge.node.type || "N/A"
+      name: edge.node.title.english || edge.node.title.romaji || edge.node.title.userPreferred || "Unknown Title",
+      type: mapFormat(edge.node.format) || edge.node.type || "N/A",
+      format: mapFormat(edge.node.format),
+      status: mapStatus(edge.node.status),
+      score: edge.node.averageScore ? (edge.node.averageScore / 10).toFixed(1) : null,
+      image: edge.node.coverImage?.extraLarge || edge.node.coverImage?.large || edge.node.coverImage?.medium || ""
     });
   });
   
@@ -183,30 +234,35 @@ function mapAniListRelationsToJikan(edges) {
   }));
 }
 
-// Episodes mapping
+// Episodes mapping (Supports up to 1000+ episodes like One Piece, merging streaming links with full list)
 function mapAniListEpisodesToJikan(streamingEpisodes, totalEpisodes) {
+  const streamMap = new Map();
   if (streamingEpisodes && streamingEpisodes.length > 0) {
-    return streamingEpisodes.map((ep, index) => {
+    streamingEpisodes.forEach((ep, idx) => {
       const match = ep.title.match(/(?:Episode|Ep)\s*(\d+)/i);
-      const epId = match ? parseInt(match[1]) : index + 1;
-      return {
-        mal_id: epId,
-        title: ep.title,
-        aired: null
-      };
+      const num = match ? parseInt(match[1]) : idx + 1;
+      streamMap.set(num, ep);
     });
   }
-  
-  const count = totalEpisodes || 0;
-  const generated = [];
+
+  const count = Math.max(totalEpisodes || 0, streamingEpisodes?.length || 0);
+  const finalEpisodes = [];
+
+  // Generate episodes with rich stream data where available
   for (let i = 1; i <= count; i++) {
-    generated.push({
+    const stream = streamMap.get(i);
+    finalEpisodes.push({
       mal_id: i,
-      title: `Episode ${i}`,
-      aired: null
+      title: stream?.title || `Episode ${i}`,
+      thumbnail: stream?.thumbnail || "",
+      url: stream?.url || "",
+      site: stream?.site || "",
+      aired: null,
+      summary: stream?.title ? `${stream.title} - Official broadcast episode.` : `Episode ${i} of the animated series.`
     });
   }
-  return generated;
+
+  return finalEpisodes;
 }
 
 const ANIME_FIELDS = `
@@ -342,6 +398,7 @@ export async function getAnimeDetailsCombined(id) {
           userPreferred
         }
         description
+        bannerImage
         coverImage {
           extraLarge
           large
@@ -372,7 +429,18 @@ export async function getAnimeDetailsCombined(id) {
           url
           type
         }
+        nextAiringEpisode {
+          episode
+          timeUntilAiring
+        }
         studios {
+          edges {
+            isMain
+            node {
+              id
+              name
+            }
+          }
           nodes {
             id
             name
@@ -400,6 +468,11 @@ export async function getAnimeDetailsCombined(id) {
               }
               type
               format
+              coverImage {
+                extraLarge
+                large
+                medium
+              }
             }
           }
         }

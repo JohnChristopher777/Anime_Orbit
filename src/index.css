@@ -18,9 +18,6 @@
 }
 */
 
-/* Alternative: Import display font from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Staatliches&display=swap');
-
 /* Custom global styles */
 * {
     margin: 0;

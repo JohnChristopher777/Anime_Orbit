@@ -11,6 +11,7 @@ import {
   Calendar,
   TrendingUp,
   MessageCircle,
+  MessageSquare,
   Search,
   LogIn,
   LogOut,
@@ -327,6 +328,10 @@ const Sidebar = ({ isOpen, toggleSidebar, onClose, onOpenAuth }) => {
 
             <SidebarLink to="/my-reviews" onClick={() => handleLinkClick("/my-reviews")}>
               <MessageCircle size={18} /> My Reviews
+            </SidebarLink>
+
+            <SidebarLink to="/my-comments" onClick={() => handleLinkClick("/my-comments")}>
+              <MessageSquare size={18} /> My Comments
             </SidebarLink>
           </>
         )}
