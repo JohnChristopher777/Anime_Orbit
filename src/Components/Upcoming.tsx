@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { useGlobalContext } from "../context/global";
 import AnimeCard from "./AnimeCard";
+import SEO from "./SEO";
 import { Calendar, RefreshCw } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -40,6 +41,12 @@ export const Upcoming: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
+      <SEO
+        title="Most Anticipated Upcoming Anime & New Seasons"
+        description="Discover upcoming anime releases, new seasonal broadcasts, and highly anticipated movies across all genres on Anime Orbit."
+        keywords="upcoming anime, new anime seasons, upcoming anime movies, anime release schedule, Anime Orbit"
+        url="https://animeorbit.web.app/upcoming"
+      />
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-white/10">
         <div className="flex items-center gap-3 flex-wrap">

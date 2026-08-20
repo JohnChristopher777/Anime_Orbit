@@ -4,67 +4,63 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/jpeg" href="/animeorbit.jpg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="theme-color" content="#121216" />
 
-    <!-- Primary Meta Tags for SEO -->
-    <meta name="title" content="Anime Orbit - Your Ultimate Anime Database" />
+    <!-- Primary Meta Tags for Search Engines & SEO -->
+    <title>Anime Orbit - Your Ultimate Anime Compass & Universal Guide</title>
+    <meta
+      name="title"
+      content="Anime Orbit - Your Ultimate Anime Compass & Universal Guide"
+    />
     <meta
       name="description"
-      content="Explore Anime Orbit, the ultimate anime database featuring detailed anime lists, episode counts, character info, and more. Discover popular, airing, and upcoming anime titles."
+      content="Lost in the vast anime universe? Anime Orbit is your cosmic compass guiding you through all genres: Action, Fantasy, Sci-Fi, Romance, Drama, and legendary sagas like One Piece, Bleach, Naruto, Vinland Saga, Jujutsu Kaisen, and Attack on Titan. Explore episode guides, character archives, user reviews, and personalized watchlists."
     />
     <meta
       name="keywords"
-      content="anime database, anime orbit, anime details, anime list, anime episode count, popular anime, upcoming anime, airing anime"
+      content="Anime Orbit, anime database, all genre anime, anime compass, One Piece, Naruto Shippuden, Bleach Thousand-Year Blood War, Vinland Saga, Jujutsu Kaisen, Attack on Titan, Solo Leveling, Demon Slayer, Frieren, anime episode guide, anime characters, anime reviews, anime watchlist"
     />
     <meta name="robots" content="index, follow" />
-    <meta name="author" content="Anime Orbit Team" />
+    <meta name="author" content="Anime Orbit Universe" />
+    <link rel="canonical" href="https://animeorbit.web.app/" />
 
-    <!-- Open Graph Tags -->
+    <!-- Open Graph / Facebook / Discord SEO -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://shonenanimeorbit.netlify.app/" />
+    <meta property="og:url" content="https://animeorbit.web.app/" />
     <meta
       property="og:title"
-      content="Anime Orbit - Your Ultimate Anime Database"
+      content="Anime Orbit - Your Ultimate Anime Compass & Universal Guide"
     />
     <meta
       property="og:description"
-      content="Discover Anime Orbit: detailed anime lists, episode counts, characters, and more for popular, airing, and upcoming anime. Your go-to anime resource!"
+      content="Navigate legendary anime worlds across all genres. Detailed episode databases, character artwork, tier rankings, and personalized community tracking for One Piece, Bleach, Naruto, Vinland Saga, and all top anime."
     />
     <meta property="og:image" content="/animeorbit.jpg" />
-    <meta property="og:image:alt" content="Anime Orbit Logo" />
+    <meta property="og:image:alt" content="Anime Orbit - Anime Compass Logo" />
     <meta property="og:site_name" content="Anime Orbit" />
 
-    <!-- Twitter Card Tags -->
+    <!-- Twitter Card SEO -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://shonenanimeorbit.netlify.app/" />
+    <meta name="twitter:url" content="https://animeorbit.web.app/" />
     <meta
       name="twitter:title"
-      content="Anime Orbit - Your Ultimate Anime Database"
+      content="Anime Orbit - Your Ultimate Anime Compass & Universal Guide"
     />
     <meta
       name="twitter:description"
-      content="Anime Orbit offers detailed anime lists, episode counts, and more for anime fans. Explore popular, airing, and upcoming titles now!"
+      content="Your compass in the anime universe. Explore episode lists, character galleries, community reviews, and tier lists for all anime genres."
     />
     <meta name="twitter:image" content="/animeorbit.jpg" />
 
-    <!-- Additional SEO Enhancements -->
+    <!-- Mobile & PWA Optimization -->
     <meta name="application-name" content="Anime Orbit" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Anime Orbit" />
-    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="apple-touch-icon" href="/animeorbit.jpg" />
 
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json" />
-
-    <!-- Font Awesome -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
-      integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -74,10 +70,28 @@
       rel="stylesheet"
     />
 
-    <title>Anime Orbit</title>
+    <!-- Structured Data (JSON-LD) for Google Search Compass Indexing -->
+    <script id="schema-structured-data" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Anime Orbit",
+        "alternateName": "Anime Orbit - Universal Anime Compass",
+        "url": "https://animeorbit.web.app/",
+        "description": "Your compass in the anime galaxy featuring comprehensive episode guides, character archives, and reviews across all genres including One Piece, Bleach, Naruto, Vinland Saga, and top anime series.",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://animeorbit.web.app/?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>You need to enable JavaScript to experience Anime Orbit.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
   </body>

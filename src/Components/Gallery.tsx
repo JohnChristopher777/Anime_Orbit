@@ -1,6 +1,7 @@
 import React, { useState, useEffect, memo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useGlobalContext } from "../context/global";
+import SEO from "./SEO";
 import {
   ChevronLeft,
   ChevronRight,
@@ -31,7 +32,7 @@ export const Gallery: React.FC = () => {
         }
       } catch {
         if (isMounted) {
-          setCharacterName("Character Artwork");
+          setCharacterName("Character Gallery");
         }
       }
     };
@@ -50,18 +51,18 @@ export const Gallery: React.FC = () => {
     }
   }, [pictures]);
 
-  const handleNext = useCallback(() => {
-    if (!optimizedPictures.length) return;
-    setIndex((prev) => (prev + 1) % optimizedPictures.length);
+  const handlePrev = useCallback(() => {
+    if (optimizedPictures.length === 0) return;
+    setIndex((prevIndex) => (prevIndex === 0 ? optimizedPictures.length - 1 : prevIndex - 1));
   }, [optimizedPictures.length]);
 
-  const handlePrev = useCallback(() => {
-    if (!optimizedPictures.length) return;
-    setIndex((prev) => (prev - 1 + optimizedPictures.length) % optimizedPictures.length);
+  const handleNext = useCallback(() => {
+    if (optimizedPictures.length === 0) return;
+    setIndex((prevIndex) => (prevIndex === optimizedPictures.length - 1 ? 0 : prevIndex + 1));
   }, [optimizedPictures.length]);
 
   const handleBack = () => {
-    if (window.history.state && window.history.state.idx > 0) {
+    if (window.history.length > 2) {
       navigate(-1);
     } else {
       navigate("/");
@@ -75,6 +76,13 @@ export const Gallery: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#121214] text-white pt-28 sm:pt-32 pb-12 px-6 sm:px-10 flex flex-col font-inter relative">
+      <SEO
+        title={`${characterName} - Character Artwork & Gallery`}
+        description={`Browse official anime character artwork, illustrations, and pictures for ${characterName} on Anime Orbit.`}
+        keywords={`${characterName}, anime artwork, anime gallery, Anime Orbit`}
+        image={currentImage || "https://animeorbit.web.app/animeorbit.jpg"}
+        url={`https://animeorbit.web.app/gallery/${id}`}
+      />
       {/* Fixed Floating Back Button */}
       <button
         onClick={handleBack}

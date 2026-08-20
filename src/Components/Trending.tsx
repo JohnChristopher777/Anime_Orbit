@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback } from "react";
 import { useGlobalContext } from "../context/global";
 import AnimeCard from "./AnimeCard";
+import SEO from "./SEO";
 import { TrendingUp, RefreshCw } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -40,6 +41,12 @@ export const Trending: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
+      <SEO
+        title="Top Airing & Trending Anime Series This Season"
+        description="Stay up to date with currently broadcasting and trending anime series across all genres. Track weekly episodes and ratings on Anime Orbit."
+        keywords="airing anime, trending anime, current anime season, weekly anime episodes, Anime Orbit"
+        url="https://animeorbit.web.app/airing"
+      />
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-white/10">
         <div className="flex items-center gap-3 flex-wrap">

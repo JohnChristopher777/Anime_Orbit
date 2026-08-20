@@ -3,6 +3,7 @@ import { useWatchlist } from "../context/WatchlistContext";
 import { useAuth } from "../context/AuthContext";
 import AnimeCard from "./AnimeCard";
 import AuthModal from "./AuthModal";
+import SEO from "./SEO";
 import { List, Share2, Copy, Download, ExternalLink, X, Check, LogIn } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -17,6 +18,12 @@ export const Watchlist: React.FC = () => {
   if (!currentUser) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+        <SEO
+          title="My Watchlist - Anime Tracker & History"
+          description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Orbit."
+          keywords="anime watchlist, anime tracker, anime watch progress, Anime Orbit"
+          url="https://animeorbit.web.app/watchlist"
+        />
         <List size={56} className="mx-auto text-[#ffd700]" />
         <h2 className="text-3xl font-extrabold font-montserrat text-white">
           My Anime Watchlist
@@ -153,6 +160,12 @@ export const Watchlist: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      <SEO
+        title="My Watchlist - Anime Tracker & History"
+        description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Orbit."
+        keywords="anime watchlist, anime tracker, anime watch progress, Anime Orbit"
+        url="https://animeorbit.web.app/watchlist"
+      />
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div className="flex items-center gap-3">

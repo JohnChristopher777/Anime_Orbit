@@ -2,6 +2,7 @@ import React, { memo, useEffect, useRef, useCallback } from "react";
 import { useGlobalContext } from "../context/global";
 import gsap from "gsap";
 import AnimeCard from "./AnimeCard";
+import SEO from "./SEO";
 import { RefreshCw } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -112,6 +113,12 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
 
   return (
     <div className="flex flex-col items-center min-h-screen py-8 px-4">
+      <SEO
+        title={rendered === "search" ? "Search Anime Results" : "Top Rated & Most Popular Anime of All Time"}
+        description="Explore the highest-rated and most popular anime series and movies across all genres. Filter, search, and discover timeless masterpieces on Anime Orbit."
+        keywords="popular anime, top rated anime, best anime of all time, all genres, anime catalog, Anime Orbit"
+        url="https://animeorbit.web.app/popular"
+      />
       {safePopularAnime.length > 0 && (
         <div className="w-full max-w-7xl px-2 sm:px-4 mb-8">
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">

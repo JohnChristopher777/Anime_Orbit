@@ -6,6 +6,7 @@ import { useFavourites } from "../context/FavouritesContext";
 import { useWatchlist } from "../context/WatchlistContext";
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "./AuthModal";
+import SEO from "./SEO";
 import { db } from "../firebase/config";
 import {
   collection,
@@ -481,8 +482,45 @@ export const AnimeItem: React.FC = () => {
     );
   }
 
+  const cleanSynopsis = useMemo(() => {
+    if (!synopsis) return "Explore full episode guides, characters, reviews, and stats on Anime Orbit.";
+    return synopsis.replace(/<[^>]+>/g, "").slice(0, 240) + "...";
+  }, [synopsis]);
+
+  const animeStructuredData = useMemo(() => {
+    return {
+      "@context": "https://schema.org",
+      "@type": type === "Movie" ? "Movie" : "TVSeries",
+      name: displayTitle,
+      alternateName: title_japanese || undefined,
+      description: cleanSynopsis,
+      image: images?.jpg?.large_image_url || PosterImage,
+      aggregateRating: score
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: score,
+            bestRating: "10",
+            worstRating: "1",
+            ratingCount: anime.scored_by || 1000,
+          }
+        : undefined,
+      genre: genres?.map((g: any) => g.name || g),
+      numberOfEpisodes: totalEpisodes || undefined,
+      url: `https://animeorbit.web.app/anime/${id}`,
+    };
+  }, [displayTitle, title_japanese, cleanSynopsis, images, PosterImage, score, anime.scored_by, genres, totalEpisodes, id, type]);
+
   return (
     <Container>
+      <SEO
+        title={`${displayTitle} - Episodes, Characters & Reviews`}
+        description={`${displayTitle}: ${cleanSynopsis}`}
+        keywords={`${displayTitle}, ${genres?.map((g: any) => g.name || g).join(", ")}, anime episodes, anime characters, anime reviews, Anime Orbit`}
+        image={images?.jpg?.large_image_url || PosterImage}
+        url={`https://animeorbit.web.app/anime/${id}`}
+        type={type === "Movie" ? "video.movie" : "video.tv_show"}
+        structuredData={animeStructuredData}
+      />
       <BackButton onClick={handleBack} aria-label="Go Back">
         <ArrowLeft size={18} />
         <span>Back</span>

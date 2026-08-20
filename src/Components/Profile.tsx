@@ -30,6 +30,7 @@ import {
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import AuthModal from "./AuthModal";
+import SEO from "./SEO";
 
 const AVATAR_PRESETS = [
   "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=80",
@@ -258,6 +259,12 @@ export const Profile: React.FC = () => {
   if (!currentUser) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 font-inter">
+        <SEO
+          title="User Profile & Settings"
+          description="Manage your anime profile, custom avatar, birthday greeting, and mature content preferences on Anime Orbit."
+          keywords="anime profile, anime user settings, Anime Orbit"
+          url="https://animeorbit.web.app/profile"
+        />
         <User size={56} className="mx-auto text-[#ffd700]" />
         <h2 className="text-3xl font-extrabold font-montserrat text-white">
           My Profile
@@ -283,6 +290,12 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 font-inter">
+      <SEO
+        title={`${displayName || "User"} - Anime Profile`}
+        description="Manage your custom anime avatar, watching stats, favorites, and account security on Anime Orbit."
+        keywords="anime profile, user profile, Anime Orbit"
+        url="https://animeorbit.web.app/profile"
+      />
       {/* Birthday Celebration Banner */}
       {isBirthdayToday && (
         <div className="relative bg-gradient-to-r from-[#ffd700]/25 via-pink-500/20 to-purple-600/25 border-2 border-[#ffd700] rounded-2xl p-6 sm:p-8 text-center shadow-[0_0_30px_rgba(255,215,0,0.35)] backdrop-blur-md animate-pulse">
@@ -601,7 +614,7 @@ export const Profile: React.FC = () => {
               onChange={(e) => setFavoriteGenre(e.target.value)}
               className="w-full px-4 py-2.5 bg-neutral-800 border border-white/15 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none cursor-pointer"
             >
-              {["Shonen", "Action", "Adventure", "Fantasy", "Sci-Fi", "Comedy", "Drama", "Mystery"].map((g) => (
+              {["Action", "Adventure", "Fantasy", "Sci-Fi", "Comedy", "Drama", "Mystery", "Romance", "Supernatural", "Slice of Life", "Sports"].map((g) => (
                 <option key={g} value={g}>
                   {g}
                 </option>

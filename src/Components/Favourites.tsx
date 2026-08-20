@@ -3,6 +3,7 @@ import { useFavourites } from "../context/FavouritesContext";
 import { useAuth } from "../context/AuthContext";
 import AnimeCard from "./AnimeCard";
 import AuthModal from "./AuthModal";
+import SEO from "./SEO";
 import {
   Heart,
   LogIn,
@@ -274,6 +275,12 @@ export const Favourites: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+      <SEO
+        title="My Favorites & Custom Anime Tier List"
+        description="Build, organize, and customize your personal anime tier lists and favorite series across all genres on Anime Orbit."
+        keywords="anime tier list, anime favorites, custom anime tier rankings, Anime Orbit"
+        url="https://animeorbit.web.app/favourites"
+      />
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div className="flex items-center gap-3">

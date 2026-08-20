@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import SEO from "./SEO";
 import {
   Compass,
   Sparkles,
@@ -14,6 +15,12 @@ import {
 export const AboutUs: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+      <SEO
+        title="About Anime Orbit - The Ultimate Interactive Anime Database"
+        description="Anime Orbit is a state-of-the-art anime discovery hub featuring real-time ratings, chronological relations, episode guides, community reviews, and watchlist sync across all genres."
+        keywords="about anime orbit, anime database, anime guide, anime compass, AniList GraphQL"
+        url="https://animeorbit.web.app/about"
+      />
       {/* Hero Section */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
         <div className="inline-flex items-center gap-2 bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider font-montserrat">

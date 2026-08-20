@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { useGlobalContext } from "../context/global";
 import HeroCarousel from "./HeroCarousel";
+import SEO from "./SEO";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
@@ -92,6 +93,12 @@ export function Homepage() {
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col relative">
+      <SEO
+        title="Anime Orbit - Your Cosmic Anime Compass & Universal Guide"
+        description="Lost in the vast anime universe? Anime Orbit is your cosmic compass guiding you through all genres: Action, Fantasy, Romance, Sci-Fi, and timeless masterpieces like One Piece, Bleach, Naruto, and Vinland Saga."
+        keywords="Anime Orbit, anime database, anime compass, all genres anime, One Piece, Bleach, Naruto, Vinland Saga, Attack on Titan, Jujutsu Kaisen"
+        url="https://animeorbit.web.app/"
+      />
       {!search && <HeroCarousel trendingAnime={topAiringAnime} />}
 
       <main className={`p-4 flex-1 ${search ? "mt-24" : ""}`}>
