@@ -2,23 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Shakuro Font */
-/* Shakuro Custom Font - Add font files to public/fonts/ directory */
-/* Uncomment when font files are available */
-/*
-@font-face {
-  font-family: 'Shakuro';
-  src: local('Shakuro'), 
-       url('./fonts/Shakuro-Regular.woff2') format('woff2'), 
-       url('./fonts/Shakuro-Regular.woff') format('woff'), 
-       url('./fonts/Shakuro-Regular.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-*/
-
-/* Custom global styles */
 * {
     margin: 0;
     padding: 0;
@@ -27,12 +10,12 @@
 
 body {
     margin: 0;
-    font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
         'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
         sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #1a1a1a;
+    background-color: #121216;
     color: white;
 }
 
@@ -41,18 +24,21 @@ code {
         monospace;
 }
 
-/* Scrollbar styling */
+/* Original Scrollbar Fade Styling with Yellow -> Dark Yellow */
 ::-webkit-scrollbar {
     width: 7px;
+    height: 7px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(transparent,
-            #27ae60);
+    background: linear-gradient(transparent, #ffd700);
     border-radius: 6px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(transparent,
-            #ffd700);
+    background: linear-gradient(transparent, #cca700);
 }

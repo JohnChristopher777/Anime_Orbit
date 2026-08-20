@@ -10,6 +10,19 @@ export default defineConfig({
   },
   build: {
     outDir: 'build',
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          'vendor-animations': ['gsap', 'framer-motion'],
+          'vendor-graphics': ['ogl'],
+          'vendor-icons': ['lucide-react', 'react-icons'],
+          'vendor-ui': ['react-toastify', 'react-loading-skeleton', 'swiper'],
+        },
+      },
+    },
   },
   optimizeDeps: {
     esbuildOptions: {

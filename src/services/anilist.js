@@ -358,18 +358,28 @@ export async function getUpcomingAnime(perPage = 24, page = 1) {
   };
 }
 
-export async function getAiringAnime(perPage = 25) {
+export async function getAiringAnime(perPage = 24, page = 1) {
   const query = `
-    query ($perPage: Int) {
-      Page(page: 1, perPage: $perPage) {
+    query ($perPage: Int, $page: Int) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo {
+          total
+          perPage
+          currentPage
+          lastPage
+          hasNextPage
+        }
         media(type: ANIME, sort: POPULARITY_DESC, status: RELEASING) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
-  const data = await queryAniList(query, { perPage });
-  return (data.Page.media || []).map(mapAniListAnimeToJikan);
+  const data = await queryAniList(query, { perPage, page });
+  return {
+    media: (data.Page.media || []).map(mapAniListAnimeToJikan),
+    pageInfo: data.Page.pageInfo
+  };
 }
 
 export async function searchAnime(search, perPage = 25) {
@@ -525,15 +535,91 @@ export async function getAnimeDetailsCombined(id) {
     throw new Error("No media found for the given ID");
   }
 
+  const mappedAnime = {
+    ...mapAniListAnimeToJikan(media),
+    externalLinks: media.externalLinks || []
+  };
+
   return {
-    anime: {
-      ...mapAniListAnimeToJikan(media),
-      externalLinks: media.externalLinks || []
-    },
+    anime: mappedAnime,
     characters: mapAniListCharactersToJikan(media.characters?.edges),
     staff: mapAniListStaffToJikan(media.staff?.edges),
     relations: mapAniListRelationsToJikan(media.relations?.edges),
-    episodes: mapAniListEpisodesToJikan(media.streamingEpisodes, media.episodes)
+    episodes: mapAniListEpisodesToJikan(media.streamingEpisodes, mappedAnime.episodes)
+  };
+}
+
+export async function getAnimeCharacters(id, page = 1, perPage = 25) {
+  const query = `
+    query ($id: Int, $page: Int, $perPage: Int) {
+      Media(id: $id, type: ANIME) {
+        characters(sort: [ROLE, FAVOURITES_DESC], page: $page, perPage: $perPage) {
+          pageInfo {
+            hasNextPage
+            currentPage
+          }
+          edges {
+            role
+            node {
+              id
+              name {
+                full
+              }
+              image {
+                large
+              }
+            }
+            voiceActors(language: JAPANESE) {
+              id
+              name {
+                full
+              }
+              image {
+                large
+              }
+              language
+            }
+          }
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { id: parseInt(id), page, perPage });
+  return {
+    characters: mapAniListCharactersToJikan(data.Media?.characters?.edges),
+    pageInfo: data.Media?.characters?.pageInfo
+  };
+}
+
+export async function getAnimeStaff(id, page = 1, perPage = 25) {
+  const query = `
+    query ($id: Int, $page: Int, $perPage: Int) {
+      Media(id: $id, type: ANIME) {
+        staff(page: $page, perPage: $perPage) {
+          pageInfo {
+            hasNextPage
+            currentPage
+          }
+          edges {
+            role
+            node {
+              id
+              name {
+                full
+              }
+              image {
+                large
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { id: parseInt(id), page, perPage });
+  return {
+    staff: mapAniListStaffToJikan(data.Media?.staff?.edges),
+    pageInfo: data.Media?.staff?.pageInfo
   };
 }
 
