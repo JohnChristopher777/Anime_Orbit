@@ -26,6 +26,9 @@ import {
   AlertTriangle,
   Lock,
   RotateCcw,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -46,6 +49,8 @@ export const Profile: React.FC = () => {
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState("");
+  const [userId, setUserId] = useState("");
+  const [userIdError, setUserIdError] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [favoriteGenre, setFavoriteGenre] = useState("Action");
@@ -54,6 +59,8 @@ export const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Deletion & Destruct States
   const [deletionScheduled, setDeletionScheduled] = useState(false);
@@ -64,7 +71,7 @@ export const Profile: React.FC = () => {
 
   useEffect(() => {
     if (!currentUser) return;
-    setDisplayName(currentUser.displayName || "");
+    setDisplayName((currentUser.displayName || "").slice(0, 15));
     setAvatarUrl(currentUser.photoURL || AVATAR_PRESETS[0]);
 
     const fetchUserProfile = async () => {
@@ -73,7 +80,8 @@ export const Profile: React.FC = () => {
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           const data = userDoc.data();
-          if (data.displayName) setDisplayName(data.displayName);
+          if (data.displayName) setDisplayName(data.displayName.slice(0, 15));
+          if (data.userId) setUserId(data.userId);
           if (data.bio) setBio(data.bio);
           if (data.favoriteGenre) setFavoriteGenre(data.favoriteGenre);
           if (data.avatarUrl) setAvatarUrl(data.avatarUrl);
@@ -103,6 +111,23 @@ export const Profile: React.FC = () => {
     };
     fetchUserProfile();
   }, [currentUser]);
+
+  // Validate User ID: 15 chars max, at least 1 number, at least 1 uppercase letter, allowed: . @ - _
+  const validateUserId = (id: string): string | null => {
+    if (!id || !id.trim()) return null; // Optional initially
+    if (id.length > 15) return "User ID must be 15 characters or less";
+    if (!/\d/.test(id)) return "User ID must contain at least 1 number";
+    if (!/[A-Z]/.test(id)) return "User ID must contain at least 1 uppercase letter";
+    if (!/^[a-zA-Z0-9.@_-]+$/.test(id)) return "Only letters, numbers, and . @ - _ are allowed";
+    return null;
+  };
+
+  const handleUserIdChange = (val: string) => {
+    const trimmed = val.slice(0, 15);
+    setUserId(trimmed);
+    const err = validateUserId(trimmed);
+    setUserIdError(err || "");
+  };
 
   // Joined Date format
   const joinedDate = useMemo(() => {
@@ -160,6 +185,16 @@ export const Profile: React.FC = () => {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
+
+    if (userId) {
+      const err = validateUserId(userId);
+      if (err) {
+        setUserIdError(err);
+        toast.error(err);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const finalMatureSetting = isAdult ? allowMatureContent : false;
@@ -167,7 +202,8 @@ export const Profile: React.FC = () => {
       await setDoc(
         doc(db, "users", currentUser.uid),
         {
-          displayName,
+          displayName: displayName.slice(0, 15),
+          userId: userId.trim(),
           bio,
           avatarUrl,
           favoriteGenre,
@@ -274,7 +310,7 @@ export const Profile: React.FC = () => {
         </p>
         <button
           onClick={() => setAuthModalOpen(true)}
-          className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-extrabold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-lg hover:scale-105 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-bold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-lg hover:scale-105 transition-all cursor-pointer"
         >
           <LogIn size={16} />
           <span>Sign In to Your Account</span>
@@ -289,7 +325,7 @@ export const Profile: React.FC = () => {
   const planToWatchCount = watchlist.filter((i) => i.status === "Plan to Watch").length;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 font-inter">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-12 space-y-6 sm:space-y-8 font-inter">
       <SEO
         title={`${displayName || "User"} - Anime Profile`}
         description="Manage your custom anime avatar, watching stats, favorites, and account security on Anime Orbit."
@@ -383,6 +419,13 @@ export const Profile: React.FC = () => {
                 )}
               </div>
 
+              {/* User ID Tag */}
+              {userId && (
+                <p className="text-xs font-mono font-bold text-[#ffd700]">
+                  @{userId}
+                </p>
+              )}
+
               {/* Joined Date & Email */}
               <div className="flex items-center gap-3 justify-center sm:justify-start text-xs text-neutral-400 flex-wrap">
                 <span className="truncate">{currentUser.email}</span>
@@ -395,7 +438,7 @@ export const Profile: React.FC = () => {
                   <>
                     <span>•</span>
                     <span className="text-neutral-300">
-                      Born {formattedBirthDate}
+                      Born on {formattedBirthDate}
                     </span>
                   </>
                 )}
@@ -426,7 +469,14 @@ export const Profile: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-shrink-0">
+          <div className="flex items-center gap-2.5 flex-shrink-0 flex-wrap justify-center">
+            <button
+              onClick={() => setShareModalOpen(true)}
+              className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs sm:text-sm px-4 py-2 rounded-xl transition-all cursor-pointer shadow-md hover:scale-105"
+            >
+              <Share2 size={16} />
+              <span>Share Profile</span>
+            </button>
             <button
               onClick={() => setIsEditing(!isEditing)}
               className="inline-flex items-center gap-2 bg-[#ffd700]/15 hover:bg-[#ffd700] text-[#ffd700] hover:text-black font-montserrat font-bold text-xs sm:text-sm px-4 py-2 rounded-xl border border-[#ffd700]/40 transition-all cursor-pointer"
@@ -511,21 +561,60 @@ export const Profile: React.FC = () => {
               ))}
             </div>
           </div>
-
-          {/* Display Name */}
+          {/* Display Name (15 Char Restriction) */}
           <div>
-            <label htmlFor="profile-display-name" className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2">
-              Display Name
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="profile-display-name" className="block text-xs font-bold uppercase font-montserrat text-neutral-300">
+                Display Name (Max 15 Characters)
+              </label>
+              <span className="text-[11px] text-[#ffd700] font-mono">
+                {displayName.length}/15
+              </span>
+            </div>
             <input
               id="profile-display-name"
               name="displayName"
               type="text"
+              maxLength={15}
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Enter your username"
+              onChange={(e) => setDisplayName(e.target.value.slice(0, 15))}
+              placeholder="Enter display name (max 15 chars)"
               className="w-full px-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none"
             />
+          </div>
+
+          {/* Unique User ID Tag (Max 15 Chars, 1 Number, 1 Uppercase, allowed: . @ - _) */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="profile-user-id" className="block text-xs font-bold uppercase font-montserrat text-neutral-300">
+                Unique User ID (Pinpoint Identifier)
+              </label>
+              <span className="text-[11px] text-[#ffd700] font-mono">
+                {userId.length}/15
+              </span>
+            </div>
+            <div className="relative">
+              <span className="absolute left-3.5 top-2.5 text-[#ffd700] font-mono font-bold text-sm">@</span>
+              <input
+                id="profile-user-id"
+                name="userId"
+                type="text"
+                maxLength={15}
+                value={userId}
+                onChange={(e) => handleUserIdChange(e.target.value)}
+                placeholder="e.g. Ryuma777, Orbit_X1"
+                className="w-full pl-8 pr-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none font-mono"
+              />
+            </div>
+            {userIdError ? (
+              <p className="text-xs text-red-400 mt-1 font-semibold">
+                ⚠️ {userIdError}
+              </p>
+            ) : (
+              <p className="text-[11px] text-neutral-400 mt-1">
+                Must be ≤15 characters, contain at least 1 number and 1 capital letter. Allowed: <code className="text-[#ffd700]">. @ - _</code>
+              </p>
+            )}
           </div>
 
           {/* Enhanced Date of Birth & Calendar Picker */}
@@ -569,43 +658,28 @@ export const Profile: React.FC = () => {
                   <ShieldCheck size={16} className={isAdult ? "text-emerald-400" : "text-neutral-500"} />
                   <span>Allow Mature Content (18+)</span>
                 </label>
-                <p className="text-xs text-neutral-400 mt-0.5">
+                <p className="text-xs text-neutral-400">
                   {isAdult
-                    ? "Show 18+ and mature-rated anime titles in your feeds and searches."
-                    : "You must be 18 or older based on your birth date to enable mature titles."}
+                    ? "Display unrated 18+ mature content and titles across all anime genres."
+                    : "Age verification required (18+) to enable mature content viewing."}
                 </p>
               </div>
               <input
                 id="profile-allow-mature"
-                name="allowMatureContent"
+                name="allowMature"
                 type="checkbox"
                 disabled={!isAdult}
-                checked={isAdult && allowMatureContent}
+                checked={allowMatureContent}
                 onChange={(e) => setAllowMatureContent(e.target.checked)}
-                className="w-5 h-5 accent-[#ffd700] cursor-pointer disabled:opacity-40"
+                className="w-5 h-5 accent-[#ffd700] cursor-pointer disabled:opacity-30"
               />
             </div>
           </div>
 
-          {/* About Me */}
-          <div>
-            <label htmlFor="profile-bio" className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2">
-              About Me
-            </label>
-            <textarea
-              id="profile-bio"
-              name="bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Tell others about your favorite anime, characters, and hobbies..."
-              className="w-full px-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none resize-y min-h-[90px]"
-            />
-          </div>
-
-          {/* Favorite Category */}
+          {/* Favorite Genre */}
           <div>
             <label htmlFor="profile-favorite-genre" className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2">
-              Favorite Category
+              Favorite Genre
             </label>
             <select
               id="profile-favorite-genre"
@@ -628,7 +702,7 @@ export const Profile: React.FC = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] disabled:opacity-50 text-black font-extrabold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-lg hover:scale-105 transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] disabled:opacity-50 text-black font-bold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-lg hover:scale-105 transition-all cursor-pointer"
               >
                 <Save size={16} />
                 <span>{saving ? "Saving..." : "Save Profile"}</span>

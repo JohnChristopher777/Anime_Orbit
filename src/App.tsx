@@ -138,20 +138,27 @@ function Layout({ children }: { children: ReactNode }) {
   );
 }
 
+import Genres from "./Components/Genres";
+import Manga from "./Components/Manga";
+import MangaItem from "./Components/MangaItem";
+import PublicProfile from "./Components/PublicProfile";
+
 export function App() {
   return (
     <BrowserRouter>
       <ToastContainer
         position="bottom-right"
-        autoClose={2500}
+        autoClose={2200}
+        limit={2}
         hideProgressBar={false}
         newestOnTop={true}
         closeOnClick
         rtl={false}
-        pauseOnFocusLoss
+        pauseOnFocusLoss={false}
         draggable
         pauseOnHover
         theme="dark"
+        toastClassName="!bg-[#12121a]/95 !border !border-[#ffd700]/40 !text-white !font-montserrat !text-xs !shadow-2xl !rounded-2xl !backdrop-blur-xl !px-4 !py-3"
         style={{ zIndex: 99999 }}
       />
       <Routes>
@@ -172,10 +179,42 @@ export function App() {
           }
         />
         <Route
+          path="/genres"
+          element={
+            <Layout>
+              <Genres />
+            </Layout>
+          }
+        />
+        <Route
+          path="/manga"
+          element={
+            <Layout>
+              <Manga />
+            </Layout>
+          }
+        />
+        <Route
           path="/anime/:id"
           element={
             <Layout>
               <AnimeItem />
+            </Layout>
+          }
+        />
+        <Route
+          path="/manga/:id"
+          element={
+            <Layout>
+              <MangaItem />
+            </Layout>
+          }
+        />
+        <Route
+          path="/user/:id"
+          element={
+            <Layout>
+              <PublicProfile />
             </Layout>
           }
         />

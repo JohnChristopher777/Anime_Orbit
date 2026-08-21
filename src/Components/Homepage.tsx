@@ -5,6 +5,8 @@ import SEO from "./SEO";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
+import Footer from "./Footer";
+
 const Popular = lazy(() => import("./Popular"));
 
 export function Homepage() {
@@ -113,11 +115,7 @@ export function Homepage() {
         </Suspense>
       </main>
 
-      <footer className="text-center p-4 bg-[#121216] text-neutral-400 text-xs w-full border-t border-white/10 mt-auto">
-        <p>
-          © {new Date().getFullYear()} Anime Orbit | For fair use & educational purposes only
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 }

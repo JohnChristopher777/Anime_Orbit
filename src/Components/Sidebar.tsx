@@ -14,6 +14,8 @@ import {
   Search,
   LogIn,
   LogOut,
+  Compass,
+  BookOpen,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useGlobalContext } from "../context/global";
@@ -77,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Drawer */}
       <div
-        className={`fixed top-0 left-0 w-72 h-full bg-[#121214]/95 backdrop-blur-xl border-r border-white/10 text-white z-[1110] flex flex-col p-6 pt-16 transition-transform duration-300 ease-out shadow-2xl overflow-y-auto ${
+        className={`fixed top-0 left-0 w-72 h-full bg-[#121214]/95 backdrop-blur-xl border-r border-white/10 text-white z-[1110] flex flex-col p-6 pt-16 transition-transform duration-300 ease-out shadow-2xl overflow-y-auto overscroll-contain ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -90,19 +92,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <X size={24} />
         </button>
 
-        {/* Mobile Search Form */}
-        <form onSubmit={handleSearchSubmit} className="relative mb-6 md:hidden">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-          <input
-            id="sidebar-search-input"
-            name="sidebarSearch"
-            type="text"
-            placeholder="Search anime..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/15 rounded-full text-sm text-white placeholder-neutral-400 focus:outline-none focus:border-[#ffd700] focus:bg-white/10 transition-all"
-          />
-        </form>
+        {/* Sidebar Header Title */}
+        <div className="mb-6">
+          <h3 className="text-2xl text-[#ffd700] mt-0.5">
+            Catalogue
+          </h3>
+        </div>
 
         {/* Navigation Links */}
         <nav className="flex flex-col space-y-1">
@@ -131,6 +126,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Calendar size={18} className="text-[#ffd700]" />
             <span>Upcoming</span>
+          </Link>
+
+          <Link
+            to="/genres"
+            onClick={() => handleLinkClick("/genres")}
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+          >
+            <Compass size={18} className="text-[#ffd700]" />
+            <span>Genres</span>
+          </Link>
+
+          <Link
+            to="/manga"
+            onClick={() => handleLinkClick("/manga")}
+            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+          >
+            <BookOpen size={18} className="text-[#ffd700]" />
+            <span>Manga Universe</span>
           </Link>
 
           <Link
@@ -227,7 +240,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 handleClose();
                 if (onOpenAuth) onOpenAuth();
               }}
-              className="w-full py-2.5 bg-gradient-to-r from-[#ffd700] to-[#ffea00] text-black font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#ffd700]/20 hover:scale-[1.02] transition-all"
+              className="w-full py-2.5 bg-gradient-to-r from-[#ffd700] to-[#ffea00] text-black font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#ffd700]/20 hover:scale-[1.02] transition-all cursor-pointer"
             >
               <LogIn size={15} />
               <span>Sign In</span>

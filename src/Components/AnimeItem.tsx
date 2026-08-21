@@ -86,7 +86,7 @@ export const AnimeItem: React.FC = () => {
   const [newReviewRating, setNewReviewRating] = useState(10);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(true);
-
+  const [trailerLoaded, setTrailerLoaded] = useState(false);
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const { currentUser } = useAuth();
   const { updateAnimeStatus, getAnimeStatus } = useWatchlist();
@@ -471,17 +471,6 @@ export const AnimeItem: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Container>
-        <Skeleton height={420} baseColor="#1e1e1e" highlightColor="#2d2d2d" borderRadius={16} />
-        <div style={{ marginTop: "2rem" }}>
-          <Skeleton count={4} height={20} baseColor="#1e1e1e" highlightColor="#2d2d2d" />
-        </div>
-      </Container>
-    );
-  }
-
   const cleanSynopsis = useMemo(() => {
     if (!synopsis) return "Explore full episode guides, characters, reviews, and stats on Anime Orbit.";
     return synopsis.replace(/<[^>]+>/g, "").slice(0, 240) + "...";
@@ -494,21 +483,32 @@ export const AnimeItem: React.FC = () => {
       name: displayTitle,
       alternateName: title_japanese || undefined,
       description: cleanSynopsis,
-      image: images?.jpg?.large_image_url || PosterImage,
+      image: images?.jpg?.large_image_url || "",
       aggregateRating: score
         ? {
             "@type": "AggregateRating",
             ratingValue: score,
             bestRating: "10",
             worstRating: "1",
-            ratingCount: anime.scored_by || 1000,
+            ratingCount: anime?.scored_by || 1000,
           }
         : undefined,
-      genre: genres?.map((g: any) => g.name || g),
+      genre: genres?.map((g: any) => g?.name || g),
       numberOfEpisodes: totalEpisodes || undefined,
       url: `https://animeorbit.web.app/anime/${id}`,
     };
-  }, [displayTitle, title_japanese, cleanSynopsis, images, PosterImage, score, anime.scored_by, genres, totalEpisodes, id, type]);
+  }, [displayTitle, title_japanese, cleanSynopsis, images, score, anime?.scored_by, genres, totalEpisodes, id, type]);
+
+  if (loading && !anime) {
+    return (
+      <Container>
+        <Skeleton height={420} baseColor="#1e1e1e" highlightColor="#2d2d2d" borderRadius={16} />
+        <div style={{ marginTop: "2rem" }}>
+          <Skeleton count={4} height={20} baseColor="#1e1e1e" highlightColor="#2d2d2d" />
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -521,11 +521,6 @@ export const AnimeItem: React.FC = () => {
         type={type === "Movie" ? "video.movie" : "video.tv_show"}
         structuredData={animeStructuredData}
       />
-      <BackButton onClick={handleBack} aria-label="Go Back">
-        <ArrowLeft size={18} />
-        <span>Back</span>
-      </BackButton>
-
       <BackgroundImage
         style={{
           backgroundImage: `url(${anime.banner_image || images?.jpg?.large_image_url || ""})`,
@@ -535,6 +530,13 @@ export const AnimeItem: React.FC = () => {
       >
         <Overlay />
       </BackgroundImage>
+
+      <TopBarWrapper>
+        <BackButton onClick={handleBack} aria-label="Go Back">
+          <ArrowLeft size={18} />
+          <span>Back</span>
+        </BackButton>
+      </TopBarWrapper>
 
       <HeroSection>
         <PosterWrapper>
@@ -733,12 +735,78 @@ export const AnimeItem: React.FC = () => {
               </InfoCard>
             </InfoGrid>
 
-            {trailer && trailer.embed_url && (
-              <TrailerSection>
-                <SectionTitle>Official Trailer</SectionTitle>
-                <TrailerIframe src={trailer.embed_url} title="Trailer" allowFullScreen />
-              </TrailerSection>
-            )}
+            {(() => {
+              const ytId = trailer?.youtube_id || trailer?.id || (trailer?.embed_url ? trailer.embed_url.match(/(?:embed\/|v=|\/vi\/|youtu\.be\/|\/v\/)([^?&#]+)/)?.[1] : null);
+              const cleanEmbedUrl = ytId
+                ? `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`
+                : `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(displayTitle + " official anime trailer pv")}&autoplay=1`;
+              const directWatchUrl = ytId
+                ? `https://www.youtube.com/watch?v=${ytId}`
+                : `https://www.youtube.com/results?search_query=${encodeURIComponent(displayTitle + " official anime trailer pv")}`;
+
+              return (
+                <TrailerSection>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.8rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                    <SectionTitle style={{ margin: 0 }}>Official Trailer & Preview</SectionTitle>
+                    <a
+                      href={directWatchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        background: "rgba(255, 0, 0, 0.15)",
+                        border: "1px solid rgba(255, 77, 77, 0.4)",
+                        color: "#ff6b6b",
+                        padding: "0.35rem 0.9rem",
+                        borderRadius: "20px",
+                        fontFamily: "Montserrat, sans-serif",
+                        fontWeight: 700,
+                        fontSize: "0.75rem",
+                        textDecoration: "none",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      <ExternalLink size={13} />
+                      <span>Watch on YouTube</span>
+                    </a>
+                  </div>
+
+                  {trailerLoaded ? (
+                    <div style={{ position: "relative", width: "100%" }}>
+                      <TrailerIframe
+                        src={cleanEmbedUrl}
+                        title={`${displayTitle} Official Trailer`}
+                        loading="lazy"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => setTrailerLoaded(true)}
+                      className="relative w-full aspect-video rounded-2xl overflow-hidden border border-[#ffd700]/40 cursor-pointer group bg-black shadow-2xl flex items-center justify-center"
+                      style={{
+                        backgroundImage: `url(${anime.banner_image || images?.jpg?.large_image_url || ""})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-black/60 group-hover:bg-black/40 transition-colors" />
+                      <div className="relative z-10 flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-[#ffd700] text-black flex items-center justify-center shadow-[0_0_25px_rgba(255,215,0,0.7)] group-hover:scale-110 transition-transform">
+                          <Play size={28} fill="#000" className="ml-1" />
+                        </div>
+                        <span className="font-montserrat font-bold text-sm text-white drop-shadow">
+                          Click to Play Official Trailer
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </TrailerSection>
+              );
+            })()}
           </OverviewContent>
         )}
 
@@ -839,7 +907,7 @@ export const AnimeItem: React.FC = () => {
                     transition: "all 0.2s ease",
                   }}
                 >
-                  {loadingMoreChars ? "Loading more characters..." : `Load More Characters (${characters.length} shown)`}
+                  {loadingMoreChars ? "Loading more characters..." : `Load More (${characters.length} shown)`}
                 </button>
               </div>
             )}
@@ -923,7 +991,7 @@ export const AnimeItem: React.FC = () => {
                     transition: "all 0.2s ease",
                   }}
                 >
-                  {loadingMoreStaff ? "Loading more staff..." : `Load More Staff (${staff.length} shown)`}
+                  {loadingMoreStaff ? "Loading more staff..." : `Load More(${staff.length} shown)`}
                 </button>
               </div>
             )}
@@ -1109,6 +1177,17 @@ export const AnimeItem: React.FC = () => {
             <LightboxContainer onClick={(e) => e.stopPropagation()}>
               <LightboxHeader>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+
+                  <LightboxCounter>
+                    <ImageIcon size={16} color="#ffd700" style={{ marginRight: "0.4rem" }} />
+                    <span>
+                      {lightboxIndex + 1} / {activeGalleryList.length}
+                    </span>
+                    <LightboxTypeBadge>{activeGalleryList[lightboxIndex]?.type || galleryTitle}</LightboxTypeBadge>
+                  </LightboxCounter>
+                </div>
+
+                <LightboxCloseBtn onClick={() => setLightboxOpen(false)}>
                   <button
                     onClick={() => setLightboxOpen(false)}
                     style={{
@@ -1126,21 +1205,8 @@ export const AnimeItem: React.FC = () => {
                       fontFamily: "Montserrat, sans-serif",
                     }}
                   >
-                    <ArrowLeft size={15} />
-                    <span>Back to Anime</span>
-                  </button>
-
-                  <LightboxCounter>
-                    <ImageIcon size={16} color="#ffd700" style={{ marginRight: "0.4rem" }} />
-                    <span>
-                      {lightboxIndex + 1} / {activeGalleryList.length}
-                    </span>
-                    <LightboxTypeBadge>{activeGalleryList[lightboxIndex]?.type || galleryTitle}</LightboxTypeBadge>
-                  </LightboxCounter>
-                </div>
-
-                <LightboxCloseBtn onClick={() => setLightboxOpen(false)}>
                   <X size={24} color="#fff" />
+                  </button>
                 </LightboxCloseBtn>
               </LightboxHeader>
 
@@ -1310,7 +1376,13 @@ const EpisodesView: React.FC<{
       </EpisodesHeaderRow>
 
       {batches.length > 0 && !searchQuery.trim() && (
-        <BatchContainer>
+        <BatchContainer
+          onWheel={(e) => {
+            if (e.deltaY !== 0) {
+              e.currentTarget.scrollLeft += e.deltaY * 1.5;
+            }
+          }}
+        >
           {batches.map((b) => (
             <BatchButton
               key={b.index}
@@ -1337,22 +1409,21 @@ const EpisodesView: React.FC<{
                     </EpisodePlaceholder>
                   )}
                   <EpisodeBadge>EP {episode.mal_id}</EpisodeBadge>
-                  {episode.url && (
-                    <EpisodePlayBtn
-                      href={episode.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Play size={15} fill="#fff" color="#fff" />
-                    </EpisodePlayBtn>
-                  )}
+                  <EpisodePlayBtn
+                    href={episode.url || `https://www.google.com/search?q=${encodeURIComponent((animeTitle || "Anime") + " Episode " + episode.mal_id + " stream online")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    title={`Watch Episode ${episode.mal_id} online`}
+                  >
+                    <Play size={15} fill="#fff" color="#fff" />
+                  </EpisodePlayBtn>
                 </EpisodeMediaWrapper>
                 <EpisodeInfo>
                   <EpisodeTitleRow>
                     <EpisodeTitle>{episode.title || `Episode ${episode.mal_id}`}</EpisodeTitle>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
-                      {episode.site && <EpisodeSiteBadge>{episode.site}</EpisodeSiteBadge>}
+                      <EpisodeSiteBadge>{episode.site || "Stream"}</EpisodeSiteBadge>
                       <a
                         href={`https://www.imdb.com/find/?q=${encodeURIComponent((animeTitle || "Anime") + " Episode " + episode.mal_id)}`}
                         target="_blank"
@@ -1433,36 +1504,46 @@ const Container = styled.div`
   padding-bottom: 4rem;
 `;
 
-const BackButton = styled.button`
-  position: fixed;
-  top: 85px;
-  left: 2rem;
-  z-index: 60;
+const TopBarWrapper = styled.div`
+  position: relative;
+  z-index: 40;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 0.5rem;
   display: flex;
   align-items: center;
+
+  @media (max-width: 768px) {
+    padding: 1rem 1rem 0.5rem;
+  }
+`;
+
+const BackButton = styled.button`
+  display: inline-flex;
+  align-items: center;
   gap: 0.5rem;
-  background: rgba(18, 18, 20, 0.95);
-  border: 1px solid rgba(255, 215, 0, 0.6);
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 215, 0, 0.4);
   color: #ffd700;
-  padding: 0.55rem 1.3rem;
-  border-radius: 25px;
+  padding: 0.5rem 1.1rem;
+  border-radius: 20px;
   font-family: "Montserrat", sans-serif;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
-  backdrop-filter: blur(12px);
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 215, 0, 0.2);
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
 
   &:hover {
     background: #ffd700;
-    color: #000;
-    transform: translateX(-3px);
+    color: #141414;
+    transform: translateX(-4px);
   }
 
   @media (max-width: 768px) {
-    left: 1rem;
-    top: 80px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.75rem;
   }
 `;
 
@@ -1493,7 +1574,7 @@ const HeroSection = styled.div`
   z-index: 30;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 6rem 2rem 2rem;
+  padding: 0.5rem 2rem 2rem;
   display: flex;
   gap: 3rem;
   align-items: flex-start;
@@ -1502,8 +1583,8 @@ const HeroSection = styled.div`
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 2rem;
-    padding-top: 5rem;
+    gap: 1.5rem;
+    padding: 0.5rem 1rem 1.5rem;
   }
 `;
 
@@ -1515,7 +1596,7 @@ const PosterWrapper = styled.div`
   gap: 0.8rem;
 
   @media (max-width: 768px) {
-    width: 200px;
+    width: 180px;
   }
 `;
 
@@ -1574,7 +1655,7 @@ const Title = styled.h1`
   text-shadow: 0 4px 15px rgba(0, 0, 0, 0.8);
 
   @media (max-width: 768px) {
-    font-size: 2.2rem;
+    font-size: 2rem;
   }
 `;
 
@@ -1718,11 +1799,15 @@ const TabsBar = styled.div`
   z-index: 10;
   max-width: 1200px;
   margin: 1.5rem auto 0;
-  padding: 0 2rem;
+  padding: 0 1rem;
   display: flex;
   gap: 0.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const TabButton = styled.button<{ $active: boolean }>`
@@ -1747,8 +1832,8 @@ const TabContent = styled.div`
   position: relative;
   z-index: 10;
   max-width: 1200px;
-  margin: 2rem auto 0;
-  padding: 0 2rem;
+  margin: 1.5rem auto 0;
+  padding: 0 1rem;
 `;
 
 const OverviewContent = styled.div`
@@ -1800,14 +1885,14 @@ const GenreBadge = styled.span`
 
 const InfoGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.8rem;
 `;
 
 const InfoCard = styled.div`
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 1rem;
+  padding: 0.85rem;
   border-radius: 12px;
 `;
 
@@ -1832,7 +1917,8 @@ const TrailerSection = styled.div``;
 const TrailerIframe = styled.iframe`
   width: 100%;
   max-width: 800px;
-  height: 450px;
+  aspect-ratio: 16 / 9;
+  height: auto;
   border-radius: 16px;
   border: 2px solid rgba(255, 215, 0, 0.3);
 `;
@@ -1893,8 +1979,12 @@ const BatchButton = styled.button<{ $active: boolean }>`
 
 const EpisodeGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.2rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const EpisodeCard = styled.div`
@@ -2011,8 +2101,12 @@ const EpisodeSummaryText = styled.p`
 
 const CharacterGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const CharacterCard = styled.div`
@@ -2070,8 +2164,12 @@ const VoiceActorInfo = styled.div`
 
 const StaffGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const StaffCard = styled.div`
@@ -2136,8 +2234,8 @@ const RelationTypeHeader = styled.div`
 
 const RelationList = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1.2rem;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
 `;
 
 const RelationCard = styled(Link)`

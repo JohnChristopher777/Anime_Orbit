@@ -1,9 +1,10 @@
 import React, { memo, useEffect, useRef, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useGlobalContext } from "../context/global";
 import gsap from "gsap";
 import AnimeCard from "./AnimeCard";
 import SEO from "./SEO";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search, ArrowLeft, Home } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
@@ -24,44 +25,34 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
   const safePopularAnime = popularAnime || [];
   const safeTrendingAnime = trendingAnime || [];
   const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const initialLoadedRef = useRef(false);
 
   useEffect(() => {
-    const validRefs = cardsRef.current.filter(Boolean);
-    if (validRefs.length > 0) {
-      gsap.fromTo(
-        validRefs,
-        { opacity: 0, y: 50, scale: 0.8 },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.6,
-          stagger: 0.05,
-          ease: "back.out(1.2)",
-        }
-      );
-    }
-  }, [safePopularAnime]);
-
-  // Infinite scroll observer
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const sentinelRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (rendered === "search") return;
-      if (loading) return;
-      if (observerRef.current) observerRef.current.disconnect();
-      observerRef.current = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting && hasMorePopular && !loading) {
-            getPopularAnime(popularPage + 1);
+    if (!initialLoadedRef.current && safePopularAnime.length > 0) {
+      initialLoadedRef.current = true;
+      const validRefs = cardsRef.current.filter(Boolean);
+      if (validRefs.length > 0) {
+        gsap.fromTo(
+          validRefs.slice(0, 12),
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.4,
+            stagger: 0.04,
+            ease: "power2.out",
           }
-        },
-        { rootMargin: "300px" }
-      );
-      if (node) observerRef.current.observe(node);
-    },
-    [loading, hasMorePopular, popularPage, getPopularAnime, rendered]
-  );
+        );
+      }
+    }
+  }, [safePopularAnime.length]);
+
+  // Manual button click pagination only (locked against automatic scroll reloads)
+  const handleLoadMore = () => {
+    if (!loading && hasMorePopular) {
+      getPopularAnime(popularPage + 1);
+    }
+  };
 
   if (loading && !safePopularAnime.length) {
     return (
@@ -103,10 +94,36 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
     );
   }
 
-  if (!safePopularAnime.length && !safeTrendingAnime.length) {
+  if (!safePopularAnime.length) {
     return (
-      <div className="text-center py-16 text-neutral-400 font-medium">
-        No anime available yet.
+      <div className="flex flex-col items-center justify-center min-h-[60vh] py-16 px-4">
+        <div className="text-center py-16 px-6 bg-[#12121a]/80 rounded-3xl border border-white/10 space-y-4 max-w-md w-full shadow-2xl">
+          <Search size={48} className="mx-auto text-neutral-600" />
+          <h3 className="font-montserrat font-bold text-lg text-white">
+            {rendered === "search" ? "No Matching Anime Found" : "No Anime Available"}
+          </h3>
+          <p className="text-xs text-neutral-400">
+            {rendered === "search"
+              ? "We couldn't find any results matching your search. Try different keywords or browse trending anime."
+              : "No anime titles are currently loaded. Return to home or explore genres."}
+          </p>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => window.history.back()}
+              className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-montserrat font-bold text-xs px-4 py-2 rounded-full transition-all cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Go Back</span>
+            </button>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 bg-[#ffd700] text-black font-montserrat font-bold text-xs px-5 py-2 rounded-full transition-all hover:scale-105 shadow-md"
+            >
+              <Home size={13} />
+              <span>Return Home</span>
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -147,18 +164,13 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
           {rendered !== "search" && hasMorePopular && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
               <button
-                onClick={() => getPopularAnime(popularPage + 1)}
+                onClick={handleLoadMore}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#ffd700]/15 hover:bg-[#ffd700] border border-[#ffd700]/40 text-[#ffd700] hover:text-black font-montserrat font-bold text-sm transition-all duration-200 hover:scale-105 shadow-[0_0_15px_rgba(255,215,0,0.15)] disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] disabled:opacity-50 text-black font-bold px-8 py-3.5 rounded-full text-sm font-montserrat shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-                <span>
-                  {loading
-                    ? "Loading next batch..."
-                    : `Load More (${safePopularAnime.length} loaded)`}
-                </span>
+                <span>{loading ? "Fetching Next Batch..." : `Load More(${safePopularAnime.length} loaded)`}</span>
               </button>
-              <div ref={sentinelRef} className="h-4 w-full" />
             </div>
           )}
         </div>

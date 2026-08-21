@@ -383,18 +383,185 @@ export async function getAiringAnime(perPage = 24, page = 1) {
 }
 
 export async function searchAnime(search, perPage = 25) {
+  if (!search || !search.trim()) return [];
+  const cleanSearch = search.trim();
   const query = `
     query ($search: String, $perPage: Int) {
       Page(page: 1, perPage: $perPage) {
-        media(type: ANIME, search: $search, sort: POPULARITY_DESC) {
+        media(type: ANIME, search: $search, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
-  const data = await queryAniList(query, { search, perPage });
-  return (data.Page.media || []).map(mapAniListAnimeToJikan);
+  try {
+    const data = await queryAniList(query, { search: cleanSearch, perPage });
+    return (data.Page.media || []).map(mapAniListAnimeToJikan);
+  } catch {
+    try {
+      const fallbackQuery = `
+        query ($search: String, $perPage: Int) {
+          Page(page: 1, perPage: $perPage) {
+            media(type: ANIME, search: $search, sort: POPULARITY_DESC) {
+              ${ANIME_FIELDS}
+            }
+          }
+        }
+      `;
+      const fallbackData = await queryAniList(fallbackQuery, { search: cleanSearch, perPage });
+      return (fallbackData.Page.media || []).map(mapAniListAnimeToJikan);
+    } catch {
+      return [];
+    }
+  }
 }
+
+export async function getMangaDetailsCombined(id) {
+  const query = `
+    query ($id: Int) {
+      Media(id: $id, type: MANGA) {
+        id
+        title {
+          english
+          romaji
+          native
+          userPreferred
+        }
+        description
+        bannerImage
+        coverImage {
+          extraLarge
+          large
+          medium
+        }
+        averageScore
+        popularity
+        format
+        chapters
+        volumes
+        status
+        genres
+        seasonYear
+        startDate {
+          year
+          month
+          day
+        }
+        endDate {
+          year
+          month
+          day
+        }
+        source
+        countryOfOrigin
+        rankings {
+          rank
+          type
+          allTime
+        }
+        relations {
+          edges {
+            relationType
+            node {
+              id
+              title {
+                english
+                romaji
+              }
+              type
+              format
+              coverImage {
+                extraLarge
+                large
+                medium
+              }
+            }
+          }
+        }
+        characters(sort: [ROLE, FAVOURITES_DESC], page: 1, perPage: 25) {
+          edges {
+            role
+            node {
+              id
+              name {
+                full
+                native
+              }
+              image {
+                large
+              }
+            }
+          }
+        }
+        staff(page: 1, perPage: 25) {
+          edges {
+            role
+            node {
+              id
+              name {
+                full
+                native
+              }
+              image {
+                large
+              }
+            }
+          }
+        }
+        externalLinks {
+          id
+          site
+          url
+          type
+        }
+      }
+    }
+  `;
+  try {
+    const data = await queryAniList(query, { id: parseInt(id) });
+    const m = data.Media;
+    if (!m) return null;
+
+    const mainAuthor = m.staff?.edges?.find(e => 
+      e.role.toLowerCase().includes('story') || 
+      e.role.toLowerCase().includes('original') ||
+      e.role.toLowerCase().includes('art')
+    )?.node?.name?.full || "the original creator";
+
+    return {
+      mal_id: m.id,
+      title: m.title?.english || m.title?.romaji || m.title?.userPreferred || "Manga",
+      title_english: m.title?.english,
+      title_japanese: m.title?.native,
+      synopsis: stripHtml(m.description || ""),
+      background: `Original manga masterpiece authored and illustrated by ${mainAuthor}. First published in official Japanese serialization starting in ${m.startDate?.year || "Japan"}. This work pioneered the story world and served as the direct foundational source material for the animated series adaptations.`,
+      images: {
+        jpg: {
+          image_url: m.coverImage?.large,
+          large_image_url: m.coverImage?.extraLarge || m.coverImage?.large
+        }
+      },
+      bannerImage: m.bannerImage,
+      score: m.averageScore ? (m.averageScore / 10).toFixed(1) : "N/A",
+      chapters: m.chapters || "Publishing / Ongoing",
+      volumes: m.volumes || "Unknown",
+      status: mapStatus(m.status),
+      genres: m.genres || [],
+      countryOfOrigin: m.countryOfOrigin || "JP",
+      format: m.format || "MANGA",
+      startDate: m.startDate,
+      endDate: m.endDate,
+      characters: m.characters?.edges || [],
+      staff: m.staff?.edges || [],
+      relations: m.relations?.edges || [],
+      externalLinks: m.externalLinks || []
+    };
+  } catch (error) {
+    console.error("Error fetching manga details:", error);
+    return null;
+  }
+}
+
 
 export async function getAnimeDetailsCombined(id) {
   const query = `
@@ -720,4 +887,168 @@ export async function getAnimeListByIds(ids) {
     return [];
   }
 }
+
+export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY_DESC") {
+  const query = `
+    query ($page: Int, $perPage: Int, $sort: [MediaSort]) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo {
+          hasNextPage
+        }
+        media(type: MANGA, sort: $sort) {
+          id
+          title {
+            english
+            romaji
+            userPreferred
+          }
+          coverImage {
+            extraLarge
+            large
+            medium
+          }
+          averageScore
+          popularity
+          format
+          chapters
+          volumes
+          status
+          genres
+          seasonYear
+          startDate {
+            year
+          }
+        }
+      }
+    }
+  `;
+  try {
+    const data = await queryAniList(query, { page, perPage, sort: [sort] });
+    return {
+      media: (data.Page.media || []).map((m) => ({
+        mal_id: m.id,
+        title: m.title?.english || m.title?.romaji || m.title?.userPreferred || "Manga",
+        title_english: m.title?.english,
+        images: {
+          jpg: {
+            image_url: m.coverImage?.large,
+            large_image_url: m.coverImage?.extraLarge || m.coverImage?.large
+          }
+        },
+        score: m.averageScore ? (m.averageScore / 10).toFixed(1) : "N/A",
+        chapters: m.chapters,
+        volumes: m.volumes,
+        status: mapStatus(m.status),
+        genres: m.genres || [],
+        year: m.startDate?.year || m.seasonYear,
+        format: m.format || "MANGA",
+        type: "Manga"
+      })),
+      pageInfo: data.Page.pageInfo
+    };
+  } catch (error) {
+    console.error("Error fetching popular manga:", error);
+    return { media: [], pageInfo: { hasNextPage: false } };
+  }
+}
+
+export async function getAnimeByGenre(genre, perPage = 24, page = 1, sort = "FAVOURITES_DESC") {
+  const query = `
+    query ($genre: String, $perPage: Int, $page: Int, $sort: [MediaSort]) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo {
+          hasNextPage
+        }
+        media(type: ANIME, genre: $genre, sort: $sort, isAdult: false) {
+          ${ANIME_FIELDS}
+        }
+      }
+    }
+  `;
+  try {
+    let sortArray;
+    if (sort === "FAVOURITES_DESC") {
+      sortArray = ["FAVOURITES_DESC", "SCORE_DESC"];
+    } else if (sort === "SCORE_DESC") {
+      sortArray = ["SCORE_DESC", "FAVOURITES_DESC"];
+    } else if (sort === "POPULARITY_DESC") {
+      sortArray = ["POPULARITY_DESC", "FAVOURITES_DESC"];
+    } else if (sort === "START_DATE_DESC") {
+      sortArray = ["START_DATE_DESC", "POPULARITY_DESC"];
+    } else {
+      sortArray = [sort, "FAVOURITES_DESC"];
+    }
+
+    const data = await queryAniList(query, { genre, perPage, page, sort: sortArray });
+    return {
+      media: (data.Page.media || []).map(mapAniListAnimeToJikan),
+      pageInfo: data.Page.pageInfo
+    };
+  } catch (error) {
+    console.error("Error fetching anime by genre:", error);
+    return { media: [], pageInfo: { hasNextPage: false } };
+  }
+}
+
+export async function getGenreArtworks() {
+  const query = `
+    query {
+      Action: Page(page: 1, perPage: 1) { media(genre: "Action", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Adventure: Page(page: 1, perPage: 1) { media(genre: "Adventure", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Fantasy: Page(page: 1, perPage: 1) { media(genre: "Fantasy", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Romance: Page(page: 1, perPage: 1) { media(genre: "Romance", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      SciFi: Page(page: 1, perPage: 1) { media(genre: "Sci-Fi", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Supernatural: Page(page: 1, perPage: 1) { media(genre: "Supernatural", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Drama: Page(page: 1, perPage: 1) { media(genre: "Drama", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Comedy: Page(page: 1, perPage: 1) { media(genre: "Comedy", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Mystery: Page(page: 1, perPage: 1) { media(genre: "Mystery", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Sports: Page(page: 1, perPage: 1) { media(genre: "Sports", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Horror: Page(page: 1, perPage: 1) { media(genre: "Horror", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      SliceOfLife: Page(page: 1, perPage: 1) { media(genre: "Slice of Life", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Psychological: Page(page: 1, perPage: 1) { media(genre: "Psychological", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Music: Page(page: 1, perPage: 1) { media(genre: "Music", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Thriller: Page(page: 1, perPage: 1) { media(genre: "Thriller", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Mecha: Page(page: 1, perPage: 1) { media(genre: "Mecha", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      MahouShoujo: Page(page: 1, perPage: 1) { media(genre: "Mahou Shoujo", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+    }
+  `;
+  try {
+    const data = await queryAniList(query);
+    const map = {};
+    const keyToGenre = {
+      Action: "Action",
+      Adventure: "Adventure",
+      Fantasy: "Fantasy",
+      Romance: "Romance",
+      SciFi: "Sci-Fi",
+      Supernatural: "Supernatural",
+      Drama: "Drama",
+      Comedy: "Comedy",
+      Mystery: "Mystery",
+      Sports: "Sports",
+      Horror: "Horror",
+      SliceOfLife: "Slice of Life",
+      Psychological: "Psychological",
+      Music: "Music",
+      Thriller: "Thriller",
+      Mecha: "Mecha",
+      MahouShoujo: "Mahou Shoujo",
+    };
+    Object.keys(keyToGenre).forEach((key) => {
+      const genre = keyToGenre[key];
+      const media = data[key]?.media?.[0];
+      if (media) {
+        map[genre] = {
+          image: media.coverImage?.extraLarge || media.coverImage?.large,
+          title: media.title?.english || media.title?.romaji || media.title?.userPreferred
+        };
+      }
+    });
+    return map;
+  } catch (err) {
+    console.error("Error fetching genre artworks:", err);
+    return {};
+  }
+}
+
 

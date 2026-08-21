@@ -84,7 +84,7 @@ export const MyReviews: React.FC = () => {
         </p>
         <button
           onClick={() => setAuthModalOpen(true)}
-          className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-extrabold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-lg hover:scale-105 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-bold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-lg hover:scale-105 transition-all cursor-pointer"
         >
           <LogIn size={16} />
           <span>Sign In to Access Reviews</span>
@@ -95,7 +95,7 @@ export const MyReviews: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-12 space-y-6">
       <SEO
         title="My Anime Reviews - Community Ratings"
         description="View, edit, and manage all your written anime ratings and reviews across all genres on Anime Orbit."

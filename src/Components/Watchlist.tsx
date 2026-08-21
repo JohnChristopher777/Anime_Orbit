@@ -33,7 +33,7 @@ export const Watchlist: React.FC = () => {
         </p>
         <button
           onClick={() => setAuthModalOpen(true)}
-          className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-extrabold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-lg hover:scale-105 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-bold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-lg hover:scale-105 transition-all cursor-pointer"
         >
           <LogIn size={16} />
           <span>Sign In to View Watchlist</span>
@@ -159,7 +159,7 @@ export const Watchlist: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-12 space-y-6 sm:space-y-8">
       <SEO
         title="My Watchlist - Anime Tracker & History"
         description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Orbit."
@@ -196,7 +196,7 @@ export const Watchlist: React.FC = () => {
                 onClick={() => setActiveFilter(filter)}
                 className={`px-3 py-1.5 rounded-full transition-all cursor-pointer ${
                   activeFilter === filter
-                    ? "bg-[#ffd700] text-black font-extrabold shadow-md shadow-[#ffd700]/20"
+                    ? "bg-[#ffd700] text-black font-bold shadow-md shadow-[#ffd700]/20"
                     : "bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10"
                 }`}
               >
@@ -280,7 +280,7 @@ export const Watchlist: React.FC = () => {
 
               <button
                 onClick={handleCopyText}
-                className="w-full flex items-center justify-between p-3.5 bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-extrabold text-sm rounded-xl transition-all cursor-pointer shadow-lg"
+                className="w-full flex items-center justify-between p-3.5 bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-sm rounded-xl transition-all cursor-pointer shadow-lg"
               >
                 <span className="flex items-center gap-2.5">
                   {copied ? <Check size={16} /> : <Copy size={16} />}

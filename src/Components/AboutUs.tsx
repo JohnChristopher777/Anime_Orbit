@@ -14,7 +14,7 @@ import {
 
 export const AboutUs: React.FC = () => {
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-12 space-y-10 sm:space-y-12">
       <SEO
         title="About Anime Orbit - The Ultimate Interactive Anime Database"
         description="Anime Orbit is a state-of-the-art anime discovery hub featuring real-time ratings, chronological relations, episode guides, community reviews, and watchlist sync across all genres."
@@ -105,7 +105,7 @@ export const AboutUs: React.FC = () => {
       <div className="text-center pt-4">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-extrabold px-8 py-3.5 rounded-full text-sm font-montserrat shadow-xl hover:scale-105 transition-all"
+          className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-bold px-8 py-3.5 rounded-full text-sm font-montserrat shadow-xl hover:scale-105 transition-all cursor-pointer"
         >
           <span>Start Exploring Anime</span>
           <ArrowRight size={18} />

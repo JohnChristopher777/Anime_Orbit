@@ -86,7 +86,7 @@ export const Gallery: React.FC = () => {
       {/* Fixed Floating Back Button */}
       <button
         onClick={handleBack}
-        className="fixed top-24 left-6 z-50 flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black px-5 py-2.5 rounded-full font-montserrat font-extrabold text-xs sm:text-sm shadow-[0_0_20px_rgba(255,215,0,0.5)] hover:scale-105 transition-all cursor-pointer"
+        className="fixed top-24 left-6 z-50 flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black px-5 py-2.5 rounded-full font-montserrat font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(255,215,0,0.5)] hover:scale-105 transition-all cursor-pointer"
       >
         <ArrowLeft size={18} />
         <span>Back to Anime</span>

@@ -243,10 +243,11 @@ export const Galaxy: React.FC<GalaxyProps> = ({
 
     let program: Program | null = null;
 
+    let resizeTimer: number;
     function resize() {
       if (!ctn || !renderer || !gl) return;
-      const w = Math.max(ctn.offsetWidth, 10);
-      const h = Math.max(ctn.offsetHeight, 10);
+      const w = Math.max(ctn.clientWidth || window.innerWidth, 10);
+      const h = Math.max(ctn.clientHeight || window.innerHeight, 10);
       renderer.setSize(w, h);
       if (program) {
         program.uniforms.uResolution.value = new Color(
@@ -256,7 +257,11 @@ export const Galaxy: React.FC<GalaxyProps> = ({
         );
       }
     }
-    window.addEventListener('resize', resize, false);
+    const debouncedResize = () => {
+      cancelAnimationFrame(resizeTimer);
+      resizeTimer = requestAnimationFrame(resize);
+    };
+    window.addEventListener('resize', debouncedResize, { passive: true });
     resize();
 
     const geometry = new Triangle(gl);
@@ -294,6 +299,7 @@ export const Galaxy: React.FC<GalaxyProps> = ({
 
     function update(t: number) {
       animateId = requestAnimationFrame(update);
+      if (document.hidden) return; // Pause repaint when tab is inactive to eliminate frame violations
       if (!disableAnimation && program) {
         program.uniforms.uTime.value = t * 0.001;
         program.uniforms.uStarSpeed.value = (t * 0.001 * starSpeed) / 10.0;
@@ -332,13 +338,14 @@ export const Galaxy: React.FC<GalaxyProps> = ({
     }
 
     if (mouseInteraction) {
-      window.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseleave', handleMouseLeave);
+      window.addEventListener('mousemove', handleMouseMove, { passive: true });
+      document.addEventListener('mouseleave', handleMouseLeave, { passive: true });
     }
 
     return () => {
       cancelAnimationFrame(animateId);
-      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(resizeTimer);
+      window.removeEventListener('resize', debouncedResize);
       if (mouseInteraction) {
         window.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseleave', handleMouseLeave);
