@@ -24,6 +24,7 @@ import {
   Compass,
   X,
   BookOpen,
+  Brain,
 } from "lucide-react";
 
 export const Nav: React.FC = () => {
@@ -46,22 +47,37 @@ export const Nav: React.FC = () => {
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
+  const [avatarImgError, setAvatarImgError] = useState(false);
+
   useEffect(() => {
     if (!currentUser) {
       setUserPhoto("");
       return;
     }
     setUserPhoto(currentUser.photoURL || "");
+    setAvatarImgError(false);
+
     getDoc(doc(db, "users", currentUser.uid))
       .then((snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (data.avatarUrl) {
             setUserPhoto(data.avatarUrl);
+            setAvatarImgError(false);
           }
         }
       })
       .catch(() => {});
+
+    const handleAvatarUpdated = (e: any) => {
+      if (e.detail?.avatarUrl) {
+        setUserPhoto(e.detail.avatarUrl);
+        setAvatarImgError(false);
+      }
+    };
+
+    window.addEventListener("orbit_avatar_updated", handleAvatarUpdated);
+    return () => window.removeEventListener("orbit_avatar_updated", handleAvatarUpdated);
   }, [currentUser]);
 
   useEffect(() => {
@@ -214,18 +230,6 @@ export const Nav: React.FC = () => {
             </Link>
 
             <Link
-              to="/genres"
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
-                location.pathname === "/genres"
-                  ? "bg-[#ffd700]/15 border-[#ffd700]/40 text-[#ffd700] shadow-[0_0_12px_rgba(255,215,0,0.2)]"
-                  : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
-              }`}
-            >
-              <Compass size={16} />
-              <span>Genres</span>
-            </Link>
-
-            <Link
               to="/manga"
               className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
                 location.pathname === "/manga"
@@ -235,6 +239,18 @@ export const Nav: React.FC = () => {
             >
               <BookOpen size={16} />
               <span>Manga</span>
+            </Link>
+
+            <Link
+              to="/discovery"
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
+                location.pathname === "/discovery"
+                  ? "bg-[#ffd700]/15 border-[#ffd700]/40 text-[#ffd700] shadow-[0_0_12px_rgba(255,215,0,0.2)]"
+                  : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
+              }`}
+            >
+              <Brain size={16} />
+              <span>Discovery</span>
             </Link>
           </div>
 
@@ -339,26 +355,26 @@ export const Nav: React.FC = () => {
               <div ref={userMenuRef} className="relative flex-shrink-0">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-1.5 bg-[#ffd700]/10 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700]/20 hover:border-[#ffd700] px-2 sm:px-3 py-1 rounded-full font-montserrat font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex-shrink-0"
+                  className="flex items-center gap-2 bg-[#ffd700]/10 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700]/20 hover:border-[#ffd700] px-2.5 sm:px-3 py-1 rounded-full font-montserrat font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer flex-shrink-0"
                 >
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#ffd700]/25 border border-[#ffd700] flex items-center justify-center text-[#ffd700] overflow-hidden flex-shrink-0">
-                    {userPhoto || currentUser.photoURL ? (
+                  <div className="w-6 h-6 rounded-full bg-[#ffd700]/20 border border-[#ffd700] flex items-center justify-center text-[#ffd700] overflow-hidden flex-shrink-0">
+                    {userPhoto && !avatarImgError ? (
                       <img
-                        src={userPhoto || currentUser.photoURL || ""}
+                        src={userPhoto}
                         alt="Avatar"
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
+                        onError={() => setAvatarImgError(true)}
                       />
                     ) : (
-                      <User size={12} className="text-[#ffd700]" />
+                      <span className="font-montserrat font-extrabold text-[11px] text-[#ffd700]">
+                        {(currentUser.displayName || currentUser.email || "U")[0].toUpperCase()}
+                      </span>
                     )}
                   </div>
                   <span className="text-white font-bold tracking-tight text-xs sm:text-sm">
                     {(currentUser.displayName ||
                       currentUser.email?.split("@")[0] ||
-                      "User").slice(0, 5)}
+                      "User").slice(0, 7)}
                   </span>
                   <ChevronDown
                     size={12}

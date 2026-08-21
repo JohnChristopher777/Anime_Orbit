@@ -71,13 +71,6 @@ export const PublicProfile: React.FC = () => {
     fetchUser();
   }, [id]);
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    toast.success("Profile link copied to clipboard!");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-transparent text-white font-sans flex flex-col items-center justify-center p-8">
@@ -181,14 +174,6 @@ export const PublicProfile: React.FC = () => {
               </div>
             </div>
 
-            {/* Share Profile Button */}
-            <button
-              onClick={handleShare}
-              className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs px-5 py-2.5 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-all cursor-pointer flex-shrink-0"
-            >
-              {copied ? <Check size={15} /> : <Share2 size={15} />}
-              <span>{copied ? "Link Copied!" : "Share Profile"}</span>
-            </button>
           </div>
         </div>
       </div>

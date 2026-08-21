@@ -1,17 +1,6 @@
-import React, { Component, type ReactNode, type ErrorInfo } from "react";
+import React, { Component, type ReactNode, type ErrorInfo, Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, useLocation, Link } from "react-router-dom";
-import AnimeItem from "./Components/AnimeItem";
-import Homepage from "./Components/Homepage";
-import Gallery from "./Components/Gallery";
 import Nav from "./Components/Nav";
-import Favourites from "./Components/Favourites";
-import AboutUs from "./Components/AboutUs";
-import Watchlist from "./Components/Watchlist";
-import MyReviews from "./Components/MyReviews";
-import MyComments from "./Components/MyComments";
-import Profile from "./Components/Profile";
-import Trending from "./Components/Trending";
-import Upcoming from "./Components/Upcoming";
 import ScrollButton from "./Components/ScrollButton";
 import Galaxy from "./Components/Galaxy";
 import { ToastContainer } from "react-toastify";
@@ -19,6 +8,24 @@ import "react-toastify/dist/ReactToastify.css";
 import { useGlobalContext } from "./context/global";
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
+
+// Code-Splitting / Lazy-Loaded Heavy Dimension Routes for Lightning Fast Mobile Performance
+const Homepage = lazy(() => import("./Components/Homepage"));
+const AnimeItem = lazy(() => import("./Components/AnimeItem"));
+const Gallery = lazy(() => import("./Components/Gallery"));
+const Favourites = lazy(() => import("./Components/Favourites"));
+const AboutUs = lazy(() => import("./Components/AboutUs"));
+const Watchlist = lazy(() => import("./Components/Watchlist"));
+const MyReviews = lazy(() => import("./Components/MyReviews"));
+const MyComments = lazy(() => import("./Components/MyComments"));
+const Profile = lazy(() => import("./Components/Profile"));
+const PublicProfile = lazy(() => import("./Components/PublicProfile"));
+const Trending = lazy(() => import("./Components/Trending"));
+const Upcoming = lazy(() => import("./Components/Upcoming"));
+const Genres = lazy(() => import("./Components/Genres"));
+const Manga = lazy(() => import("./Components/Manga"));
+const MangaItem = lazy(() => import("./Components/MangaItem"));
+const NeuralDiscovery = lazy(() => import("./Components/NeuralDiscovery"));
 
 // Global Error Boundary to prevent black screen crashes
 interface ErrorBoundaryProps {
@@ -41,7 +48,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {
-    // Gracefully handle without unhandled console errors
+    // Gracefully handled
   }
 
   render() {
@@ -131,17 +138,25 @@ function Layout({ children }: { children: ReactNode }) {
 
       <Nav />
       <div className={`relative z-10 flex-1 ${isHome ? "mt-0" : "mt-[70px]"}`}>
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <ErrorBoundary>
+          <Suspense
+            fallback={
+              <div className="min-h-[50vh] flex flex-col items-center justify-center p-8 text-center text-white">
+                <div className="w-8 h-8 border-2 border-[#ffd700] border-t-transparent rounded-full animate-spin mb-3" />
+                <span className="text-xs font-montserrat font-bold text-[#ffd700] uppercase tracking-wider">
+                  Loading Dimension...
+                </span>
+              </div>
+            }
+          >
+            {children}
+          </Suspense>
+        </ErrorBoundary>
       </div>
       <ScrollButton />
     </div>
   );
 }
-
-import Genres from "./Components/Genres";
-import Manga from "./Components/Manga";
-import MangaItem from "./Components/MangaItem";
-import PublicProfile from "./Components/PublicProfile";
 
 export function App() {
   return (
@@ -274,7 +289,36 @@ export function App() {
             </Layout>
           }
         />
-        <Route path="/character/:id" element={<Gallery />} />
+        <Route
+          path="/discovery"
+          element={
+            <Layout>
+              <NeuralDiscovery />
+            </Layout>
+          }
+        />
+        <Route
+          path="/neural-search"
+          element={
+            <Layout>
+              <NeuralDiscovery />
+            </Layout>
+          }
+        />
+        <Route
+          path="/character/:id"
+          element={
+            <Suspense
+              fallback={
+                <div className="min-h-screen bg-[#141414] flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-[#ffd700] border-t-transparent rounded-full animate-spin" />
+                </div>
+              }
+            >
+              <Gallery />
+            </Suspense>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

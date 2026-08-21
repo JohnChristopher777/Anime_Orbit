@@ -3,21 +3,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Authentication and Ownership Helpers
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && request.auth.uid != null;
     }
     
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // User Profile Documents
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // User Profile Documents & Nested Subcollections
     match /users/{userId} {
       allow read: if true;
       allow write: if isOwner(userId);
 
-      // User subcollections (Watchlist, Watched, Favourites)
       match /watchlist/{animeId} {
         allow read: if true;
         allow write: if isOwner(userId);
@@ -34,7 +37,7 @@ service cloud.firestore {
       }
     }
 
-    // Root collections for atomic user data
+    // Root collections for atomic user data (Watchlists, Tierlists, Favourites)
     match /favourites/{userId} {
       allow read: if true;
       allow write: if isOwner(userId);
@@ -45,18 +48,30 @@ service cloud.firestore {
       allow write: if isOwner(userId);
     }
 
-    // Anime Reviews
+    // Anime Reviews (Validated string lengths and owner-only update/delete)
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid
+        && isValidString(request.resource.data.content, 1, 3000);
+      allow update: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && isValidString(request.resource.data.content, 1, 3000);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
-    // Anime Comments / Discussions
+    // Anime Comments & Community Discussions (XSS and Spam hardened)
     match /comments/{commentId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid
+        && isValidString(request.resource.data.content, 1, 2000);
+      allow update: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && isValidString(request.resource.data.content, 1, 2000);
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }
 }

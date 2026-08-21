@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { useGlobalContext } from "../context/global";
 import HeroCarousel from "./HeroCarousel";
+import PersonalHub from "./PersonalHub";
 import SEO from "./SEO";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -82,14 +83,20 @@ export function Homepage() {
     }
 
     return safePopularAnime.length > 0 ? (
-      <Popular
-        rendered="popular"
-        popularAnime={safePopularAnime}
-      />
+      <>
+        <Popular
+          rendered="popular"
+          popularAnime={safePopularAnime}
+        />
+        <PersonalHub />
+      </>
     ) : (
-      <div className="text-center py-20 text-neutral-400 text-base">
-        No popular anime available yet
-      </div>
+      <>
+        <div className="text-center py-20 text-neutral-400 text-base">
+          No popular anime available yet
+        </div>
+        <PersonalHub />
+      </>
     );
   };
 

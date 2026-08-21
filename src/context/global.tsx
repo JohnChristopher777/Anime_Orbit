@@ -297,9 +297,11 @@ export const GlobalContextProvider: React.FC<{ children: ReactNode }> = ({ child
       await getTrendingAnime(1);
       await getAiringAnime(1);
       await getTopAiringAnime();
+      await getUpcomingAnime(1);
     };
+
     fetchData();
-  }, [getPopularAnime, getTrendingAnime, getAiringAnime, getTopAiringAnime]);
+  }, [getPopularAnime, getTrendingAnime, getAiringAnime, getTopAiringAnime, getUpcomingAnime]);
 
   return (
     <GlobalContext.Provider

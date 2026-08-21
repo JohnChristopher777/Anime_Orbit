@@ -430,7 +430,9 @@ export const Favourites: React.FC = () => {
 
   // Generate Tier List HTML for Share / Export
   const generateTierListHtml = () => {
-    const userTitle = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Anime";
+    const userTitle = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Anime Master";
+    const userId = currentUser?.uid || "orbit-guest";
+    const userAvatar = currentUser?.photoURL || "";
     const escapeHtml = (str: string = "") =>
       str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -475,8 +477,13 @@ export const Favourites: React.FC = () => {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0c0c10; color: #fff; padding: 2rem 1rem; min-height: 100vh; }
     .container { max-width: 1200px; margin: 0 auto; }
-    header { text-align: center; margin-bottom: 2rem; }
-    h1 { font-size: 2.2rem; color: #ffd700; text-transform: uppercase; margin-bottom: 0.5rem; }
+    header { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin-bottom: 2rem; text-align: center; }
+    .user-badge { display: flex; align-items: center; gap: 0.75rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,215,0,0.3); padding: 0.5rem 1.2rem; border-radius: 50px; }
+    .user-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #ffd700; }
+    .avatar-fallback { width: 42px; height: 42px; border-radius: 50%; background: #ffd700; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    h1 { font-size: 2.2rem; color: #ffd700; text-transform: uppercase; margin: 0; }
+    .profile-link { color: #54a0ff; font-size: 0.85rem; text-decoration: none; font-weight: 700; }
+    .profile-link:hover { text-decoration: underline; }
     .tier-row { display: flex; min-height: 110px; margin-bottom: 0.75rem; background: #16161c; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
     .tier-label { width: 110px; min-width: 110px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
     .tier-items { flex: 1; display: flex; flex-wrap: wrap; gap: 0.6rem; padding: 0.6rem; align-items: center; }
@@ -490,14 +497,25 @@ export const Favourites: React.FC = () => {
 <body>
   <div class="container">
     <header>
+      <div class="user-badge">
+        ${
+          userAvatar
+            ? `<img src="${escapeHtml(userAvatar)}" alt="${escapeHtml(userTitle)}" class="user-avatar" />`
+            : `<div class="avatar-fallback">${escapeHtml(userTitle[0]?.toUpperCase() || "U")}</div>`
+        }
+        <div style="text-align: left;">
+          <div style="font-weight: 800; color: #fff; font-size: 0.95rem;">${escapeHtml(userTitle)}</div>
+          <div style="font-size: 0.75rem; color: #ffd700;">ID: ${escapeHtml(userId)}</div>
+        </div>
+      </div>
       <h1>${escapeHtml(userTitle)}'s Anime Tier List</h1>
-      <p style="color:#888;">Crafted on Anime Orbit</p>
+      <a class="profile-link" href="https://animeorbit.web.app/user/${escapeHtml(userId)}" target="_blank">View Official Profile on Anime Orbit →</a>
     </header>
     <div class="tier-board">
       ${tiersHtml}
     </div>
     <footer>
-      <p>© ${new Date().getFullYear()} Anime Orbit Tier List Maker</p>
+      <p>© ${new Date().getFullYear()} Anime Orbit - Cosmic Anime Compass & Tier List Maker</p>
     </footer>
   </div>
 </body>
@@ -568,7 +586,7 @@ export const Favourites: React.FC = () => {
         {/* Header & Controls */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <Heart size={30} className="text-red-500 fill-red-500" />
+            <Heart size={30} className="text-yellow-500 fill-yellow-500" />
             <h1 className="text-2xl sm:text-3xl font-extrabold font-montserrat text-white">
               Favorites & Tier List
             </h1>
@@ -584,7 +602,7 @@ export const Favourites: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs transition-all shadow-[0_0_12px_rgba(255,215,0,0.3)] hover:scale-105 cursor-pointer"
             >
               <Plus size={14} />
-              <span>Add Anime to Pool</span>
+              <span>Add Anime</span>
             </button>
 
             {/* View Toggle */}
@@ -677,7 +695,7 @@ export const Favourites: React.FC = () => {
                 className="inline-flex items-center gap-2 bg-[#ffd700] text-black font-bold px-6 py-2.5 rounded-full text-xs font-montserrat shadow-md hover:scale-105 transition-all"
               >
                 <Plus size={16} />
-                <span>Add Anime to Pool</span>
+                <span>Add Anime</span>
               </button>
             </div>
           ) : (
@@ -705,7 +723,7 @@ export const Favourites: React.FC = () => {
                     <span>Touch & Click Active</span>
                   </h4>
                   <p className="text-[11px] sm:text-xs text-neutral-300 mt-0.5">
-                    💡 <span className="text-white font-semibold">Tip:</span> Tap any anime to select <span className="text-emerald-400 font-semibold">(green outline)</span>, then tap a tier row to place it, or tap another anime in the same or different tier to <span className="text-[#ffd700] font-semibold">swap positions</span>!
+                   <span className="text-white font-semibold">Tip:</span> Tap any anime to select <span className="text-emerald-400 font-semibold">(green outline)</span>, then tap a tier row to place it, or tap another anime in the same or different tier to <span className="text-[#ffd700] font-semibold">swap positions</span>!
                   </p>
                 </div>
               </div>
@@ -890,7 +908,7 @@ export const Favourites: React.FC = () => {
                   <div>
                     <h3 className="font-montserrat font-bold text-sm text-[#ffd700] flex items-center gap-1.5">
                       <Sparkles size={14} />
-                      <span>Unranked Pool</span>
+                      <span>Waiting List</span>
                     </h3>
                     <span className="text-[11px] text-neutral-400">
                       {unassignedAnime.length} series waiting
@@ -951,14 +969,14 @@ export const Favourites: React.FC = () => {
                   {unassignedAnime.length === 0 && (
                     <div className="w-full text-center py-6 space-y-2">
                       <p className="text-xs text-neutral-400 font-medium">
-                        Pool is empty! All anime have been ranked.
+                        Waiting list is empty!
                       </p>
                       <button
                         onClick={() => setShowAddAnimeModal(true)}
                         className="inline-flex items-center gap-1.5 text-xs text-[#ffd700] hover:underline cursor-pointer"
                       >
                         <Plus size={13} />
-                        <span>Add more series to pool</span>
+                        <span>Add more series</span>
                       </button>
                     </div>
                   )}
@@ -1042,7 +1060,7 @@ export const Favourites: React.FC = () => {
         </div>
       )}
 
-      {/* Add Anime To Pool Modal */}
+      {/* Add Anime To list Modal */}
       {showAddAnimeModal && (
         <div
           onClick={() => setShowAddAnimeModal(false)}

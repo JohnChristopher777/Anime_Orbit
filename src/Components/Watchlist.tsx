@@ -50,7 +50,9 @@ export const Watchlist: React.FC = () => {
 
   // Generate clean, sanitized standalone HTML document for sharing
   const generateStandaloneHtml = () => {
-    const userTitle = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Anime";
+    const userTitle = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Anime Master";
+    const userId = currentUser?.uid || "orbit-guest";
+    const userAvatar = currentUser?.photoURL || "";
     const escapeHtml = (str: string = "") =>
       str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -89,8 +91,13 @@ export const Watchlist: React.FC = () => {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0e0e11; color: #fff; padding: 2rem 1rem; min-height: 100vh; }
     .container { max-width: 1200px; margin: 0 auto; }
-    header { text-align: center; margin-bottom: 2.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; }
-    h1 { font-size: 2.2rem; color: #ffd700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem; }
+    header { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; text-align: center; margin-bottom: 2.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1.5rem; }
+    .user-badge { display: flex; align-items: center; gap: 0.75rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,215,0,0.3); padding: 0.5rem 1.2rem; border-radius: 50px; }
+    .user-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #ffd700; }
+    .avatar-fallback { width: 42px; height: 42px; border-radius: 50%; background: #ffd700; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    h1 { font-size: 2.2rem; color: #ffd700; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
+    .profile-link { color: #54a0ff; font-size: 0.85rem; text-decoration: none; font-weight: 700; }
+    .profile-link:hover { text-decoration: underline; }
     .subtitle { color: #a0a0a0; font-size: 0.9rem; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; }
     .card { background: #1a1a20; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,215,0,0.2); transition: transform 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
@@ -113,7 +120,19 @@ export const Watchlist: React.FC = () => {
 <body>
   <div class="container">
     <header>
+      <div class="user-badge">
+        ${
+          userAvatar
+            ? `<img src="${escapeHtml(userAvatar)}" alt="${escapeHtml(userTitle)}" class="user-avatar" />`
+            : `<div class="avatar-fallback">${escapeHtml(userTitle[0]?.toUpperCase() || "U")}</div>`
+        }
+        <div style="text-align: left;">
+          <div style="font-weight: 800; color: #fff; font-size: 0.95rem;">${escapeHtml(userTitle)}</div>
+          <div style="font-size: 0.75rem; color: #ffd700;">ID: ${escapeHtml(userId)}</div>
+        </div>
+      </div>
       <h1>${escapeHtml(userTitle)}'s Watchlist</h1>
+      <a class="profile-link" href="https://animeorbit.web.app/user/${escapeHtml(userId)}" target="_blank">View Official Profile on Anime Orbit →</a>
       <p class="subtitle">${watchlist.length} Anime Tracked • Generated via Anime Orbit</p>
     </header>
     <div class="grid">

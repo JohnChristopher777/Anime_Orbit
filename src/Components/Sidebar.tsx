@@ -221,9 +221,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
                 <div className="min-w-0">
                   <p className="font-montserrat font-bold text-sm text-white truncate">
-                    {currentUser.displayName || currentUser.email?.split("@")[0]}
+                    {(currentUser.displayName || currentUser.email?.split("@")[0] || "User").slice(0, 5)}
                   </p>
-                  <p className="text-[11px] text-neutral-400 truncate">{currentUser.email}</p>
                 </div>
               </div>
               <button

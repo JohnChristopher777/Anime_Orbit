@@ -49,6 +49,7 @@ export const AnimeCard = React.forwardRef<HTMLDivElement, AnimeCardProps>(
               src={imageUrl}
               alt={displayTitle}
               loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
             {score && (

@@ -38,11 +38,15 @@ import {
   ChevronRight,
   Search,
   BookOpen,
+  AlertTriangle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { toast } from "react-toastify";
+import { sanitizeInput, checkRateLimit } from "../utils/security";
 
 export const AnimeItem: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -75,9 +79,11 @@ export const AnimeItem: React.FC = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // Discussion Comments State
+  // Discussion Comments State & Spoiler Safety
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [isCommentSpoiler, setIsCommentSpoiler] = useState(false);
+  const [revealedSpoilers, setRevealedSpoilers] = useState<Record<string, boolean>>({});
   const [commentsLoading, setCommentsLoading] = useState(true);
 
   // Reviews State
@@ -387,18 +393,28 @@ export const AnimeItem: React.FC = () => {
       return;
     }
 
+    if (!checkRateLimit(`comment_${currentUser.uid}`, 3000)) {
+      toast.warning("Please wait a few seconds before posting another comment!");
+      return;
+    }
+
+    const cleanText = sanitizeInput(newComment, 2000);
+    if (!cleanText) return;
+
     try {
       await addDoc(collection(db, "comments"), {
         animeId: id?.toString(),
         userId: currentUser.uid,
         userName: currentUser.displayName || currentUser.email?.split("@")[0] || "Anonymous",
         userAvatar: currentUser.photoURL || "",
-        text: newComment.trim(),
+        text: cleanText,
+        isSpoiler: isCommentSpoiler,
         animeTitle: displayTitle,
         animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
         createdAt: serverTimestamp(),
       });
       setNewComment("");
+      setIsCommentSpoiler(false);
       toast.success("Comment posted successfully!");
     } catch {
       toast.error("Failed to post comment. Try again!");
@@ -413,6 +429,14 @@ export const AnimeItem: React.FC = () => {
       return;
     }
 
+    if (!checkRateLimit(`review_${currentUser.uid}`, 5000)) {
+      toast.warning("Please wait a few seconds before posting another review!");
+      return;
+    }
+
+    const cleanReview = sanitizeInput(newReviewText, 3000);
+    if (!cleanReview) return;
+
     try {
       await addDoc(collection(db, "reviews"), {
         animeId: id?.toString(),
@@ -420,7 +444,7 @@ export const AnimeItem: React.FC = () => {
         userName: currentUser.displayName || currentUser.email?.split("@")[0] || "Anonymous",
         userAvatar: currentUser.photoURL || "",
         rating: Number(newReviewRating),
-        text: newReviewText.trim(),
+        text: cleanReview,
         animeTitle: displayTitle,
         animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
         createdAt: serverTimestamp(),
@@ -807,6 +831,55 @@ export const AnimeItem: React.FC = () => {
                 </TrailerSection>
               );
             })()}
+
+            {/* Official Legal Streaming Portals Deep Links */}
+            <div style={{ marginTop: "2.5rem", padding: "1.5rem", background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "20px", backdropFilter: "blur(10px)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                <h4 style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 800, color: "#ffd700", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
+                  <ExternalLink size={18} />
+                  <span>Official Legal Streaming Portals</span>
+                </h4>
+                <span style={{ fontSize: "0.75rem", color: "#888" }}>Search and watch on verified platforms</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+                <a
+                  href={`https://www.crunchyroll.com/search?q=${encodeURIComponent(displayTitle)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.55rem 1.1rem", background: "rgba(244, 117, 33, 0.15)", border: "1px solid rgba(244, 117, 33, 0.4)", borderRadius: "14px", color: "#f47521", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", transition: "all 0.2s ease" }}
+                >
+                  <Film size={14} />
+                  <span>Crunchyroll</span>
+                </a>
+                <a
+                  href={`https://www.netflix.com/search?q=${encodeURIComponent(displayTitle)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.55rem 1.1rem", background: "rgba(229, 9, 20, 0.15)", border: "1px solid rgba(229, 9, 20, 0.4)", borderRadius: "14px", color: "#ff4d4d", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", transition: "all 0.2s ease" }}
+                >
+                  <Tv size={14} />
+                  <span>Netflix</span>
+                </a>
+                <a
+                  href={`https://www.disneyplus.com/search?q=${encodeURIComponent(displayTitle)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.55rem 1.1rem", background: "rgba(17, 60, 207, 0.15)", border: "1px solid rgba(17, 60, 207, 0.4)", borderRadius: "14px", color: "#54a0ff", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", transition: "all 0.2s ease" }}
+                >
+                  <Play size={14} />
+                  <span>Disney+</span>
+                </a>
+                <a
+                  href={`https://www.hulu.com/search?q=${encodeURIComponent(displayTitle)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.55rem 1.1rem", background: "rgba(28, 231, 131, 0.15)", border: "1px solid rgba(28, 231, 131, 0.4)", borderRadius: "14px", color: "#1ce783", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", transition: "all 0.2s ease" }}
+                >
+                  <Film size={14} />
+                  <span>Hulu</span>
+                </a>
+              </div>
+            </div>
           </OverviewContent>
         )}
 
@@ -919,7 +992,7 @@ export const AnimeItem: React.FC = () => {
             {/* Staff Search & Filter Bar */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
               <h3 style={{ fontSize: "1.3rem", fontWeight: 800, color: "#ffd700", fontFamily: "Montserrat, sans-serif" }}>
-                Staff Members ({staff.length})
+                Staff & Production Crew ({staff.length})
               </h3>
               <div style={{ position: "relative", minWidth: "240px", maxWidth: "340px", width: "100%" }}>
                 <Search size={16} color="#888" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
@@ -927,7 +1000,7 @@ export const AnimeItem: React.FC = () => {
                   id="staff-search-input"
                   name="staffSearch"
                   type="text"
-                  placeholder="Search staff name or role..."
+                  placeholder="Search staff or director..."
                   value={staffSearch}
                   onChange={(e) => setStaffSearch(e.target.value)}
                   style={{
@@ -946,27 +1019,27 @@ export const AnimeItem: React.FC = () => {
 
             <StaffGrid>
               {staff
-                .filter((person) => {
+                .filter((st) => {
                   if (!staffSearch.trim()) return true;
                   const q = staffSearch.toLowerCase();
                   return (
-                    person.person?.name?.toLowerCase().includes(q) ||
-                    person.positions?.some((pos: string) => pos.toLowerCase().includes(q))
+                    st.person?.name?.toLowerCase().includes(q) ||
+                    st.positions?.some((p: string) => p.toLowerCase().includes(q))
                   );
                 })
                 .slice(0, staffSearch.trim() ? undefined : visibleStaffCount)
-                .map((person, idx) => (
+                .map((st, idx) => (
                   <StaffCard key={idx}>
                     <StaffImage
-                      src={person.person?.images?.jpg?.image_url}
-                      alt={person.person?.name}
+                      src={st.person?.images?.jpg?.image_url}
+                      alt={st.person?.name}
                       loading="lazy"
                     />
                     <StaffInfo>
                       <StaffName>
-                        {person.person?.name}
+                        {st.person?.name}
                       </StaffName>
-                      <StaffPositions>{person.positions?.join(", ")}</StaffPositions>
+                      <StaffPositions>{st.positions?.join(", ")}</StaffPositions>
                     </StaffInfo>
                   </StaffCard>
                 ))}
@@ -1010,28 +1083,37 @@ export const AnimeItem: React.FC = () => {
                   </RelationTypeHeader>
 
                   <RelationList>
-                    {relation.entry.map((entry: any) => (
-                      <RelationCard key={entry.mal_id} to={`/anime/${entry.mal_id}`}>
-                        <RelationCoverWrapper>
-                          {entry.image ? (
-                            <img src={entry.image} alt={entry.name} loading="lazy" />
-                          ) : (
-                            <div className="no-image">No Image</div>
-                          )}
-                          <RelationBadge>{relation.relation}</RelationBadge>
-                          {entry.score && (
-                            <RelationScoreBadge>
-                              <Star size={10} fill="#ffd700" color="#ffd700" style={{ display: 'inline', marginRight: '2px' }} />
-                              {entry.score}
-                            </RelationScoreBadge>
-                          )}
-                        </RelationCoverWrapper>
-                        <RelationDetails>
-                          <RelationName>{entry.name}</RelationName>
-                          <RelationMeta>{entry.type || "Anime"}</RelationMeta>
-                        </RelationDetails>
-                      </RelationCard>
-                    ))}
+                    {relation.entry.map((entry: any) => {
+                      const isManga =
+                        entry.type?.toLowerCase() === "manga" ||
+                        entry.type?.toLowerCase() === "novel" ||
+                        entry.type?.toLowerCase() === "light_novel" ||
+                        relation.relation?.toLowerCase().includes("adaptation");
+                      const targetUrl = isManga ? `/manga/${entry.mal_id}` : `/anime/${entry.mal_id}`;
+
+                      return (
+                        <RelationCard key={entry.mal_id} to={targetUrl}>
+                          <RelationCoverWrapper>
+                            {entry.image ? (
+                              <img src={entry.image} alt={entry.name} loading="lazy" />
+                            ) : (
+                              <div className="no-image">No Image</div>
+                            )}
+                            <RelationBadge>{relation.relation}</RelationBadge>
+                            {entry.score && (
+                              <RelationScoreBadge>
+                                <Star size={10} fill="#ffd700" color="#ffd700" style={{ display: 'inline', marginRight: '2px' }} />
+                                {entry.score}
+                              </RelationScoreBadge>
+                            )}
+                          </RelationCoverWrapper>
+                          <RelationDetails>
+                            <RelationName>{entry.name}</RelationName>
+                            <RelationMeta>{entry.type || (isManga ? "Manga" : "Anime")}</RelationMeta>
+                          </RelationDetails>
+                        </RelationCard>
+                      );
+                    })}
                   </RelationList>
                 </RelationGroup>
               ))
@@ -1054,7 +1136,20 @@ export const AnimeItem: React.FC = () => {
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                 />
-                <CommentSubmitButton type="submit">Post Comment</CommentSubmitButton>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.45rem", fontSize: "0.8rem", color: "#aaa", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={isCommentSpoiler}
+                      onChange={(e) => setIsCommentSpoiler(e.target.checked)}
+                      style={{ accentColor: "#ffd700", width: "16px", height: "16px", cursor: "pointer" }}
+                    />
+                    <span style={{ color: isCommentSpoiler ? "#ffd700" : "#aaa", fontWeight: isCommentSpoiler ? 700 : 500 }}>
+                      ⚠️ Contains Spoilers (Blur for others)
+                    </span>
+                  </label>
+                  <CommentSubmitButton type="submit">Post Comment</CommentSubmitButton>
+                </div>
               </CommentForm>
             ) : (
               <SignInPrompt onClick={() => setAuthModalOpen(true)}>
@@ -1066,26 +1161,73 @@ export const AnimeItem: React.FC = () => {
               {commentsLoading ? (
                 <LoadingText>Loading comments...</LoadingText>
               ) : comments.length > 0 ? (
-                comments.map((comment) => (
-                  <CommentCard key={comment.id}>
-                    <UserAvatarSmall>
-                      {comment.userAvatar ? (
-                        <img src={comment.userAvatar} alt="Avatar" />
-                      ) : (
-                        <UserCheck size={18} color="#ffd700" />
-                      )}
-                    </UserAvatarSmall>
-                    <CommentBody>
-                      <CommentHeader>
-                        <span className="author">{comment.userName}</span>
-                        <span className="date">
-                          {comment.createdAt?.toDate ? comment.createdAt.toDate().toLocaleDateString() : "Recently"}
-                        </span>
-                      </CommentHeader>
-                      <CommentText>{comment.text}</CommentText>
-                    </CommentBody>
-                  </CommentCard>
-                ))
+                comments.map((comment) => {
+                  const isSpoiler = comment.isSpoiler;
+                  const isRevealed = revealedSpoilers[comment.id];
+
+                  return (
+                    <CommentCard key={comment.id}>
+                      <UserAvatarSmall>
+                        {comment.userAvatar ? (
+                          <img src={comment.userAvatar} alt="Avatar" />
+                        ) : (
+                          <UserCheck size={18} color="#ffd700" />
+                        )}
+                      </UserAvatarSmall>
+                      <CommentBody>
+                        <CommentHeader>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <span className="author">{comment.userName}</span>
+                            {isSpoiler && (
+                              <span style={{ fontSize: "0.65rem", padding: "0.15rem 0.4rem", borderRadius: "6px", background: "rgba(255, 77, 77, 0.2)", color: "#ff6b6b", border: "1px solid rgba(255, 77, 77, 0.4)", fontWeight: 700 }}>
+                                SPOILER
+                              </span>
+                            )}
+                          </div>
+                          <span className="date">
+                            {comment.createdAt?.toDate ? comment.createdAt.toDate().toLocaleDateString() : "Recently"}
+                          </span>
+                        </CommentHeader>
+
+                        {isSpoiler && !isRevealed ? (
+                          <div
+                            onClick={() => setRevealedSpoilers((prev) => ({ ...prev, [comment.id]: true }))}
+                            style={{
+                              marginTop: "0.5rem",
+                              padding: "0.75rem 1rem",
+                              background: "rgba(255, 77, 77, 0.08)",
+                              border: "1px dashed rgba(255, 77, 77, 0.4)",
+                              borderRadius: "12px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "0.5rem"
+                            }}
+                          >
+                            <span style={{ fontSize: "0.8rem", color: "#ff8888", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                              <AlertTriangle size={15} />
+                              <span>This comment contains spoilers. Click to reveal.</span>
+                            </span>
+                            <Eye size={16} color="#ff8888" />
+                          </div>
+                        ) : (
+                          <div style={{ position: "relative" }}>
+                            <CommentText>{comment.text}</CommentText>
+                            {isSpoiler && (
+                              <button
+                                onClick={() => setRevealedSpoilers((prev) => ({ ...prev, [comment.id]: false }))}
+                                style={{ background: "none", border: "none", color: "#777", fontSize: "0.7rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem", marginTop: "0.3rem" }}
+                              >
+                                <EyeOff size={12} /> Hide Spoiler
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </CommentBody>
+                    </CommentCard>
+                  );
+                })
               ) : (
                 <EmptyState>No comments yet. Start the discussion!</EmptyState>
               )}
