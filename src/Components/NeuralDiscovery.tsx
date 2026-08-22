@@ -28,16 +28,13 @@ import {
 } from "lucide-react";
 
 const COHERE_API_KEY =
-  import.meta.env.VITE_COHERE_API_KEY ||
-  "BrWVXFdYqhyrOUveYaU1mBfMUyFcusJgo0jI1ydW";
+  import.meta.env.VITE_COHERE_API_KEY;
 
 const PINECONE_API_KEY =
-  import.meta.env.VITE_PINECONE_API_KEY ||
-  "pcsk_4KBaQs_5Sij95vSB5wxbSdBn9WMo9EvymDNh6Cv6v2Jj2ZhzHwckAwoasVNZmgfv4qBzMd";
+  import.meta.env.VITE_PINECONE_API_KEY ;
 
 const PINECONE_INDEX_URL =
-  import.meta.env.VITE_PINECONE_INDEX_URL ||
-  "https://anime-scenes-b34hek9.svc.aped-4627-b74a.pinecone.io";
+  import.meta.env.VITE_PINECONE_INDEX_URL ;
 
 interface TraceMoeResult {
   anilistId: number;
