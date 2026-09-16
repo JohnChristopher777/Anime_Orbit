@@ -7,7 +7,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
   onSnapshot,
   deleteDoc,
   doc,
@@ -30,19 +29,17 @@ export const MyComments: React.FC = () => {
     }
 
     try {
-      const q = query(
-        collection(db, "comments"),
-        where("userId", "==", currentUser.uid),
-        orderBy("createdAt", "desc")
-      );
+      setLoading(true);
+      const q = query(collection(db, "comments"), where("userId", "==", currentUser.uid));
 
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
-          const fetched = snapshot.docs.map((d) => ({
-            id: d.id,
-            ...d.data(),
-          }));
+          const fetched = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+            const left = a.createdAt?.toMillis?.() || 0;
+            const right = b.createdAt?.toMillis?.() || 0;
+            return right - left;
+          });
           setComments(fetched);
           setLoading(false);
         },
@@ -95,7 +92,7 @@ export const MyComments: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-12 space-y-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-12 space-y-6">
       <SEO
         title="My Comments - Anime Community Discussions"
         description="View, monitor, and manage all your discussions and comments across anime titles on Anime Orbit."
@@ -142,7 +139,7 @@ export const MyComments: React.FC = () => {
                   </Link>
 
                   <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
-                    {comm.text}
+                    {comm.text || comm.content}
                   </p>
 
                   <p className="text-[11px] text-neutral-500">

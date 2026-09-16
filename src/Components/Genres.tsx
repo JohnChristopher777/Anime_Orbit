@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getAnimeByGenre, getGenreArtworks } from "../services/anilist";
+import { getAnimeByGenre } from "../services/anilist";
 import AnimeCard from "./AnimeCard";
 import SEO from "./SEO";
 import Footer from "./Footer";
-import { Layers, Filter, RefreshCw, Compass } from "lucide-react";
+import { Layers, Filter, RefreshCw, Compass, ArrowRight, ArrowLeft, ArrowUp, ArrowDown } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import ProgressiveImage from "./ProgressiveImage";
+import AppDropdown from "./AppDropdown";
 
 interface GenreCategory {
   id: number;
@@ -28,7 +30,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/1.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-C6FPmWm59CyP.jpg",
     accent: "#ff4d4d",
-    tagline: "High-octane battles & superhuman combat",
+    tagline: "Big fights, rivalries, training arcs, and power-ups",
     about: "Explosive confrontations, high-stakes choreography, and thrilling warrior arcs pushed to superhuman limits.",
     sequences: ["Tournament Arcs", "Power Awakenings", "High-Speed Combat", "Rival Clashes"]
   },
@@ -39,7 +41,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/2.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-YCDoj1EkAxFn.jpg",
     accent: "#ffa500",
-    tagline: "Epic voyages & uncharted world expeditions",
+    tagline: "Epic journeys, loyal crews, and worlds worth exploring",
     about: "Sprawling expeditions into mysterious lands, island exploration, discovering ancient artifacts, and unyielding voyages.",
     sequences: ["Uncharted Expeditions", "Ancient Ruins", "Crew Gatherings", "World Discovery"]
   },
@@ -50,7 +52,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/3.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx154587-n2bQEEmxD4b5.jpg",
     accent: "#00d2d3",
-    tagline: "Mythical realms, magic & ancient spellcraft",
+    tagline: "Magic, monsters, kingdoms, and unforgettable adventures",
     about: "Spellcraft systems, mythical beasts, ancient lore, and journeying through kingdoms of wonder and forgotten history.",
     sequences: ["Spell Invocations", "Dungeon Conquests", "Ancient Lore Revelations", "Magical Duels"]
   },
@@ -61,7 +63,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/4.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101921-V46jTzzFcxrT.jpg",
     accent: "#ff6b81",
-    tagline: "Heartfelt connections, passion & destiny",
+    tagline: "Slow burns, confessions, comedy, and heartfelt relationships",
     about: "Intricate relationship dynamics, confessions under fireworks, emotional hurdles, and unforgettable romantic tension.",
     sequences: ["Heartfelt Confessions", "School Festival Arcs", "Misunderstandings & Reconciliations", "Destined Encounters"]
   },
@@ -72,7 +74,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/5.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx9253-7pdcVzQSkpKq.png",
     accent: "#54a0ff",
-    tagline: "Time travel, cyberpunk & theoretical physics",
+    tagline: "Future tech, space travel, robots, and time loops",
     about: "Theoretical physics, alternate timelines, dystopian worldlines, cybernetic augmentation, and existential tech dilemmas.",
     sequences: ["Timeline Leaps", "Cybernetic Infiltration", "Lab Experiments", "Dystopian Rebellions"]
   },
@@ -83,7 +85,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/6.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-bbBWj4pEFseh.jpg",
     accent: "#a55eea",
-    tagline: "Cursed spirits, occult arts & mystics",
+    tagline: "Curses, spirits, demons, and powers beyond the ordinary",
     about: "Domain expansions, curse manipulation, spirit banishments, and the hidden occult underbelly of the modern world.",
     sequences: ["Domain Expansions", "Occult Rituals", "Spiritual Exorcisms", "Curse Unleashing"]
   },
@@ -94,7 +96,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/7.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101348-uXk0jYQk4jV3.jpg",
     accent: "#e17055",
-    tagline: "Deep emotional narratives & profound character growth",
+    tagline: "Emotional stories, hard choices, and real character growth",
     about: "Philosophical introspection, historical tragedies, moral struggles, personal redemption, and poignant human journeys.",
     sequences: ["Moral Reckonings", "Tragic Revelations", "Redemption Arcs", "Intense Dialogues"]
   },
@@ -105,7 +107,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/8.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx918-6xX9f6mNn8mF.jpg",
     accent: "#ffd700",
-    tagline: "Uncontrollable laughter, satire & chaos",
+    tagline: "Chaotic jokes, great timing, and lovable oddballs",
     about: "Fourth-wall breaks, ridiculous situational parodies, chaotic banter, and hilarious character antics.",
     sequences: ["Fourth-Wall Breaks", "Slapstick Parodies", "Absurd Misunderstandings", "Chaotic Schemes"]
   },
@@ -116,7 +118,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/9.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1535-lawCwhwk8ERM.jpg",
     accent: "#70a1ff",
-    tagline: "Mind games, suspense & deductive cases",
+    tagline: "Clues, mind games, hidden motives, and clever twists",
     about: "High-IQ battles of intellect, deductive detective investigations, unexpected plot twists, and dark mind games.",
     sequences: ["Calculated Mind Games", "Crime Scene Deducing", "Plot Twist Unravelings", "Interrogations"]
   },
@@ -127,7 +129,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/10.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20464-Yp3bW8N9Y9wL.jpg",
     accent: "#2ed573",
-    tagline: "Triumph, passion & team camaraderie",
+    tagline: "Rival teams, training, clutch plays, and tournament hype",
     about: "Hard-fought match points, intense training camp growth, team camaraderie, and the euphoria of championship glory.",
     sequences: ["Match Point Rallies", "Intensive Training Camps", "Team Synergy Plays", "Championship Finals"]
   },
@@ -138,7 +140,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/11.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20605-z90sH3eH7W8s.jpg",
     accent: "#ff4757",
-    tagline: "Dark terrors & psychological chills",
+    tagline: "Monsters, survival, dread, and stories that stay with you",
     about: "Sinister monsters, eerie atmosphere, survival dread, psychological unraveling, and grotesque transformations.",
     sequences: ["Night Stalking", "Eerie Hallways", "Grotesque Awakenings", "Survival Confrontations"]
   },
@@ -149,7 +151,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/12.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx130003-5kN1mCq6E9jB.jpg",
     accent: "#feca57",
-    tagline: "Heartwarming everyday moments & friendship",
+    tagline: "Cozy days, friendship, school life, and small wins",
     about: "Cozy friendships, humorous day-to-day triumphs, relatable struggles, and uplifting slice-of-life charm.",
     sequences: ["After-School Hangouts", "Cafe Chats", "Club Activities", "Seasonal Celebrations"]
   },
@@ -160,7 +162,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/13.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx19-kH2W9Z2N6oYw.jpg",
     accent: "#576574",
-    tagline: "Moral dilemmas & deep cerebral suspense",
+    tagline: "Mind games, moral choices, unreliable memories, and tension",
     about: "Deep psychological exploration, character breakdown, moral ambiguities, existential tension, and manipulation.",
     sequences: ["Psychological Manipulation", "Internal Monologues", "Moral Crises", "Identity Questioning"]
   },
@@ -171,7 +173,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/14.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20665-2gVv6xK4eW0Q.jpg",
     accent: "#1dd1a1",
-    tagline: "Harmonies, melodies & emotional ballads",
+    tagline: "Bands, performances, rivalry, and songs with real feeling",
     about: "Passionate musical recitals, stage performance breakthroughs, emotional harmonies, and artistic inspiration.",
     sequences: ["Live Stage Concerts", "Instrumental Duets", "Auditorium Climax", "Creative Breakthroughs"]
   },
@@ -182,7 +184,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/15.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21234-7yP6P8QzB4mX.jpg",
     accent: "#eb4d4b",
-    tagline: "High stakes, breathless twists & suspense",
+    tagline: "Close calls, conspiracies, chases, and sharp plot twists",
     about: "Race against the clock, thrilling chases, narrow escapes, conspiracy uncoverings, and heart-pounding tension.",
     sequences: ["Countdown Clocks", "Narrow Escapes", "Conspiracy Reveals", "Pursuit Sequences"]
   },
@@ -193,7 +195,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/16.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1575-kL6wT9xV8zNm.jpg",
     accent: "#6c5ce7",
-    tagline: "Tactical warfare, giant mechs & revolution",
+    tagline: "Giant robots, smart battles, war, and rebellion",
     about: "Giant robot warfare, tactical military genius, high-tech cockpit battles, geopolitical revolutions, and sci-fi combat.",
     sequences: ["Mecha Deployments", "Cockpit HUD Targeting", "Strategic Chess Battles", "Tactical Air Drops"]
   },
@@ -204,7 +206,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
     localPath: "/genres/17.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx9756-c0kE6WzX9yP2.jpg",
     accent: "#fd79a8",
-    tagline: "Magical heroines, dark contracts & destiny",
+    tagline: "Magical girls, transformations, friendship, and dark bargains",
     about: "Magical girl transformations, existential contracts, reality-bending witch labyrinths, and destiny defying sacrifice.",
     sequences: ["Magical Transformations", "Witch Labyrinths", "Contract Bargains", "Ultimate Sacrifices"]
   },
@@ -220,36 +222,21 @@ export const Genres: React.FC = () => {
   const [hasNextPage, setHasNextPage] = useState(true);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-
-  // Dynamic genre covers fetched from AniList
-  const [dynamicGenreArtworks, setDynamicGenreArtworks] = useState<Record<string, { image: string; title: string }>>(() => {
-    const saved = localStorage.getItem("anime_orbit_genre_artworks");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return {};
-      }
-    }
-    return {};
-  });
-
-  useEffect(() => {
-    const fetchArtworks = async () => {
-      const artMap = (await getGenreArtworks()) as Record<string, { image: string; title: string }>;
-      if (artMap && Object.keys(artMap).length > 0) {
-        setDynamicGenreArtworks(artMap);
-        localStorage.setItem("anime_orbit_genre_artworks", JSON.stringify(artMap));
-      }
-    };
-    fetchArtworks();
-  }, []);
+  const [genreCovers, setGenreCovers] = useState<Record<string, string>>({});
+  const [genreScrollProgress, setGenreScrollProgress] = useState(0);
+  const requestVersion = useRef(0);
+  const genreRailRef = useRef<HTMLDivElement>(null);
 
   const fetchGenreAnime = useCallback(async (genre: string, targetPage: number, sort: string, append = false) => {
+    const version = ++requestVersion.current;
     try {
       if (!append) setInitialLoading(true);
       setLoading(true);
       const res = await getAnimeByGenre(genre, 24, targetPage, sort);
+      if (version !== requestVersion.current) return;
+      const firstArtwork = res.media?.find((item: any) => item?.banner_image || item?.images?.jpg?.large_image_url);
+      const cover = firstArtwork?.banner_image || firstArtwork?.images?.jpg?.large_image_url;
+      if (cover) setGenreCovers((previous) => ({ ...previous, [genre]: cover }));
       if (append) {
         setAnimeList((prev) => [...prev, ...res.media]);
       } else {
@@ -258,10 +245,12 @@ export const Genres: React.FC = () => {
       setHasNextPage(res.pageInfo?.hasNextPage || false);
       setPage(targetPage);
     } catch {
-      if (!append) setAnimeList([]);
+      if (version === requestVersion.current && !append) setAnimeList([]);
     } finally {
-      setLoading(false);
-      setInitialLoading(false);
+      if (version === requestVersion.current) {
+        setLoading(false);
+        setInitialLoading(false);
+      }
     }
   }, []);
 
@@ -270,6 +259,9 @@ export const Genres: React.FC = () => {
   }, [activeGenre, sortOption, fetchGenreAnime]);
 
   const handleSelectGenre = (genre: string) => {
+    if (genre === activeGenre) return;
+    setAnimeList([]);
+    setInitialLoading(true);
     setSearchParams({ genre, sort: sortOption });
     setTimeout(() => {
       const target = document.getElementById("genre-results-section");
@@ -285,14 +277,30 @@ export const Genres: React.FC = () => {
     }
   };
 
+  const moveGenreRail = (direction: -1 | 1) => {
+    const rail = genreRailRef.current;
+    if (!rail) return;
+    const desktop = window.matchMedia("(min-width: 1024px)").matches;
+    rail.scrollBy(desktop
+      ? { top: direction * Math.min(rail.clientHeight * 0.72, 420), behavior: "smooth" }
+      : { left: direction * Math.min(rail.clientWidth * 0.82, 720), behavior: "smooth" });
+  };
+
   const currentGenreMeta = GENRE_CATEGORIES.find((g) => g.name === activeGenre) || GENRE_CATEGORIES[0];
-  const activeDynamicCover = dynamicGenreArtworks[activeGenre]?.image || (animeList[0]?.images?.jpg?.large_image_url) || currentGenreMeta.fallbackImage;
+  const representativeSearch = currentGenreMeta.representativeTitle.toLowerCase().split(":")[0];
+  const featuredAnime = animeList.find((item: any) => {
+    const candidateTitle = `${item?.title_english || ""} ${item?.title || ""}`.toLowerCase();
+    return candidateTitle.includes(representativeSearch);
+  }) || animeList.find((item: any) => item?.banner_image) || animeList[0];
+  const activeBanner = featuredAnime?.banner_image || "";
+  const activeDynamicCover = activeBanner || featuredAnime?.images?.jpg?.large_image_url || genreCovers[activeGenre] || "";
+  const featuredTitle = featuredAnime?.title_english || featuredAnime?.title || currentGenreMeta.representativeTitle;
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
       <SEO
-        title={`${activeGenre} Anime - Top Series & Masterpieces`}
-        description={`Explore top rated ${activeGenre} anime series, movies, and flagship titles on Anime Orbit.`}
+        title={`${activeGenre} Anime - Popular Series and Movies`}
+        description={`Browse top-rated ${activeGenre} anime series and movies on Anime Orbit.`}
         keywords={`${activeGenre} anime, top ${activeGenre} anime, anime genres, Anime Orbit`}
         url={`https://animeorbit.web.app/genres?genre=${encodeURIComponent(activeGenre)}`}
       />
@@ -305,47 +313,31 @@ export const Genres: React.FC = () => {
           {/* 🌌 Left / Primary Column: Results & Hero Lore */}
           <main className="flex-1 w-full min-w-0 order-2 lg:order-1 space-y-8">
             
-            {/* Primary Hero Header */}
-            <div className="relative rounded-3xl overflow-hidden border border-white/15 shadow-2xl p-6 sm:p-8 bg-[#12121c]/90 backdrop-blur-2xl">
-              {/* Dynamic Backdrop */}
-              <div
-                className="absolute inset-0 bg-cover bg-center opacity-25 filter blur-sm scale-105 pointer-events-none transition-all duration-700"
-                style={{
-                  backgroundImage: `url(${activeDynamicCover})`
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#12121c] via-[#12121c]/90 to-black/60 pointer-events-none" />
+            <div className="genre-hero relative rounded-2xl overflow-hidden border border-white/10 p-6 sm:p-8 bg-[#17171c] flex items-end">
+              {activeDynamicCover ? (
+                <ProgressiveImage
+                  key={`${activeGenre}-${activeDynamicCover}`}
+                  src={activeDynamicCover}
+                  alt=""
+                  aria-hidden="true"
+                  loading="eager"
+                  fetchPriority="high"
+                  wrapperClassName={`genre-hero-media ${activeBanner ? "" : "genre-hero-media--poster"}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : <span className="genre-hero-placeholder image-skeleton" aria-hidden="true" />}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#111116] via-[#111116]/90 to-black/25 pointer-events-none" />
 
-              <div className="relative z-10 space-y-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[10px] font-extrabold text-[#ffd700] uppercase tracking-wider bg-[#ffd700]/15 px-2.5 py-0.5 rounded-full border border-[#ffd700]/30">
-                    Flagship: {currentGenreMeta.representativeTitle}
-                  </span>
-                  <span className="text-[10px] text-neutral-400 font-semibold hidden sm:inline">
-                    {currentGenreMeta.tagline}
-                  </span>
-                </div>
+              <div className="relative z-10">
+                <span className="text-xs font-bold text-[#ffd700]">Fan favorite: {featuredTitle}</span>
 
-                <h1 className="text-3xl sm:text-4xl font-extrabold font-montserrat text-white">
+                <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold font-montserrat text-white">
                   {activeGenre} Anime
                 </h1>
 
-                <p className="text-xs sm:text-sm text-neutral-300 max-w-2xl leading-relaxed">
-                  {currentGenreMeta.about}
+                <p className="mt-2 text-sm text-neutral-300 max-w-xl leading-relaxed">
+                  {currentGenreMeta.tagline}
                 </p>
-
-                {/* Known Sequences */}
-                <div className="pt-2 flex items-center gap-2 flex-wrap">
-                  <span className="text-[11px] font-bold text-[#ffd700]">Trope Sequences:</span>
-                  {currentGenreMeta.sequences.map((seq) => (
-                    <span
-                      key={seq}
-                      className="text-xs font-semibold px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-neutral-200"
-                    >
-                      {seq}
-                    </span>
-                  ))}
-                </div>
               </div>
             </div>
 
@@ -353,26 +345,17 @@ export const Genres: React.FC = () => {
             <div id="genre-results-section" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/10 scroll-mt-24">
               <div>
                 <h2 className="font-montserrat font-bold text-xl sm:text-2xl text-white">
-                  {activeGenre} Catalog
+                  Best {activeGenre} Anime
                 </h2>
                 <p className="text-xs text-neutral-400 mt-0.5">
-                  Showing top series in the {activeGenre} genre
+                  Popular series and movies picked by anime fans
                 </p>
               </div>
 
               {/* Sort Filter Dropdown */}
               <div className="flex items-center gap-2 self-end sm:self-auto">
                 <Filter size={15} className="text-[#ffd700]" />
-                <select
-                  value={sortOption}
-                  onChange={(e) => setSortOption(e.target.value)}
-                  className="bg-[#181824] border border-white/20 text-white font-montserrat font-semibold text-xs px-3.5 py-2 rounded-xl outline-none cursor-pointer focus:border-[#ffd700]"
-                >
-                  <option value="FAVOURITES_DESC">Most Popular</option>
-                  <option value="SCORE_DESC">Highest Rated</option>
-                  <option value="POPULARITY_DESC">Most Watched</option>
-                  <option value="START_DATE_DESC">Newest Releases</option>
-                </select>
+                <AppDropdown ariaLabel="Sort genre results" className="w-44" value={sortOption} onChange={setSortOption} options={[{ value: "FAVOURITES_DESC", label: "Most Popular" }, { value: "SCORE_DESC", label: "Highest Rated" }, { value: "POPULARITY_DESC", label: "Most Watched" }, { value: "START_DATE_DESC", label: "Newest Releases" }]} />
               </div>
             </div>
 
@@ -430,75 +413,53 @@ export const Genres: React.FC = () => {
                 <Compass size={48} className="mx-auto text-neutral-600" />
                 <h3 className="font-montserrat font-bold text-lg text-white">No Anime Found</h3>
                 <p className="text-xs text-neutral-400">
-                  No anime found for genre "{activeGenre}". Try selecting another genre from the sidebar.
+                  No anime found for genre "{activeGenre}". Try another genre above.
                 </p>
               </div>
             )}
           </main>
 
           {/* 🧭 Right Column: Square Genre Selector (Transparent BG, Titles Outside Div, No Cutout) */}
-          <aside className="w-full lg:w-80 flex-shrink-0 order-1 lg:order-2 lg:sticky lg:top-24 space-y-4">
-            <div className="flex items-center justify-between pb-1">
+          <aside className="relative w-full min-w-0 lg:w-72 lg:flex-shrink-0 order-1 lg:order-2 lg:sticky lg:top-24 rounded-2xl border border-white/10 bg-[#17171b] p-3 sm:p-4">
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
               <h2 className="font-montserrat font-black text-base sm:text-lg text-white flex items-center gap-2">
                 <Layers size={18} className="text-[#ffd700]" />
-                <span>Genres</span>
+                <span>Browse genres</span>
               </h2>
-              <span className="text-[10px] font-bold text-neutral-400 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full">
-                {GENRE_CATEGORIES.length} Categories
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-neutral-500">{GENRE_CATEGORIES.length} genres</span>
+              </div>
             </div>
 
             {/* 2-Column Square Cards on Desktop / Horizontal Scroll on Mobile */}
-            <div className="grid grid-flow-col auto-cols-[115px] sm:auto-cols-[130px] lg:grid-flow-row lg:grid-cols-2 gap-3 overflow-x-auto lg:overflow-y-auto max-h-[75vh] pb-3 lg:pb-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div ref={genreRailRef} onScroll={(event) => { const rail = event.currentTarget; const desktop = window.matchMedia("(min-width: 1024px)").matches; const max = desktop ? rail.scrollHeight - rail.clientHeight : rail.scrollWidth - rail.clientWidth; const current = desktop ? rail.scrollTop : rail.scrollLeft; setGenreScrollProgress(max > 0 ? current / max : 0); }} className="genre-category-rail flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto lg:max-h-[66vh] pt-3 pb-2 scroll-smooth">
               {GENRE_CATEGORIES.map((cat) => {
                 const isSelected = cat.name === activeGenre;
-                const activeImg = dynamicGenreArtworks[cat.name]?.image || cat.localPath;
-
+                const categoryCover = isSelected ? activeDynamicCover : genreCovers[cat.name];
                 return (
                   <button
                     key={cat.name}
                     onClick={() => handleSelectGenre(cat.name)}
-                    className="text-left group cursor-pointer transition-all duration-300 flex flex-col focus:outline-none"
+                    className={`relative flex w-[190px] min-w-[190px] lg:w-full lg:min-w-0 flex-shrink-0 items-center gap-3 rounded-xl p-2 text-left border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ffd700] ${
+                      isSelected ? "bg-[#25251e] text-white border-[#ffd700]" : "bg-white/[0.03] text-white border-transparent hover:bg-white/[0.08]"
+                    }`}
                   >
-                    {/* Square Image Thumbnail Container */}
-                    <div
-                      className={`relative aspect-square w-full rounded-2xl overflow-hidden border transition-all duration-300 ${
-                        isSelected
-                          ? "border-[#ffd700] ring-2 ring-[#ffd700]/70 shadow-[0_0_18px_rgba(255,215,0,0.4)] scale-[1.03]"
-                          : "border-white/15 hover:border-white/40 group-hover:scale-[1.02]"
-                      }`}
-                    >
-                      <img
-                        src={activeImg}
-                        alt={cat.name}
-                        loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = cat.fallbackImage;
-                        }}
-                      />
-                      {isSelected && (
-                        <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#ffd700] ring-2 ring-black shadow-md" />
-                      )}
-                    </div>
-
-                    {/* Title & Series Name (Outside of Image Div) */}
-                    <div className="mt-1.5 px-0.5 min-w-0">
-                      <span
-                        className={`font-montserrat font-bold text-xs sm:text-sm truncate block transition-colors ${
-                          isSelected ? "text-[#ffd700]" : "text-white group-hover:text-neutral-200"
-                        }`}
-                      >
-                        {cat.name}
+                    {categoryCover ? (
+                      <ProgressiveImage src={categoryCover} alt="" aria-hidden="true" wrapperClassName="w-14 h-11 rounded-lg flex-shrink-0" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="w-14 h-11 rounded-lg flex-shrink-0 grid place-items-center font-montserrat font-black text-base" style={{ color: cat.accent, backgroundColor: `${cat.accent}18` }}>
+                        {cat.name.slice(0, 1)}
                       </span>
-                      <p className="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
-                        {cat.representativeTitle}
-                      </p>
+                    )}
+                    <div className="min-w-0">
+                      <span className="font-montserrat font-bold text-sm whitespace-nowrap block">{cat.name}</span>
+                      <span className={`block text-[11px] truncate mt-0.5 ${isSelected ? "text-[#ffd700]" : "text-neutral-500"}`}>{cat.representativeTitle}</span>
                     </div>
                   </button>
                 );
               })}
             </div>
+            <div className="genre-scroll-indicator" style={{ "--genre-progress": Math.max(.12, genreScrollProgress) } as React.CSSProperties} aria-hidden="true"><span /><small>Browse more <ArrowRight size={12} /></small></div>
           </aside>
 
         </div>

@@ -9,8 +9,6 @@ import {
   User,
   Heart,
   List,
-  CheckCircle,
-  Clock,
   Sparkles,
   Save,
   LogIn,
@@ -35,6 +33,7 @@ import { useNavigate, Link } from "react-router-dom";
 import AuthModal from "./AuthModal";
 import SEO from "./SEO";
 import Footer from "./Footer";
+import AppDropdown from "./AppDropdown";
 
 const AVATAR_PRESETS = [
   "/avatars/1.png",
@@ -376,7 +375,7 @@ export const Profile: React.FC = () => {
               Sign In to Your Orbit
             </h1>
             <p className="text-neutral-400 text-sm">
-              Log in to customize your profile, tier lists, and track your anime adventures.
+              Sign in to manage your profile, favorites, and watchlist.
             </p>
           </div>
           <button
@@ -395,6 +394,18 @@ export const Profile: React.FC = () => {
   const watchingCount = watchlist.filter((item) => (item.status || "Plan to Watch") === "Watching").length;
   const completedCount = watchlist.filter((item) => (item.status || "Plan to Watch") === "Completed").length;
   const planToWatchCount = watchlist.filter((item) => (item.status || "Plan to Watch") === "Plan to Watch").length;
+  const caughtUpCount = watchlist.filter((item) => item.status === "Caught Up").length;
+  const pausedCount = watchlist.filter((item) => item.status === "On-Hold" || item.status === "Dropped").length;
+  const completionRate = watchlist.length ? Math.round((completedCount / watchlist.length) * 100) : 0;
+  const genreCounts = [...watchlist, ...favourites].reduce<Record<string, number>>((counts, item: any) => {
+    (item.genres || []).forEach((rawGenre: any) => {
+      const genre = typeof rawGenre === "string" ? rawGenre : rawGenre?.name;
+      if (genre) counts[genre] = (counts[genre] || 0) + 1;
+    });
+    return counts;
+  }, {});
+  const topGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxGenreCount = topGenres[0]?.[1] || 1;
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
@@ -405,13 +416,13 @@ export const Profile: React.FC = () => {
         url="https://animeorbit.web.app/profile"
       />
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 space-y-8 flex-1 w-full">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 space-y-6 flex-1 w-full">
         {/* Birthday Banner Greeting */}
         {isBirthdayToday && (
-          <div className="relative bg-gradient-to-r from-[#ffd700]/25 via-pink-500/20 to-purple-600/25 border-2 border-[#ffd700] rounded-3xl p-6 sm:p-8 text-center shadow-[0_0_30px_rgba(255,215,0,0.35)] backdrop-blur-md animate-pulse">
+          <div className="relative bg-[#18181d] border border-[#ffd700]/35 rounded-2xl p-5 sm:p-6 text-center shadow-lg">
             <Cake size={44} className="mx-auto text-[#ffd700] mb-2" />
             <h2 className="text-2xl sm:text-3xl font-black font-montserrat text-white drop-shadow-md">
-              🎉 Happy Birthday, {displayName || "Anime Fan"}! 🎂
+              Happy birthday, {displayName || "Anime Fan"}
             </h2>
             <p className="text-sm text-neutral-200 mt-2 max-w-lg mx-auto leading-relaxed">
               Wishing you a wonderful year filled with thrilling adventures, unforgettable stories, and great anime moments!
@@ -421,12 +432,12 @@ export const Profile: React.FC = () => {
 
         {/* 30-Day Scheduled Deletion Active Warning Banner */}
         {deletionScheduled && scheduledDeletionDate && (
-          <div className="relative bg-red-950/70 border-2 border-red-500 rounded-3xl p-5 sm:p-6 shadow-[0_0_25px_rgba(239,68,68,0.3)] backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="relative bg-red-950/55 border border-red-500/60 rounded-2xl p-5 sm:p-6 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <AlertTriangle size={28} className="text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="text-base font-bold font-montserrat text-red-200">
-                  Account Scheduled for Permanent Destruction
+                  Account deletion scheduled
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-300 mt-1">
                   Your account and all associated data are scheduled to be deleted on{" "}
@@ -437,7 +448,7 @@ export const Profile: React.FC = () => {
                       year: "numeric",
                     })}
                   </span>{" "}
-                  (30-day grace period). Logging in cancels this destruction.
+                  (30-day grace period). You can cancel before that date.
                 </p>
               </div>
             </div>
@@ -452,9 +463,9 @@ export const Profile: React.FC = () => {
         )}
 
         {/* Main Profile View Card with Cover Banner */}
-        <div className="relative bg-[#12121c]/95 border border-white/15 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-2xl">
+        <div className="relative bg-[#15151a] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
           {/* Custom Header Cover Banner */}
-          <div className="relative h-44 sm:h-56 w-full overflow-hidden bg-neutral-900">
+          <div className="relative h-36 sm:h-48 w-full overflow-hidden bg-neutral-900">
             <img
               src={bannerUrl || BANNER_PRESETS[3]}
               alt="Profile Cover Banner"
@@ -473,11 +484,11 @@ export const Profile: React.FC = () => {
             </button>
           </div>
 
-          <div className="relative px-6 sm:px-8 pb-8 pt-0 -mt-16 sm:-mt-20">
+          <div className="relative px-5 sm:px-8 pb-7 pt-0 -mt-12 sm:-mt-16">
             <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 text-center sm:text-left">
                 {/* Round Avatar Frame */}
-                <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-[#ffd700] shadow-[0_0_25px_rgba(255,215,0,0.35)] bg-neutral-900 flex-shrink-0 flex items-center justify-center group">
+                <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-4 border-[#15151a] ring-2 ring-[#ffd700] bg-neutral-900 flex-shrink-0 flex items-center justify-center group">
                   {avatarUrl ? (
                     <img
                       src={avatarUrl}
@@ -548,7 +559,7 @@ export const Profile: React.FC = () => {
                   </div>
 
                   <p className="text-sm text-neutral-300 pt-1 leading-relaxed max-w-xl">
-                    {bio || "Anime enthusiast exploring legendary series, manga, and movies on Anime Orbit."}
+                    {bio || "Add a short bio about the anime and manga you enjoy."}
                   </p>
                 </div>
               </div>
@@ -556,7 +567,7 @@ export const Profile: React.FC = () => {
               <div className="flex items-center gap-2.5 flex-shrink-0 flex-wrap justify-center sm:pb-2">
                 <button
                   onClick={handleToggleEdit}
-                  className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs sm:text-sm px-5 py-2.5 rounded-full transition-all shadow-[0_0_15px_rgba(255,215,0,0.3)] hover:scale-105 cursor-pointer"
+                  className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs sm:text-sm px-5 py-2.5 rounded-full transition-colors cursor-pointer"
                 >
                   {isEditing ? <X size={16} /> : <Edit3 size={16} />}
                   <span>{isEditing ? "Close" : "Edit Profile"}</span>
@@ -572,100 +583,23 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* User Watch & Favourites Visualized Data Section with Direct Links */}
-            <div className="mt-8 pt-6 border-t border-white/10 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-xs font-montserrat font-extrabold uppercase tracking-wider text-[#ffd700]">
-                  Anime Activity & Vault Metrics
-                </span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Link
-                    to="/favourites"
-                    className="text-xs font-bold text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full transition-all flex items-center gap-1.5"
-                  >
-                    <Heart size={13} fill="#f87171" />
-                    <span>View Tierlist ({favourites.length})</span>
-                  </Link>
-                  <Link
-                    to="/watchlist"
-                    className="text-xs font-bold text-[#ffd700] hover:text-[#ffea00] bg-[#ffd700]/10 border border-[#ffd700]/30 px-3 py-1 rounded-full transition-all flex items-center gap-1.5"
-                  >
-                    <List size={13} />
-                    <span>View Watchlist ({watchlist.length})</span>
-                  </Link>
-                </div>
+            <section className="profile-insights" aria-labelledby="profile-insights-title">
+              <div className="profile-insights__header"><div><span>Your library</span><h2 id="profile-insights-title">Watching overview</h2></div><div><Link to="/watchlist">Open watchlist</Link><Link to="/favourites">View favorites</Link></div></div>
+              <div className="profile-insights__stats">
+                <div><strong>{watchlist.length}</strong><span>Tracked</span></div>
+                <div><strong>{watchingCount}</strong><span>Watching</span></div>
+                <div><strong>{caughtUpCount}</strong><span>Caught up</span></div>
+                <div><strong>{completedCount}</strong><span>Completed</span></div>
+                <div><strong>{favourites.length}</strong><span>Favorites</span></div>
               </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                <Link
-                  to="/favourites"
-                  className="bg-white/5 hover:bg-white/10 p-4 rounded-2xl text-center border border-white/5 hover:border-red-500/40 transition-all group cursor-pointer"
-                >
-                  <Heart size={20} className="mx-auto text-red-400 group-hover:scale-110 transition-transform mb-1" />
-                  <p className="font-staatliches text-3xl text-white">{favourites.length}</p>
-                  <p className="text-[11px] text-neutral-400 font-bold uppercase font-montserrat group-hover:text-red-400">Favorites & Tiers</p>
-                </Link>
-
-                <Link
-                  to="/watchlist"
-                  className="bg-white/5 hover:bg-white/10 p-4 rounded-2xl text-center border border-white/5 hover:border-blue-500/40 transition-all group cursor-pointer"
-                >
-                  <Clock size={20} className="mx-auto text-blue-400 group-hover:scale-110 transition-transform mb-1" />
-                  <p className="font-staatliches text-3xl text-white">{watchingCount}</p>
-                  <p className="text-[11px] text-neutral-400 font-bold uppercase font-montserrat group-hover:text-blue-400">Currently Watching</p>
-                </Link>
-
-                <Link
-                  to="/watchlist"
-                  className="bg-white/5 hover:bg-white/10 p-4 rounded-2xl text-center border border-white/5 hover:border-green-500/40 transition-all group cursor-pointer"
-                >
-                  <CheckCircle size={20} className="mx-auto text-green-400 group-hover:scale-110 transition-transform mb-1" />
-                  <p className="font-staatliches text-3xl text-white">{completedCount}</p>
-                  <p className="text-[11px] text-neutral-400 font-bold uppercase font-montserrat group-hover:text-green-400">Completed</p>
-                </Link>
-
-                <Link
-                  to="/watchlist"
-                  className="bg-white/5 hover:bg-white/10 p-4 rounded-2xl text-center border border-white/5 hover:border-[#ffd700]/40 transition-all group cursor-pointer"
-                >
-                  <List size={20} className="mx-auto text-[#ffd700] group-hover:scale-110 transition-transform mb-1" />
-                  <p className="font-staatliches text-3xl text-white">{planToWatchCount}</p>
-                  <p className="text-[11px] text-neutral-400 font-bold uppercase font-montserrat group-hover:text-[#ffd700]">Plan to Watch</p>
-                </Link>
-              </div>
-
-              {/* Visualized Ratio Progress Bar */}
-              {watchlist.length > 0 && (
-                <div className="space-y-1.5 pt-2">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-neutral-400">
-                    <span>Watchlist Breakdown</span>
-                    <span>{watchlist.length} Total Tracked</span>
-                  </div>
-                  <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden flex">
-                    <div
-                      style={{ width: `${(watchingCount / (watchlist.length || 1)) * 100}%` }}
-                      className="bg-blue-500 h-full"
-                      title={`Watching: ${watchingCount}`}
-                    />
-                    <div
-                      style={{ width: `${(completedCount / (watchlist.length || 1)) * 100}%` }}
-                      className="bg-green-500 h-full"
-                      title={`Completed: ${completedCount}`}
-                    />
-                    <div
-                      style={{ width: `${(planToWatchCount / (watchlist.length || 1)) * 100}%` }}
-                      className="bg-[#ffd700] h-full"
-                      title={`Plan to Watch: ${planToWatchCount}`}
-                    />
-                  </div>
-                  <div className="flex items-center gap-4 text-[10px] text-neutral-400 pt-1 flex-wrap">
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" /> Watching ({watchingCount})</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500" /> Completed ({completedCount})</span>
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#ffd700]" /> Plan to Watch ({planToWatchCount})</span>
-                  </div>
+              <div className="profile-insights__demographics">
+                <div className="profile-completion">
+                  <div className="profile-completion__ring" style={{ "--completion": `${completionRate * 3.6}deg` } as React.CSSProperties}><strong>{completionRate}%</strong><span>complete</span></div>
+                  <div><h3>List progress</h3><p>{watchlist.length ? `${completedCount} completed · ${caughtUpCount} caught up · ${pausedCount} paused or dropped` : "Start tracking anime to build your viewing overview."}</p><div className="profile-status-bar"><span style={{ width: `${(watchingCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(caughtUpCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(completedCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(planToWatchCount / (watchlist.length || 1)) * 100}%` }} /></div></div>
                 </div>
-              )}
-            </div>
+                <div className="profile-genres"><h3>Most watched genres</h3>{topGenres.length ? topGenres.map(([genre, count]) => <div key={genre}><span>{genre}</span><i><b style={{ width: `${(count / maxGenreCount) * 100}%` }} /></i><small>{count}</small></div>) : <p>Add genres through your Watchlist and Favorites to see your taste here.</p>}</div>
+              </div>
+            </section>
           </div>
         </div>
 
@@ -679,7 +613,7 @@ export const Profile: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <h2 className="text-xl font-extrabold font-montserrat text-[#ffd700] flex items-center gap-2">
                 <Sparkles size={20} />
-                <span>Customize Profile & Imagery</span>
+                <span>Edit profile</span>
               </h2>
               <button
                 type="button"
@@ -896,16 +830,9 @@ export const Profile: React.FC = () => {
             {/* Favorite Genre */}
             <div>
               <label htmlFor="profile-favorite-genre" className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2">
-                Favorite Universe Genre
+                Favorite genre
               </label>
-              <select
-                id="profile-favorite-genre"
-                name="favoriteGenre"
-                value={favoriteGenre}
-                onChange={(e) => setFavoriteGenre(e.target.value)}
-                className="w-full px-4 py-2.5 bg-[#12121a] border border-white/15 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none cursor-pointer"
-              >
-                {[
+              <AppDropdown ariaLabel="Favorite genre" value={favoriteGenre} onChange={setFavoriteGenre} options={[
                   "Action",
                   "Adventure",
                   "Comedy",
@@ -920,12 +847,7 @@ export const Profile: React.FC = () => {
                   "Sports",
                   "Supernatural",
                   "Thriller",
-                ].map((genre) => (
-                  <option key={genre} value={genre} className="bg-[#12121a] text-white">
-                    {genre}
-                  </option>
-                ))}
-              </select>
+                ].map((genre) => ({ value: genre, label: genre }))} />
             </div>
 
             {/* Bio */}

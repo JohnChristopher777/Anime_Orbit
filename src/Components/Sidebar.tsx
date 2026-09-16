@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Info,
@@ -37,7 +37,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { searchAnime, setSearch } = useGlobalContext();
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
   const handleClose = onClose || toggleSidebar || (() => {});
+  const navClass = (path: string) => {
+    const active = path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+    return `flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm border transition-colors ${active ? "bg-[#ffd700] border-[#ffd700] text-black [&>svg]:text-black" : "border-transparent text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10"}`;
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,41 +84,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Drawer */}
       <div
-        className={`fixed top-0 left-0 w-72 h-full bg-[#121214]/95 backdrop-blur-xl border-r border-white/10 text-white z-[1110] flex flex-col p-6 pt-16 transition-transform duration-300 ease-out shadow-2xl overflow-y-auto overscroll-contain ${
+        className={`fixed top-0 left-0 w-72 h-[100dvh] bg-[#121214]/95 backdrop-blur-xl border-r border-white/10 text-white z-[1110] flex flex-col transition-transform duration-300 ease-out shadow-2xl overflow-hidden ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Close Button */}
-        <button
-          onClick={handleClose}
-          aria-label="Close Menu"
-          className="absolute top-5 right-5 text-[#ffd700] hover:text-white transition-colors p-1"
-        >
-          <X size={24} />
-        </button>
-
-        {/* Sidebar Header Title */}
-        <div className="mb-6">
-          <h3 className="text-2xl text-[#ffd700] mt-0.5">
-            Catalogue
-          </h3>
+        <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-white/10 bg-[#121214] px-5">
+          <div>
+            <h3 className="font-montserrat text-lg font-bold text-[#ffd700]">Catalogue</h3>
+          </div>
+          <button onClick={handleClose} aria-label="Close Menu" className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-[#ffd700] hover:bg-white/5 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex flex-col space-y-1">
+        <nav className="flex min-h-0 flex-1 flex-col space-y-1 overflow-y-auto overscroll-contain px-4 py-4">
           <Link
             to="/"
             onClick={() => handleLinkClick("/")}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+            className={navClass("/")}
           >
             <Home size={18} className="text-[#ffd700]" />
             <span>Home</span>
           </Link>
 
           <Link
-            to="/trending"
-            onClick={() => handleLinkClick("/trending")}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+            to="/airing"
+            onClick={() => handleLinkClick("/airing")}
+            className={navClass("/airing")}
           >
             <TrendingUp size={18} className="text-[#ffd700]" />
             <span>Airing</span>
@@ -122,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Link
             to="/upcoming"
             onClick={() => handleLinkClick("/upcoming")}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+            className={navClass("/upcoming")}
           >
             <Calendar size={18} className="text-[#ffd700]" />
             <span>Upcoming</span>
@@ -131,7 +129,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Link
             to="/genres"
             onClick={() => handleLinkClick("/genres")}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+            className={navClass("/genres")}
           >
             <Compass size={18} className="text-[#ffd700]" />
             <span>Genres</span>
@@ -140,16 +138,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Link
             to="/manga"
             onClick={() => handleLinkClick("/manga")}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+            className={navClass("/manga")}
           >
             <BookOpen size={18} className="text-[#ffd700]" />
             <span>Manga Universe</span>
           </Link>
 
           <Link
+            to="/discovery"
+            onClick={() => handleLinkClick("/discovery")}
+            className={navClass("/discovery")}
+          >
+            <Search size={18} className="text-[#ffd700]" />
+            <span>Anime Discover</span>
+          </Link>
+
+          <Link
             to="/about"
             onClick={() => handleLinkClick("/about")}
-            className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+            className={navClass("/about")}
           >
             <Info size={18} className="text-[#ffd700]" />
             <span>About Us</span>
@@ -157,21 +164,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {currentUser && (
             <>
-              <div className="w-full h-px bg-white/10 my-3" />
-
-              <Link
-                to="/profile"
-                onClick={() => handleLinkClick("/profile")}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
-              >
-                <User size={18} className="text-[#ffd700]" />
-                <span>Profile</span>
-              </Link>
+              <div className="w-full h-px bg-neutral-600/70 my-3" aria-hidden="true" />
 
               <Link
                 to="/favourites"
                 onClick={() => handleLinkClick("/favourites")}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                className={navClass("/favourites")}
               >
                 <Heart size={18} className="text-[#ffd700]" />
                 <span>My Favorites</span>
@@ -180,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Link
                 to="/watchlist"
                 onClick={() => handleLinkClick("/watchlist")}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                className={navClass("/watchlist")}
               >
                 <List size={18} className="text-[#ffd700]" />
                 <span>My Watchlist</span>
@@ -189,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Link
                 to="/my-reviews"
                 onClick={() => handleLinkClick("/my-reviews")}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                className={navClass("/my-reviews")}
               >
                 <MessageCircle size={18} className="text-[#ffd700]" />
                 <span>My Reviews</span>
@@ -198,7 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Link
                 to="/my-comments"
                 onClick={() => handleLinkClick("/my-comments")}
-                className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-montserrat font-bold text-sm text-neutral-300 hover:text-[#ffd700] hover:bg-[#ffd700]/10 transition-colors"
+                className={navClass("/my-comments")}
               >
                 <MessageSquare size={18} className="text-[#ffd700]" />
                 <span>My Comments</span>
@@ -208,10 +206,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
 
         {/* User Account / Sign In Bottom Section */}
-        <div className="mt-auto pt-6 border-t border-white/10">
+        <div className="flex-shrink-0 border-t border-white/10 bg-[#121214] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {currentUser ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Link to="/profile" onClick={() => handleLinkClick("/profile")} className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-2 transition-colors ${location.pathname.startsWith("/profile") ? "border-[#ffd700] bg-[#ffd700]/10" : "border-transparent hover:bg-white/5"}`} aria-label="Open profile">
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#ffd700] bg-neutral-800 flex items-center justify-center text-[#ffd700]">
                   {currentUser.photoURL ? (
                     <img src={currentUser.photoURL} alt="Avatar" className="w-full h-full object-cover" />
@@ -220,17 +218,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-montserrat font-bold text-sm text-white truncate">
-                    {(currentUser.displayName || currentUser.email?.split("@")[0] || "User").slice(0, 5)}
-                  </p>
+                  <p className="font-montserrat font-bold text-sm text-white truncate">{currentUser.displayName || currentUser.email?.split("@")[0] || "User"}</p>
+                  <span className="text-[11px] text-neutral-500">View profile</span>
                 </div>
-              </div>
+              </Link>
               <button
                 onClick={handleLogoutClick}
-                className="w-full py-2.5 bg-red-500/10 hover:bg-red-500 border border-red-500/30 hover:border-red-500 text-red-400 hover:text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500 hover:text-white transition-colors"
+                aria-label="Sign out"
+                title="Sign out"
               >
                 <LogOut size={15} />
-                <span>Sign Out</span>
               </button>
             </div>
           ) : (

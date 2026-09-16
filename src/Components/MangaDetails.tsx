@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { getMangaDetailsCombined } from "../services/anilist";
 import SEO from "./SEO";
@@ -21,7 +22,12 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Share2,
 } from "lucide-react";
+import ProgressiveImage from "./ProgressiveImage";
+import { toast } from "react-toastify";
+import { useWatchlist } from "../context/WatchlistContext";
+import AppDropdown from "./AppDropdown";
 
 export const MangaDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +36,22 @@ export const MangaDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [trackerBusy, setTrackerBusy] = useState(false);
+  const { mangaWatchlist, addMangaToWatchlist, removeMangaFromWatchlist, updateMangaWatchlistEntry } = useWatchlist();
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLightboxOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeWithEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeWithEscape);
+    };
+  }, [lightboxOpen]);
 
   useEffect(() => {
     if (!id) return;
@@ -58,6 +80,25 @@ export const MangaDetails: React.FC = () => {
     }
   };
 
+  const handleShare = async () => {
+    if (!manga) return;
+    const summary = (manga.synopsis || "").replace(/<[^>]+>/g, "").slice(0, 180);
+    const shareData = {
+      title: `${manga.title} | Anime Orbit`,
+      text: `${manga.title}${manga.score ? ` • ${manga.score}/10` : ""}${manga.format ? ` • ${manga.format}` : ""}\n${summary}${summary ? "…" : ""}`,
+      url: window.location.href,
+    };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+        toast.success("Manga link copied");
+      }
+    } catch (error: any) {
+      if (error?.name !== "AbortError") toast.error("Could not share this manga");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0e] text-white font-inter px-4 sm:px-8 py-24 max-w-7xl mx-auto space-y-8">
@@ -80,7 +121,7 @@ export const MangaDetails: React.FC = () => {
           <BookOpen size={56} className="mx-auto text-neutral-600" />
           <h2 className="text-2xl font-bold font-montserrat text-white">Manga Details Not Found</h2>
           <p className="text-xs text-neutral-400">
-            We couldn't retrieve metadata for this manga title from AniList.
+            We couldn't load this manga right now. Please try again shortly.
           </p>
           <button
             onClick={handleBack}
@@ -97,6 +138,27 @@ export const MangaDetails: React.FC = () => {
 
   const posterImg = manga.images?.jpg?.large_image_url || manga.images?.jpg?.image_url;
   const bannerImg = manga.bannerImage || posterImg;
+  const trackedManga = mangaWatchlist.find((item) => item.mal_id === manga.mal_id);
+  const isInMangaWatchlist = Boolean(trackedManga);
+
+  const handleTrackerStatus = async (status: string) => {
+    setTrackerBusy(true);
+    try {
+      if (status === "remove") {
+        await removeMangaFromWatchlist(manga.mal_id);
+      } else {
+        if (!isInMangaWatchlist) await addMangaToWatchlist(manga);
+        await updateMangaWatchlistEntry(manga.mal_id, { status });
+      }
+    } finally {
+      setTrackerBusy(false);
+    }
+  };
+
+  const formatMediaDate = (date: any) => {
+    if (!date?.year) return "Not announced";
+    return new Date(date.year, Math.max(0, (date.month || 1) - 1), date.day || 1).toLocaleDateString("en-US", { year: "numeric", month: "short", day: date.day ? "numeric" : undefined });
+  };
 
   // Compile artwork for lightbox
   const gallerySlides = [
@@ -123,7 +185,7 @@ export const MangaDetails: React.FC = () => {
       />
 
       {/* Back Button */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-20 pb-4 w-full relative z-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-20 pb-4 w-full relative z-20 flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={handleBack}
           className="inline-flex items-center gap-2 bg-[#12121a]/80 hover:bg-[#ffd700] text-neutral-300 hover:text-black border border-white/15 px-4 py-2 rounded-full text-xs font-montserrat font-bold transition-all shadow-md cursor-pointer hover:scale-105 backdrop-blur-md"
@@ -131,17 +193,26 @@ export const MangaDetails: React.FC = () => {
           <ArrowLeft size={14} />
           <span>Back</span>
         </button>
+        <div className="flex w-full sm:w-auto items-center gap-2">
+          <AppDropdown disabled={trackerBusy} ariaLabel="Set manga reading status" className="min-w-0 flex-1 sm:w-44 sm:flex-none" value={trackedManga?.status || ""} placeholder={trackerBusy ? "Saving..." : "Add to list"} onChange={handleTrackerStatus} options={[{ value: "Plan to Read", label: "Plan to Read" }, { value: "Reading", label: "Reading" }, { value: "Caught Up", label: "Caught Up" }, { value: "Completed", label: "Completed" }, { value: "On-Hold", label: "On Hold" }, { value: "Dropped", label: "Dropped" }, ...(isInMangaWatchlist ? [{ value: "remove", label: "Remove from list", tone: "danger" as const }] : [])]} />
+          <button onClick={handleShare} className="inline-flex min-w-0 flex-1 sm:flex-none items-center justify-center gap-2 bg-white/5 hover:bg-[#ffd700] text-white hover:text-black border border-white/15 px-3 sm:px-4 py-2 rounded-full text-[11px] sm:text-xs font-montserrat font-bold transition-colors">
+            <Share2 size={14} /><span><span className="sm:hidden">Share</span><span className="hidden sm:inline">Share manga</span></span>
+          </button>
+        </div>
       </div>
 
       {/* Hero Banner with Ambient Lighting */}
-      <div className="relative w-full min-h-[380px] md:h-[460px] max-w-7xl mx-auto px-4 sm:px-8 mb-10">
+      <div className="relative w-full h-[380px] md:h-[460px] max-w-7xl mx-auto px-4 sm:px-8 mb-10">
         <div className="relative w-full h-full rounded-3xl overflow-hidden border border-[#ffd700]/30 shadow-[0_20px_50px_rgba(0,0,0,0.9)] bg-[#12121a]">
           {bannerImg && (
-            <img
+            <ProgressiveImage
               src={bannerImg}
               alt=""
               aria-hidden="true"
-              className="w-full h-full object-cover filter contrast-110 brightness-60"
+              loading="eager"
+              fetchPriority="high"
+              wrapperClassName="w-full h-full"
+              className="w-full h-full object-cover contrast-110 brightness-[.6]"
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0e] via-[#0a0a0e]/60 to-transparent" />
@@ -151,7 +222,7 @@ export const MangaDetails: React.FC = () => {
           <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-10 flex flex-col justify-end space-y-3 max-w-3xl">
             <div className="inline-flex items-center gap-1.5 bg-[#ffd700]/20 border border-[#ffd700]/50 text-[#ffd700] text-xs font-bold uppercase font-montserrat px-3 py-1 rounded-full w-fit backdrop-blur-md shadow-sm">
               <BookOpen size={13} />
-              <span>Original Source Manga</span>
+              <span>Manga</span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-staatliches uppercase tracking-wide text-white drop-shadow-2xl leading-tight">
               {manga.title}
@@ -171,10 +242,12 @@ export const MangaDetails: React.FC = () => {
         <div className="lg:col-span-4 space-y-6">
           <div className="relative rounded-2xl overflow-hidden border-2 border-[#ffd700]/50 shadow-[0_20px_50px_rgba(0,0,0,0.9)] bg-neutral-900 group">
             {posterImg && (
-              <img
+              <ProgressiveImage
                 src={posterImg}
                 alt={manga.title}
-                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
+                loading="eager"
+                wrapperClassName="w-full aspect-[2/3]"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer"
                 onClick={() => {
                   setLightboxIndex(0);
                   setLightboxOpen(true);
@@ -197,7 +270,7 @@ export const MangaDetails: React.FC = () => {
           <div className="bg-[#12121a]/95 border border-white/10 rounded-2xl p-5 space-y-3.5 shadow-xl">
             <h3 className="font-montserrat font-bold text-xs uppercase tracking-wider text-[#ffd700] pb-2 border-b border-white/10 flex items-center gap-2">
               <Sparkles size={14} />
-              <span>Publication Metadata</span>
+              <span>Manga details</span>
             </h3>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
@@ -227,6 +300,30 @@ export const MangaDetails: React.FC = () => {
               <div>
                 <span className="text-neutral-400 block text-[11px]">Origin</span>
                 <span className="font-semibold text-white pt-0.5 block">{manga.countryOfOrigin}</span>
+              </div>
+              <div>
+                <span className="text-neutral-400 block text-[11px]">Started</span>
+                <span className="font-semibold text-white pt-0.5 block">{formatMediaDate(manga.startDate)}</span>
+              </div>
+              <div>
+                <span className="text-neutral-400 block text-[11px]">Ended</span>
+                <span className="font-semibold text-white pt-0.5 block">{manga.endDate?.year ? formatMediaDate(manga.endDate) : manga.status === "Currently Publishing" ? "Still publishing" : "Not announced"}</span>
+              </div>
+              <div>
+                <span className="text-neutral-400 block text-[11px]">Latest listed chapter</span>
+                <span className="font-semibold text-white pt-0.5 block">{typeof manga.chapters === "number" ? `Chapter ${manga.chapters}` : "Not reported"}</span>
+              </div>
+              <div>
+                <span className="text-neutral-400 block text-[11px]">Based on</span>
+                <span className="font-semibold text-white pt-0.5 block">{String(manga.source || "Original").replace(/_/g, " ")}</span>
+              </div>
+              <div>
+                <span className="text-neutral-400 block text-[11px]">Readers</span>
+                <span className="font-semibold text-white pt-0.5 block">{Number(manga.popularity || 0).toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-neutral-400 block text-[11px]">Record updated</span>
+                <span className="font-semibold text-white pt-0.5 block">{manga.updatedAt ? new Date(manga.updatedAt * 1000).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "Not available"}</span>
               </div>
             </div>
 
@@ -258,10 +355,10 @@ export const MangaDetails: React.FC = () => {
               </div>
               <div>
                 <h2 className="text-lg sm:text-xl font-black font-montserrat text-[#ffd700]">
-                  How the Story Was Born: Genesis & Concept
+                  About the manga
                 </h2>
                 <p className="text-xs text-neutral-400">
-                  The origins, author inspiration, and foundation of this manga universe.
+                  Creator and publication details for this series.
                 </p>
               </div>
             </div>
@@ -274,7 +371,7 @@ export const MangaDetails: React.FC = () => {
             {manga.staff && manga.staff.length > 0 && (
               <div className="pt-3 border-t border-white/10">
                 <span className="text-xs font-bold font-montserrat text-[#ffd700] uppercase tracking-wider block mb-2">
-                  Original Creative Staff & Mangaka
+                  Creator credits
                 </span>
                 <div className="flex flex-wrap gap-2.5">
                   {manga.staff.slice(0, 4).map((s: any, idx: number) => (
@@ -296,7 +393,7 @@ export const MangaDetails: React.FC = () => {
           <div className="bg-[#12121a]/90 border border-white/10 rounded-3xl p-6 sm:p-8 space-y-3 shadow-xl">
             <h2 className="text-lg font-bold font-montserrat text-white flex items-center gap-2">
               <Layers size={18} className="text-[#ffd700]" />
-              <span>Plot Synopsis & Narrative</span>
+              <span>Story</span>
             </h2>
             <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
               {manga.synopsis || "No detailed synopsis available for this manga entry."}
@@ -308,7 +405,7 @@ export const MangaDetails: React.FC = () => {
             <div className="bg-[#12121a]/90 border border-white/10 rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl">
               <h2 className="text-lg font-bold font-montserrat text-white flex items-center gap-2">
                 <Tv size={18} className="text-[#ffd700]" />
-                <span>Anime Adaptations of this Story</span>
+                <span>Anime adaptations</span>
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {animeAdaptations.map((rel: any, idx: number) => {
@@ -323,10 +420,11 @@ export const MangaDetails: React.FC = () => {
                       className="flex items-center gap-3.5 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#ffd700]/50 p-3 rounded-2xl transition-all duration-200 group shadow-md"
                     >
                       {animeCover && (
-                        <img
+                        <ProgressiveImage
                           src={animeCover}
                           alt={animeTitle}
-                          className="w-14 h-20 object-cover rounded-xl border border-white/10 flex-shrink-0 group-hover:scale-105 transition-transform"
+                          wrapperClassName="w-14 h-20 rounded-xl border border-white/10 flex-shrink-0"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
                       )}
                       <div className="min-w-0 space-y-1">
@@ -361,10 +459,11 @@ export const MangaDetails: React.FC = () => {
                     className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center space-y-2 group hover:border-[#ffd700]/40 transition-colors"
                   >
                     {char.node?.image?.large && (
-                      <img
+                      <ProgressiveImage
                         src={char.node.image.large}
                         alt={char.node?.name?.full}
-                        className="w-16 h-16 rounded-full mx-auto object-cover border border-white/10 group-hover:scale-105 transition-transform"
+                        wrapperClassName="w-16 h-16 rounded-full mx-auto border border-white/10"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                     )}
                     <p className="text-xs font-bold text-white truncate">
@@ -382,13 +481,14 @@ export const MangaDetails: React.FC = () => {
       </div>
 
       {/* Custom Artwork Lightbox Modal */}
-      {lightboxOpen && gallerySlides.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4">
+      {lightboxOpen && gallerySlides.length > 0 && createPortal(
+        <div className="fixed inset-0 z-[4000] bg-black/95 flex items-center justify-center px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]" role="dialog" aria-modal="true" aria-label="Manga artwork gallery">
           <button
             onClick={() => setLightboxOpen(false)}
-            className="absolute top-6 right-6 text-white/80 hover:text-[#ffd700] p-2 rounded-full bg-black/50 transition-colors z-50 cursor-pointer"
+            className="fixed top-[max(1rem,env(safe-area-inset-top))] right-4 sm:right-6 grid h-11 w-11 place-items-center text-white hover:text-black rounded-full bg-[#202026] hover:bg-[#ffd700] border border-white/20 transition-colors z-[4010] cursor-pointer shadow-xl"
+            aria-label="Close artwork gallery"
           >
-            <X size={28} />
+            <X size={22} />
           </button>
 
           {gallerySlides.length > 1 && (
@@ -398,17 +498,18 @@ export const MangaDetails: React.FC = () => {
                   prev === 0 ? gallerySlides.length - 1 : prev - 1
                 )
               }
-              className="absolute left-6 text-white hover:text-[#ffd700] p-3 rounded-full bg-black/50 transition-colors z-50 cursor-pointer"
+              className="fixed left-3 sm:left-6 text-white hover:text-black p-2 sm:p-3 rounded-full bg-[#202026] hover:bg-[#ffd700] border border-white/15 transition-colors z-[4005] cursor-pointer"
+              aria-label="Previous artwork"
             >
               <ChevronLeft size={32} />
             </button>
           )}
 
-          <div className="max-w-4xl max-h-[85vh] flex flex-col items-center justify-center">
+          <div className="w-full max-w-5xl h-full max-h-[calc(100dvh-2rem)] flex flex-col items-center justify-center pt-12 pb-3">
             <img
               src={gallerySlides[lightboxIndex]?.src}
               alt="Manga Artwork Gallery"
-              className="max-w-full max-h-[80vh] object-contain rounded-xl border border-white/20 shadow-2xl"
+              className="max-w-full max-h-[calc(100dvh-7rem)] object-contain rounded-xl border border-white/20 shadow-2xl"
             />
             <p className="text-xs text-neutral-400 mt-3 font-mono">
               Artwork {lightboxIndex + 1} of {gallerySlides.length}
@@ -422,12 +523,14 @@ export const MangaDetails: React.FC = () => {
                   prev === gallerySlides.length - 1 ? 0 : prev + 1
                 )
               }
-              className="absolute right-6 text-white hover:text-[#ffd700] p-3 rounded-full bg-black/50 transition-colors z-50 cursor-pointer"
+              className="fixed right-3 sm:right-6 text-white hover:text-black p-2 sm:p-3 rounded-full bg-[#202026] hover:bg-[#ffd700] border border-white/15 transition-colors z-[4005] cursor-pointer"
+              aria-label="Next artwork"
             >
               <ChevronRight size={32} />
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
       <Footer />

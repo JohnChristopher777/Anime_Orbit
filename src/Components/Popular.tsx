@@ -1,7 +1,6 @@
-import React, { memo, useEffect, useRef, useCallback } from "react";
+import React, { memo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useGlobalContext } from "../context/global";
-import gsap from "gsap";
 import AnimeCard from "./AnimeCard";
 import SEO from "./SEO";
 import { RefreshCw, Search, ArrowLeft, Home } from "lucide-react";
@@ -15,37 +14,18 @@ interface PopularProps {
 
 export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularAnime }) => {
   const {
-    trendingAnime,
+    popularAnime: contextPopularAnime,
     popularPage,
     hasMorePopular,
     getPopularAnime,
     loading,
   } = useGlobalContext();
 
-  const safePopularAnime = popularAnime || [];
-  const safeTrendingAnime = trendingAnime || [];
-  const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
-  const initialLoadedRef = useRef(false);
+  const safePopularAnime = popularAnime || contextPopularAnime || [];
 
   useEffect(() => {
-    if (!initialLoadedRef.current && safePopularAnime.length > 0) {
-      initialLoadedRef.current = true;
-      const validRefs = cardsRef.current.filter(Boolean);
-      if (validRefs.length > 0) {
-        gsap.fromTo(
-          validRefs.slice(0, 12),
-          { opacity: 0, y: 30 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.4,
-            stagger: 0.04,
-            ease: "power2.out",
-          }
-        );
-      }
-    }
-  }, [safePopularAnime.length]);
+    if (rendered !== "search" && contextPopularAnime.length === 0) getPopularAnime(1);
+  }, [rendered, contextPopularAnime.length, getPopularAnime]);
 
   // Manual button click pagination only (locked against automatic scroll reloads)
   const handleLoadMore = () => {
@@ -151,13 +131,7 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
             {safePopularAnime.map((anime, index) => (
-              <AnimeCard
-                ref={(el) => {
-                  cardsRef.current[index] = el;
-                }}
-                anime={anime}
-                key={`popular-${anime.mal_id}-${index}`}
-              />
+              <AnimeCard anime={anime} key={`popular-${anime.mal_id}-${index}`} />
             ))}
           </div>
 
@@ -169,7 +143,7 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
                 className="inline-flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] disabled:opacity-50 text-black font-bold px-8 py-3.5 rounded-full text-sm font-montserrat shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
               >
                 <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-                <span>{loading ? "Fetching Next Batch..." : `Load More(${safePopularAnime.length} loaded)`}</span>
+                <span>{loading ? "Loading more..." : `Load More (${safePopularAnime.length} loaded)`}</span>
               </button>
             </div>
           )}

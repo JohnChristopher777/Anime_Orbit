@@ -7,12 +7,12 @@ import { useGlobalContext } from "../context/global";
 import { searchAnime as getSuggestions } from "../services/anilist";
 import { db } from "../firebase/config";
 import { doc, getDoc } from "firebase/firestore";
+import ProgressiveImage from "./ProgressiveImage";
 import {
   User,
   LogOut,
   Heart,
   Menu,
-  Home,
   Search,
   TrendingUp,
   List,
@@ -24,7 +24,6 @@ import {
   Compass,
   X,
   BookOpen,
-  Brain,
 } from "lucide-react";
 
 export const Nav: React.FC = () => {
@@ -33,6 +32,7 @@ export const Nav: React.FC = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [userPhoto, setUserPhoto] = useState<string>("");
@@ -44,6 +44,7 @@ export const Nav: React.FC = () => {
 
   const searchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const suggestionRequest = useRef(0);
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
@@ -89,18 +90,37 @@ export const Nav: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!mobileSearchOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeWithEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileSearchOpen(false); };
+    document.addEventListener("keydown", closeWithEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeWithEscape);
+    };
+  }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    const requestId = ++suggestionRequest.current;
+    if (query.length < 2) {
       setSuggestions([]);
+      setSuggestionsLoading(false);
+      setShowSuggestions(false);
       return;
     }
 
     const timer = setTimeout(async () => {
+      setSuggestionsLoading(true);
+      setShowSuggestions(true);
       try {
-        const results = await getSuggestions(searchQuery, 5);
-        setSuggestions(results);
-        setShowSuggestions(true);
+        const results = await getSuggestions(query, 6);
+        if (requestId === suggestionRequest.current) setSuggestions(results);
       } catch {
-        setSuggestions([]);
+        if (requestId === suggestionRequest.current) setSuggestions([]);
+      } finally {
+        if (requestId === suggestionRequest.current) setSuggestionsLoading(false);
       }
     }, 250);
 
@@ -161,7 +181,7 @@ export const Nav: React.FC = () => {
       <nav
         className={`fixed top-0 left-0 right-0 h-[64px] sm:h-[70px] z-50 transition-all duration-300 ${
           isScrolled
-            ? "bg-[#141414]/95 backdrop-blur-md border-b border-[#ffd700]/20 shadow-[0_4px_25px_rgba(0,0,0,0.7)]"
+            ? "bg-[#141414]/75 backdrop-blur-xl border-b border-white/10 shadow-[0_4px_25px_rgba(0,0,0,0.55)]"
             : "bg-gradient-to-b from-black/90 via-black/50 to-transparent border-b border-transparent"
         }`}
       >
@@ -193,22 +213,9 @@ export const Nav: React.FC = () => {
           {/* Center / Navigation Links (Visible on Large Screens) */}
           <div className="hidden xl:flex items-center gap-2 flex-shrink-0">
             <Link
-              to="/"
-              onClick={() => setSearch("")}
+              to="/airing"
               className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
-                location.pathname === "/"
-                  ? "bg-[#ffd700]/15 border-[#ffd700]/40 text-[#ffd700] shadow-[0_0_12px_rgba(255,215,0,0.2)]"
-                  : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
-              }`}
-            >
-              <Home size={16} />
-              <span>Home</span>
-            </Link>
-
-            <Link
-              to="/trending"
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
-                location.pathname === "/trending"
+                location.pathname === "/airing"
                   ? "bg-[#ffd700]/15 border-[#ffd700]/40 text-[#ffd700] shadow-[0_0_12px_rgba(255,215,0,0.2)]"
                   : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
               }`}
@@ -249,8 +256,20 @@ export const Nav: React.FC = () => {
                   : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
               }`}
             >
-              <Brain size={16} />
-              <span>Discovery</span>
+              <Compass size={16} />
+              <span>Discover</span>
+            </Link>
+
+            <Link
+              to="/watchlist"
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
+                location.pathname === "/watchlist"
+                  ? "bg-[#ffd700]/15 border-[#ffd700]/40 text-[#ffd700] shadow-[0_0_12px_rgba(255,215,0,0.2)]"
+                  : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
+              }`}
+            >
+              <List size={16} />
+              <span>Watchlist</span>
             </Link>
           </div>
 
@@ -276,7 +295,7 @@ export const Nav: React.FC = () => {
                   onFocus={() => {
                     if (suggestions.length > 0) setShowSuggestions(true);
                   }}
-                  className="w-44 lg:w-64 bg-white/5 border border-white/15 focus:border-[#ffd700] text-white text-xs sm:text-sm pl-9 pr-8 py-1.5 sm:py-2 rounded-full outline-none transition-all duration-300 placeholder-neutral-500 focus:bg-black/70 focus:shadow-[0_0_15px_rgba(255,215,0,0.25)]"
+                  className="w-44 lg:w-64 bg-white/[0.09] backdrop-blur-xl border border-white/20 focus:border-[#ffd700] text-white text-xs sm:text-sm pl-9 pr-8 py-1.5 sm:py-2 rounded-full outline-none transition-all duration-300 placeholder-neutral-400 focus:bg-white/[0.12] focus:shadow-[0_0_15px_rgba(255,215,0,0.18)]"
                 />
                 {searchQuery && (
                   <button
@@ -294,9 +313,10 @@ export const Nav: React.FC = () => {
               </form>
 
               {/* Desktop Suggestions Dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f0f14]/98 backdrop-blur-2xl border border-[#ffd700]/30 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.95)] overflow-hidden max-h-80 overflow-y-auto z-50 divide-y divide-white/10">
-                  {Array.from(
+              {showSuggestions && (suggestionsLoading || suggestions.length > 0) && (
+                <div className="nav-search-results absolute top-full left-0 right-0 mt-2 bg-[#111116]/95 backdrop-blur-2xl border border-white/15 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.95)] overflow-hidden max-h-80 overflow-y-auto z-50 divide-y divide-white/10">
+                  {suggestionsLoading && <div className="nav-search-results__loading"><span /><span /><span /></div>}
+                  {!suggestionsLoading && Array.from(
                     new Map(suggestions.map((item) => [item.mal_id, item])).values()
                   ).map((anime, idx) => {
                     const title = anime.title_english || anime.title;
@@ -310,9 +330,10 @@ export const Nav: React.FC = () => {
                         onClick={() => handleSuggestionClick(anime.mal_id)}
                         className="flex items-center gap-3 p-2.5 bg-[#0f0f14]/95 hover:bg-[#ffd700]/15 cursor-pointer transition-colors"
                       >
-                        <img
+                        <ProgressiveImage
                           src={img}
                           alt={title}
+                          wrapperClassName="w-9 h-12 rounded border border-[#ffd700]/20 flex-shrink-0"
                           className="w-9 h-12 object-cover rounded border border-[#ffd700]/20 flex-shrink-0"
                         />
                         <div className="min-w-0 flex-1">
@@ -450,7 +471,9 @@ export const Nav: React.FC = () => {
 
         {/* Mobile Frosted Expandable Search Bar Dropdown (Screen < md) */}
         {mobileSearchOpen && (
-          <div className="md:hidden w-full bg-black/75 backdrop-blur-3xl border-b border-[#ffd700]/40 px-4 py-3.5 shadow-[0_15px_40px_rgba(0,0,0,0.9)] animate-in slide-in-from-top-2 duration-200">
+          <div className="md:hidden fixed inset-0 z-[2500] bg-[#101014] overflow-y-auto px-4 py-6 animate-in fade-in duration-150" role="dialog" aria-modal="true" aria-label="Search anime">
+            <div className="w-full max-w-xl mx-auto">
+            <div className="flex items-center justify-between mb-5"><div><span className="text-[10px] uppercase tracking-wider font-bold text-[#ffd700]">Anime Orbit</span><h2 className="font-montserrat font-black text-xl text-white">Search anime</h2></div><button type="button" onClick={() => { setMobileSearchOpen(false); setShowSuggestions(false); }} className="grid w-10 h-10 place-items-center rounded-full border border-white/15 bg-white/5 text-white" aria-label="Close search"><X size={19} /></button></div>
             <form onSubmit={handleSearchSubmit} className="relative flex items-center">
               <Search
                 size={16}
@@ -467,7 +490,7 @@ export const Nav: React.FC = () => {
                 onFocus={() => {
                   if (suggestions.length > 0) setShowSuggestions(true);
                 }}
-                className="w-full bg-white/[0.08] backdrop-blur-md border border-white/20 focus:border-[#ffd700] text-white text-sm pl-10 pr-9 py-2.5 rounded-full outline-none transition-all placeholder-neutral-400 focus:bg-black/90 focus:shadow-[0_0_20px_rgba(255,215,0,0.35)] shadow-inner"
+                className="w-full bg-[#19191f] border border-white/20 focus:border-[#ffd700] text-white text-sm pl-10 pr-9 py-2.5 rounded-full outline-none transition-all placeholder-neutral-400 focus:bg-[#19191f] focus:shadow-[0_0_20px_rgba(255,215,0,0.22)] shadow-inner"
               />
               {searchQuery && (
                 <button
@@ -485,9 +508,10 @@ export const Nav: React.FC = () => {
             </form>
 
             {/* Mobile Suggestions Dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="mt-2.5 bg-[#0a0a0e]/95 backdrop-blur-2xl border border-[#ffd700]/40 rounded-2xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-white/10 shadow-2xl">
-                {Array.from(
+            {showSuggestions && (suggestionsLoading || suggestions.length > 0) && (
+              <div className="nav-search-results mt-2.5 bg-[#15151b] border border-white/15 rounded-2xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-white/10 shadow-2xl">
+                {suggestionsLoading && <div className="nav-search-results__loading"><span /><span /><span /></div>}
+                {!suggestionsLoading && Array.from(
                   new Map(suggestions.map((item) => [item.mal_id, item])).values()
                 ).map((anime, idx) => {
                   const title = anime.title_english || anime.title;
@@ -501,9 +525,10 @@ export const Nav: React.FC = () => {
                       onClick={() => handleSuggestionClick(anime.mal_id)}
                       className="flex items-center gap-3 p-2.5 hover:bg-[#ffd700]/15 cursor-pointer transition-colors"
                     >
-                      <img
+                      <ProgressiveImage
                         src={img}
                         alt={title}
+                        wrapperClassName="w-9 h-12 rounded-lg border border-[#ffd700]/30 flex-shrink-0"
                         className="w-9 h-12 object-cover rounded-lg border border-[#ffd700]/30 flex-shrink-0"
                       />
                       <div className="min-w-0 flex-1">
@@ -526,6 +551,8 @@ export const Nav: React.FC = () => {
                 })}
               </div>
             )}
+            {!suggestionsLoading && searchQuery.trim().length >= 2 && showSuggestions && suggestions.length === 0 && <div className="mt-3 rounded-2xl border border-white/10 bg-[#15151b] p-8 text-center text-sm text-neutral-400">No matching anime found.</div>}
+            </div>
           </div>
         )}
       </nav>

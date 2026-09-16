@@ -47,6 +47,35 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { toast } from "react-toastify";
 import { sanitizeInput, checkRateLimit } from "../utils/security";
+import ProgressiveImage from "./ProgressiveImage";
+import AppDropdown from "./AppDropdown";
+
+const PLATFORM_COLORS: Record<string, string> = {
+  crunchyroll: "#f47521",
+  hulu: "#1ce783",
+  netflix: "#e50914",
+  "bilibili tv": "#fb7299",
+  bilibili: "#fb7299",
+  iq: "#00b8f0",
+  wetv: "#00d66b",
+  youtube: "#ff0033",
+  hoopla: "#2aa7df",
+  hidive: "#00a8e1",
+  amazon: "#00a8e1",
+};
+
+const getPlatformColor = (site: string, suppliedColor?: string) =>
+  suppliedColor || PLATFORM_COLORS[site.toLowerCase()] || "#ffd700";
+
+const getStreamTag = (link: any) => {
+  const details = `${link?.notes || ""} ${link?.language || ""}`.toLowerCase();
+  if (details.includes("4k") || details.includes("uhd")) return "4K";
+  if (details.includes("dub") && details.includes("sub")) return "Sub & Dub";
+  if (details.includes("dub")) return "Dub";
+  if (details.includes("sub")) return "Sub";
+  if (details.includes("hd")) return "HD";
+  return link?.language || "Official";
+};
 
 export const AnimeItem: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -54,6 +83,7 @@ export const AnimeItem: React.FC = () => {
 
   // Anime Data State
   const [anime, setAnime] = useState<any>({});
+  const [loadError, setLoadError] = useState(false);
   const [characters, setCharacters] = useState<any[]>([]);
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [relations, setRelations] = useState<any[]>([]);
@@ -85,6 +115,7 @@ export const AnimeItem: React.FC = () => {
   const [isCommentSpoiler, setIsCommentSpoiler] = useState(false);
   const [revealedSpoilers, setRevealedSpoilers] = useState<Record<string, boolean>>({});
   const [commentsLoading, setCommentsLoading] = useState(true);
+  const [postingComment, setPostingComment] = useState(false);
 
   // Reviews State
   const [reviews, setReviews] = useState<any[]>([]);
@@ -92,6 +123,7 @@ export const AnimeItem: React.FC = () => {
   const [newReviewRating, setNewReviewRating] = useState(10);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [postingReview, setPostingReview] = useState(false);
   const [trailerLoaded, setTrailerLoaded] = useState(false);
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const { currentUser } = useAuth();
@@ -116,6 +148,7 @@ export const AnimeItem: React.FC = () => {
     episodes: totalEpisodes,
     mal_id,
     year,
+    externalLinks,
   } = anime || {};
 
   const displayTitle = title_english || title || "Anime Details";
@@ -128,6 +161,8 @@ export const AnimeItem: React.FC = () => {
     const fetchAllData = async () => {
       if (!id) return;
       setLoading(true);
+      setLoadError(false);
+      setAnime({});
       setCharPage(1);
       setHasMoreChars(true);
       setStaffPage(1);
@@ -142,7 +177,7 @@ export const AnimeItem: React.FC = () => {
         setRelations(data.relations || []);
         setStaff(data.staff || []);
       } catch {
-        // Fallback gracefully
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -402,12 +437,14 @@ export const AnimeItem: React.FC = () => {
     if (!cleanText) return;
 
     try {
+      setPostingComment(true);
       await addDoc(collection(db, "comments"), {
         animeId: id?.toString(),
         userId: currentUser.uid,
         userName: currentUser.displayName || currentUser.email?.split("@")[0] || "Anonymous",
         userAvatar: currentUser.photoURL || "",
         text: cleanText,
+        content: cleanText,
         isSpoiler: isCommentSpoiler,
         animeTitle: displayTitle,
         animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
@@ -416,8 +453,11 @@ export const AnimeItem: React.FC = () => {
       setNewComment("");
       setIsCommentSpoiler(false);
       toast.success("Comment posted successfully!");
-    } catch {
+    } catch (error: any) {
+      console.error("Comment write failed", error?.code || error);
       toast.error("Failed to post comment. Try again!");
+    } finally {
+      setPostingComment(false);
     }
   };
 
@@ -438,6 +478,7 @@ export const AnimeItem: React.FC = () => {
     if (!cleanReview) return;
 
     try {
+      setPostingReview(true);
       await addDoc(collection(db, "reviews"), {
         animeId: id?.toString(),
         userId: currentUser.uid,
@@ -445,6 +486,7 @@ export const AnimeItem: React.FC = () => {
         userAvatar: currentUser.photoURL || "",
         rating: Number(newReviewRating),
         text: cleanReview,
+        content: cleanReview,
         animeTitle: displayTitle,
         animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
         createdAt: serverTimestamp(),
@@ -452,8 +494,11 @@ export const AnimeItem: React.FC = () => {
       setNewReviewText("");
       setNewReviewRating(10);
       toast.success("Review posted successfully!");
-    } catch {
+    } catch (error: any) {
+      console.error("Review write failed", error?.code || error);
       toast.error("Failed to post review. Try again!");
+    } finally {
+      setPostingReview(false);
     }
   };
 
@@ -479,19 +524,21 @@ export const AnimeItem: React.FC = () => {
 
   const handleShare = async () => {
     try {
+      const genreNames = (genres || []).slice(0, 3).map((genre: any) => genre?.name || genre).filter(Boolean).join(" • ");
+      const summary = (synopsis || "").replace(/<[^>]+>/g, "").slice(0, 180);
       const shareData = {
-        title: displayTitle,
-        text: `Check out ${displayTitle} on Anime Orbit!`,
+        title: `${displayTitle} | Anime Orbit`,
+        text: `${displayTitle}${score ? ` • ${score}/10` : ""}${genreNames ? ` • ${genreNames}` : ""}\n${summary}${summary ? "…" : ""}`,
         url: window.location.href,
       };
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success("Link copied to clipboard!");
+        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+        toast.success("Anime link copied");
       }
-    } catch {
-      // Ignored
+    } catch (error: any) {
+      if (error?.name !== "AbortError") toast.error("Could not share this anime");
     }
   };
 
@@ -523,12 +570,57 @@ export const AnimeItem: React.FC = () => {
     };
   }, [displayTitle, title_japanese, cleanSynopsis, images, score, anime?.scored_by, genres, totalEpisodes, id, type]);
 
-  if (loading && !anime) {
+  const availableSources = useMemo(() => {
+    const sources = new Map<string, { id: string | number; site: string; url: string; color?: string; notes?: string; language?: string }>();
+    (externalLinks || [])
+      .filter((link: any) => link?.url && link.type === "STREAMING" && !link.isDisabled)
+      .forEach((link: any) => sources.set(link.site || link.url, {
+        id: link.id || link.url,
+        site: link.site || "Official source",
+        url: link.url,
+        color: link.color,
+        notes: link.notes,
+        language: link.language,
+      }));
+    (episodes || [])
+      .filter((episode: any) => episode?.url && episode?.site)
+      .forEach((episode: any) => {
+        if (!sources.has(episode.site)) sources.set(episode.site, { id: episode.site, site: episode.site, url: episode.url });
+      });
+    return Array.from(sources.values());
+  }, [externalLinks, episodes]);
+
+  if (loading) {
+    return (
+      <Container aria-busy="true" aria-label="Loading anime details">
+        <div className="detail-skeleton">
+          <Skeleton height="100%" baseColor="#1b1b20" highlightColor="#292930" borderRadius={18} />
+          <div className="detail-skeleton__copy">
+            <Skeleton width="28%" height={20} baseColor="#1b1b20" highlightColor="#292930" />
+            <Skeleton width="78%" height={52} baseColor="#1b1b20" highlightColor="#292930" />
+            <Skeleton width="48%" height={20} baseColor="#1b1b20" highlightColor="#292930" />
+            <div className="detail-skeleton__pills">
+              <Skeleton width={86} height={32} borderRadius={18} baseColor="#1b1b20" highlightColor="#292930" />
+              <Skeleton width={106} height={32} borderRadius={18} baseColor="#1b1b20" highlightColor="#292930" />
+              <Skeleton width={92} height={32} borderRadius={18} baseColor="#1b1b20" highlightColor="#292930" />
+            </div>
+            <Skeleton count={4} height={15} baseColor="#1b1b20" highlightColor="#292930" />
+          </div>
+        </div>
+      </Container>
+    );
+  }
+
+  if (loadError || !anime?.mal_id) {
     return (
       <Container>
-        <Skeleton height={420} baseColor="#1e1e1e" highlightColor="#2d2d2d" borderRadius={16} />
-        <div style={{ marginTop: "2rem" }}>
-          <Skeleton count={4} height={20} baseColor="#1e1e1e" highlightColor="#2d2d2d" />
+        <div className="min-h-[70vh] flex items-center justify-center px-5">
+          <div className="max-w-sm text-center">
+            <ProgressiveImage src="/lost.jpg" alt="Page not found" wrapperClassName="w-40 h-40 mx-auto rounded-full bg-white mb-6" className="w-full h-full object-contain p-4" loading="eager" />
+            <h1 className="font-montserrat text-2xl font-black">This title is off orbit</h1>
+            <p className="text-neutral-400 text-sm mt-2">The anime could not be found or the data service is temporarily unavailable.</p>
+            <button onClick={handleBack} className="mt-6 rounded-full bg-[#ffd700] px-5 py-2.5 text-sm font-bold text-black">Go back</button>
+          </div>
         </div>
       </Container>
     );
@@ -540,7 +632,7 @@ export const AnimeItem: React.FC = () => {
         title={`${displayTitle} - Episodes, Characters & Reviews`}
         description={`${displayTitle}: ${cleanSynopsis}`}
         keywords={`${displayTitle}, ${genres?.map((g: any) => g.name || g).join(", ")}, anime episodes, anime characters, anime reviews, Anime Orbit`}
-        image={images?.jpg?.large_image_url || PosterImage}
+        image={images?.jpg?.large_image_url || "/lost.jpg"}
         url={`https://animeorbit.web.app/anime/${id}`}
         type={type === "Movie" ? "video.movie" : "video.tv_show"}
         structuredData={animeStructuredData}
@@ -564,9 +656,12 @@ export const AnimeItem: React.FC = () => {
 
       <HeroSection>
         <PosterWrapper>
-          <PosterImage
+          <ProgressiveImage
             src={images?.jpg?.large_image_url}
             alt={displayTitle}
+            loading="eager"
+            wrapperClassName="w-full aspect-[2/3] rounded-2xl border-2 border-[#ffd700]/40 shadow-2xl"
+            className="w-full h-full object-cover cursor-pointer"
             onClick={() => openLightboxAt(images?.jpg?.large_image_url)}
           />
           {mergedGalleryImages.length > 0 && (
@@ -605,13 +700,13 @@ export const AnimeItem: React.FC = () => {
                 <Film size={15} color="#ffd700" />
                 <span>Upcoming Release</span>
               </Badge>
-            ) : totalEpisodes !== undefined && totalEpisodes !== null ? (
+            ) : anime.isOngoing || (totalEpisodes !== undefined && totalEpisodes !== null) ? (
               <Badge>
                 <Film size={15} color="#ffd700" />
                 <span>
-                  {totalEpisodes === 0 && status === "Airing"
-                    ? "Ongoing"
-                    : `${totalEpisodes}${anime.isOngoing ? "+ (Ongoing)" : " Episodes"}`}
+                  {anime.isOngoing
+                    ? totalEpisodes ? `${totalEpisodes}+ Episodes` : "Currently airing"
+                    : `${totalEpisodes} Episodes`}
                 </span>
               </Badge>
             ) : null}
@@ -706,7 +801,7 @@ export const AnimeItem: React.FC = () => {
             <SynopsisText>
               {synopsis ? (
                 <>
-                  {showMore ? synopsis : `${synopsis.substring(0, 450)}...`}
+                  {showMore || synopsis.length <= 450 ? synopsis : `${synopsis.substring(0, 450)}…`}
                   {synopsis.length > 450 && (
                     <ReadMoreBtn onClick={() => setShowMore(!showMore)}>
                       {showMore ? "Show Less" : "Read More"}
@@ -727,46 +822,48 @@ export const AnimeItem: React.FC = () => {
             )}
 
             <InfoGrid>
-              <InfoCard>
-                <InfoLabel>Studios</InfoLabel>
-                <InfoValue>
-                  {studios && studios.length > 0 ? studios.map((s: any) => s.name).join(", ") : "Toei Animation"}
-                </InfoValue>
-              </InfoCard>
-              <InfoCard>
-                <InfoLabel>Producers</InfoLabel>
-                <InfoValue>
-                  {producers && producers.length > 0
-                    ? producers.slice(0, 3).map((p: any) => p.name).join(", ")
-                    : (studios && studios.length > 0 ? studios.map((s: any) => s.name).join(", ") : "Shueisha, Fuji TV")}
-                </InfoValue>
-              </InfoCard>
-              <InfoCard>
-                <InfoLabel>Source</InfoLabel>
-                <InfoValue>{source || "Manga"}</InfoValue>
-              </InfoCard>
-              <InfoCard>
-                <InfoLabel>Duration</InfoLabel>
-                <InfoValue>{duration || "24 min"}</InfoValue>
-              </InfoCard>
-              <InfoCard>
-                <InfoLabel>Status</InfoLabel>
-                <InfoValue>{status || "Finished Airing"}</InfoValue>
-              </InfoCard>
-              <InfoCard>
-                <InfoLabel>Aired</InfoLabel>
-                <InfoValue>{anime.aired?.string || "N/A"}</InfoValue>
-              </InfoCard>
+              {studios?.length > 0 && <InfoCard><InfoLabel>Studios</InfoLabel><InfoValue>{studios.map((s: any) => s.name).join(", ")}</InfoValue></InfoCard>}
+              {producers?.length > 0 && <InfoCard><InfoLabel>Producers</InfoLabel><InfoValue>{producers.slice(0, 3).map((p: any) => p.name).join(", ")}</InfoValue></InfoCard>}
+              {source && <InfoCard><InfoLabel>Based on</InfoLabel><InfoValue>{source}</InfoValue></InfoCard>}
+              {duration && <InfoCard><InfoLabel>Duration</InfoLabel><InfoValue>{duration}</InfoValue></InfoCard>}
+              {status && <InfoCard><InfoLabel>Status</InfoLabel><InfoValue>{status}</InfoValue></InfoCard>}
+              {anime.aired?.string && anime.aired.string !== "Not Available" && <InfoCard><InfoLabel>First aired</InfoLabel><InfoValue>{anime.aired.string}</InfoValue></InfoCard>}
             </InfoGrid>
 
             {(() => {
               const ytId = trailer?.youtube_id || trailer?.id || (trailer?.embed_url ? trailer.embed_url.match(/(?:embed\/|v=|\/vi\/|youtu\.be\/|\/v\/)([^?&#]+)/)?.[1] : null);
               const cleanEmbedUrl = ytId
                 ? `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`
-                : `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(displayTitle + " official anime trailer pv")}&autoplay=1`;
+                : "";
               const directWatchUrl = ytId
                 ? `https://www.youtube.com/watch?v=${ytId}`
-                : `https://www.youtube.com/results?search_query=${encodeURIComponent(displayTitle + " official anime trailer pv")}`;
+                : "";
+
+              if (!ytId) {
+                const trailerSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${displayTitle} official trailer`)}`;
+                const officialLink = (externalLinks || []).find((link: any) => link?.url && link.type === "INFO" && !link.isDisabled);
+                return (
+                  <TrailerSection>
+                    <SectionTitle>Trailer</SectionTitle>
+                    <div className="rounded-2xl border border-white/10 bg-[#18181d] p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <p className="font-montserrat font-bold text-white">No trailer is listed for this series yet.</p>
+                        <p className="text-sm text-neutral-400 mt-1">Look for the official upload or open the series website.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <a href={trailerSearchUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-[#ff0033] px-4 py-2 text-xs font-bold text-white">
+                          <Play size={14} fill="currentColor" /> Search YouTube
+                        </a>
+                        {officialLink && (
+                          <a href={officialLink.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white">
+                            <ExternalLink size={14} /> Official site
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </TrailerSection>
+                );
+              }
 
               return (
                 <TrailerSection>
@@ -832,54 +929,29 @@ export const AnimeItem: React.FC = () => {
               );
             })()}
 
-            {/* Official Legal Streaming Portals Deep Links */}
-            <div style={{ marginTop: "2.5rem", padding: "1.5rem", background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "20px", backdropFilter: "blur(10px)" }}>
+            {availableSources.length > 0 && (
+            <div style={{ marginTop: "2.5rem", padding: "1.5rem", background: "#1a1a1f", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "20px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                <h4 style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 800, color: "#ffd700", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
+                <h4 style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, color: "#ffd700", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
                   <ExternalLink size={18} />
-                  <span>Official Legal Streaming Portals</span>
+                  <span>Where to watch</span>
                 </h4>
-                <span style={{ fontSize: "0.75rem", color: "#888" }}>Search and watch on verified platforms</span>
+                <span style={{ fontSize: "0.75rem", color: "#888" }}>Links supplied for this series</span>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                <a
-                  href={`https://www.crunchyroll.com/search?q=${encodeURIComponent(displayTitle)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.55rem 1.1rem", background: "rgba(244, 117, 33, 0.15)", border: "1px solid rgba(244, 117, 33, 0.4)", borderRadius: "14px", color: "#f47521", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", transition: "all 0.2s ease" }}
-                >
-                  <Film size={14} />
-                  <span>Crunchyroll</span>
-                </a>
-                <a
-                  href={`https://www.netflix.com/search?q=${encodeURIComponent(displayTitle)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.55rem 1.1rem", background: "rgba(229, 9, 20, 0.15)", border: "1px solid rgba(229, 9, 20, 0.4)", borderRadius: "14px", color: "#ff4d4d", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", transition: "all 0.2s ease" }}
-                >
-                  <Tv size={14} />
-                  <span>Netflix</span>
-                </a>
-                <a
-                  href={`https://www.disneyplus.com/search?q=${encodeURIComponent(displayTitle)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.55rem 1.1rem", background: "rgba(17, 60, 207, 0.15)", border: "1px solid rgba(17, 60, 207, 0.4)", borderRadius: "14px", color: "#54a0ff", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", transition: "all 0.2s ease" }}
-                >
-                  <Play size={14} />
-                  <span>Disney+</span>
-                </a>
-                <a
-                  href={`https://www.hulu.com/search?q=${encodeURIComponent(displayTitle)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: "0.45rem", padding: "0.55rem 1.1rem", background: "rgba(28, 231, 131, 0.15)", border: "1px solid rgba(28, 231, 131, 0.4)", borderRadius: "14px", color: "#1ce783", fontSize: "0.8rem", fontWeight: 700, textDecoration: "none", transition: "all 0.2s ease" }}
-                >
-                  <Film size={14} />
-                  <span>Hulu</span>
-                </a>
+                {availableSources.map((link) => {
+                  const brandColor = getPlatformColor(link.site, link.color);
+                  return (
+                    <a key={link.id || link.url} href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "0.55rem", padding: "0.55rem 0.8rem 0.55rem 1rem", background: `${brandColor}18`, border: `1px solid ${brandColor}80`, borderRadius: "12px", color: brandColor, fontSize: "0.8rem", fontWeight: 700, textDecoration: "none" }}>
+                      <ExternalLink size={14} />
+                      <span>{link.site}</span>
+                      <span style={{ color: "#ddd", background: "rgba(0,0,0,.28)", borderRadius: "999px", padding: ".15rem .45rem", fontSize: ".62rem", textTransform: "uppercase", letterSpacing: ".04em" }}>{getStreamTag(link)}</span>
+                    </a>
+                  );
+                })}
               </div>
             </div>
+            )}
           </OverviewContent>
         )}
 
@@ -935,13 +1007,14 @@ export const AnimeItem: React.FC = () => {
                 })
                 .slice(0, charSearch.trim() ? undefined : visibleCharCount)
                 .map((char, idx) => (
-                  <CharacterCard key={idx}>
-                    <CharacterImage
+                  <CharacterCard key={idx} $role={char.role}>
+                    <ProgressiveImage
                       src={char.character?.images?.jpg?.image_url}
                       alt={char.character?.name}
+                      wrapperClassName="anime-character-image"
+                      className="w-full h-full object-cover"
                       onClick={() => openCharGallery(char.character?.images?.jpg?.image_url)}
                       title="Click for character artwork view"
-                      style={{ cursor: "pointer" }}
                     />
                     <CharacterInfo>
                       <CharacterName
@@ -950,7 +1023,7 @@ export const AnimeItem: React.FC = () => {
                       >
                         {char.character?.name}
                       </CharacterName>
-                      <CharacterRole>{char.role}</CharacterRole>
+                      <CharacterRole $role={char.role}>{char.role}</CharacterRole>
                       {char.voice_actors?.[0] && (
                         <VoiceActorInfo>
                           VA: {char.voice_actors[0].person?.name}
@@ -1095,7 +1168,7 @@ export const AnimeItem: React.FC = () => {
                         <RelationCard key={entry.mal_id} to={targetUrl}>
                           <RelationCoverWrapper>
                             {entry.image ? (
-                              <img src={entry.image} alt={entry.name} loading="lazy" />
+                              <img src={entry.image} alt={entry.name} loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = "/lost.jpg"; }} />
                             ) : (
                               <div className="no-image">No Image</div>
                             )}
@@ -1148,7 +1221,7 @@ export const AnimeItem: React.FC = () => {
                       ⚠️ Contains Spoilers (Blur for others)
                     </span>
                   </label>
-                  <CommentSubmitButton type="submit">Post Comment</CommentSubmitButton>
+                  <CommentSubmitButton type="submit" disabled={postingComment || !newComment.trim()}>{postingComment ? "Posting..." : "Post Comment"}</CommentSubmitButton>
                 </div>
               </CommentForm>
             ) : (
@@ -1169,7 +1242,7 @@ export const AnimeItem: React.FC = () => {
                     <CommentCard key={comment.id}>
                       <UserAvatarSmall>
                         {comment.userAvatar ? (
-                          <img src={comment.userAvatar} alt="Avatar" />
+                          <img src={comment.userAvatar} alt="Avatar" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = "/lost.jpg"; }} />
                         ) : (
                           <UserCheck size={18} color="#ffd700" />
                         )}
@@ -1213,7 +1286,7 @@ export const AnimeItem: React.FC = () => {
                           </div>
                         ) : (
                           <div style={{ position: "relative" }}>
-                            <CommentText>{comment.text}</CommentText>
+                            <CommentText>{comment.text || comment.content}</CommentText>
                             {isSpoiler && (
                               <button
                                 onClick={() => setRevealedSpoilers((prev) => ({ ...prev, [comment.id]: false }))}
@@ -1276,7 +1349,7 @@ export const AnimeItem: React.FC = () => {
                   value={newReviewText}
                   onChange={(e) => setNewReviewText(e.target.value)}
                 />
-                <ReviewSubmitButton type="submit">Submit Review</ReviewSubmitButton>
+                <ReviewSubmitButton type="submit" disabled={postingReview || !newReviewText.trim()}>{postingReview ? "Posting..." : "Post Review"}</ReviewSubmitButton>
               </ReviewForm>
             ) : (
               <SignInPrompt onClick={() => setAuthModalOpen(true)}>
@@ -1302,7 +1375,7 @@ export const AnimeItem: React.FC = () => {
                         <span>{rev.rating} / 10</span>
                       </ReviewScoreBadge>
                     </ReviewItemHeader>
-                    <ReviewBodyText>{rev.text}</ReviewBodyText>
+                    <ReviewBodyText>{rev.text || rev.content}</ReviewBodyText>
                   </ReviewItemCard>
                 ))
               ) : (
@@ -1361,6 +1434,8 @@ export const AnimeItem: React.FC = () => {
                 <LightboxMainImage
                   src={activeGalleryList[lightboxIndex]?.url}
                   alt={activeGalleryList[lightboxIndex]?.caption}
+                  decoding="async"
+                  onError={(event) => { event.currentTarget.src = "/lost.jpg"; }}
                 />
                 {activeGalleryList.length > 1 && (
                   <LightboxNavBtn className="next" onClick={nextLightboxImage} aria-label="Next image">
@@ -1381,7 +1456,7 @@ export const AnimeItem: React.FC = () => {
                       onClick={() => setLightboxIndex(idx)}
                       aria-label={`View image ${idx + 1}`}
                     >
-                      <img src={img.url} alt={img.caption || `Thumb ${idx + 1}`} />
+                      <img src={img.url} alt={img.caption || `Thumb ${idx + 1}`} loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = "/lost.jpg"; }} />
                     </LightboxThumbItem>
                   ))}
                 </LightboxThumbnails>
@@ -1480,28 +1555,7 @@ const EpisodesView: React.FC<{
           {batches.length > 1 && !searchQuery.trim() && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span style={{ fontSize: "0.85rem", color: "#ffd700", fontWeight: 700 }}>Jump to:</span>
-              <select
-                value={selectedBatch}
-                onChange={(e) => setSelectedBatch(Number(e.target.value))}
-                style={{
-                  background: "#1e1e1e",
-                  color: "#ffd700",
-                  border: "1px solid rgba(255, 215, 0, 0.4)",
-                  borderRadius: "20px",
-                  padding: "0.35rem 0.8rem",
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  outline: "none",
-                  fontFamily: "Montserrat, sans-serif"
-                }}
-              >
-                {batches.map((b) => (
-                  <option key={b.index} value={b.index}>
-                    Episodes {b.label}
-                  </option>
-                ))}
-              </select>
+              <AppDropdown ariaLabel="Jump to episode range" className="w-44" value={String(selectedBatch)} onChange={(value) => setSelectedBatch(Number(value))} options={batches.map((batch) => ({ value: String(batch.index), label: `Episodes ${batch.label}` }))} />
             </div>
           )}
         </div>
@@ -1518,13 +1572,7 @@ const EpisodesView: React.FC<{
       </EpisodesHeaderRow>
 
       {batches.length > 0 && !searchQuery.trim() && (
-        <BatchContainer
-          onWheel={(e) => {
-            if (e.deltaY !== 0) {
-              e.currentTarget.scrollLeft += e.deltaY * 1.5;
-            }
-          }}
-        >
+        <BatchContainer>
           {batches.map((b) => (
             <BatchButton
               key={b.index}
@@ -1544,52 +1592,23 @@ const EpisodesView: React.FC<{
               <EpisodeCard key={episode.mal_id}>
                 <EpisodeMediaWrapper onClick={() => episode.thumbnail && onImageClick(episode.thumbnail)}>
                   {episode.thumbnail ? (
-                    <img src={episode.thumbnail} alt={episode.title} loading="lazy" />
+                    <ProgressiveImage src={episode.thumbnail} alt={episode.title} wrapperClassName="w-full h-full" className="w-full h-full object-cover" />
                   ) : (
                     <EpisodePlaceholder>
                       <Film size={28} color="#ffd700" />
                     </EpisodePlaceholder>
                   )}
                   <EpisodeBadge>EP {episode.mal_id}</EpisodeBadge>
-                  <EpisodePlayBtn
-                    href={episode.url || `https://www.google.com/search?q=${encodeURIComponent((animeTitle || "Anime") + " Episode " + episode.mal_id + " stream online")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    title={`Watch Episode ${episode.mal_id} online`}
-                  >
-                    <Play size={15} fill="#fff" color="#fff" />
-                  </EpisodePlayBtn>
+                  {episode.url && (
+                    <EpisodePlayBtn href={episode.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title={`Open Episode ${episode.mal_id} on ${episode.site || "the official source"}`}>
+                      <Play size={15} fill="#fff" color="#fff" />
+                    </EpisodePlayBtn>
+                  )}
                 </EpisodeMediaWrapper>
                 <EpisodeInfo>
                   <EpisodeTitleRow>
                     <EpisodeTitle>{episode.title || `Episode ${episode.mal_id}`}</EpisodeTitle>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
-                      <EpisodeSiteBadge>{episode.site || "Stream"}</EpisodeSiteBadge>
-                      <a
-                        href={`https://www.imdb.com/find/?q=${encodeURIComponent((animeTitle || "Anime") + " Episode " + episode.mal_id)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "3px",
-                          background: "#f5c518",
-                          color: "#000",
-                          padding: "2px 7px",
-                          borderRadius: "4px",
-                          fontWeight: 800,
-                          fontSize: "0.7rem",
-                          textDecoration: "none",
-                          lineHeight: "1.2",
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                        }}
-                        title="Search episode on IMDb"
-                      >
-                        IMDb
-                      </a>
-                    </div>
+                    {episode.site && <EpisodeSiteBadge>{episode.site}</EpisodeSiteBadge>}
                   </EpisodeTitleRow>
                   <EpisodeSummaryText>
                     {episode.summary || (episode.aired ? `Aired: ${new Date(episode.aired).toLocaleDateString()} • Episode ${episode.mal_id}` : `Episode ${episode.mal_id} of the series.`)}
@@ -1703,6 +1722,10 @@ const BackgroundImage = styled.div`
   cursor: pointer;
   mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,0) 100%);
   -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,0) 100%);
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 `;
 
 const Overlay = styled.div`
@@ -2251,26 +2274,22 @@ const CharacterGrid = styled.div`
   }
 `;
 
-const CharacterCard = styled.div`
+const CharacterCard = styled.div<{ $role?: string }>`
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid ${({ $role }) => $role === "MAIN" ? "#ffd700" : $role === "SUPPORTING" ? "#54a0ff" : "#a55eea"};
   border-radius: 12px;
   padding: 0.8rem;
   display: flex;
   gap: 1rem;
   align-items: center;
-`;
 
-const CharacterImage = styled.img`
-  width: 65px;
-  height: 90px;
-  object-fit: cover;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: scale(1.05);
+  .anime-character-image {
+    width: 65px;
+    height: 90px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    cursor: pointer;
   }
 `;
 
@@ -2289,9 +2308,9 @@ const CharacterName = styled.div`
   white-space: nowrap;
 `;
 
-const CharacterRole = styled.div`
+const CharacterRole = styled.div<{ $role?: string }>`
   font-size: 0.8rem;
-  color: #ffd700;
+  color: ${({ $role }) => $role === "MAIN" ? "#ffd700" : $role === "SUPPORTING" ? "#54a0ff" : "#c58cff"};
   margin-top: 0.2rem;
 `;
 
@@ -2532,6 +2551,8 @@ const CommentSubmitButton = styled.button`
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
 `;
 
 const SignInPrompt = styled.div`
@@ -2682,6 +2703,8 @@ const ReviewSubmitButton = styled.button`
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
 `;
 
 const ReviewsList = styled.div`

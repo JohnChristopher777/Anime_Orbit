@@ -1,26 +1,45 @@
 const ANILIST_API_URL = import.meta.env.VITE_ANILIST_API_URL || "https://graphql.anilist.co";
+const QUERY_CACHE_MS = 5 * 60 * 1000;
+const queryCache = new Map();
 
 async function queryAniList(query, variables = {}) {
-  const response = await fetch(ANILIST_API_URL, {
+  const cacheKey = JSON.stringify([query, variables]);
+  const now = Date.now();
+  const cached = queryCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.promise;
+
+  const request = fetch(ANILIST_API_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
     },
     body: JSON.stringify({ query, variables }),
+  }).then(async (response) => {
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AniList GraphQL Error: ${response.status} - ${errorText}`);
+    }
+
+    const json = await response.json();
+    if (json.errors) {
+      throw new Error(`AniList GraphQL Errors: ${JSON.stringify(json.errors)}`);
+    }
+
+    return json.data;
+  }).catch((error) => {
+    queryCache.delete(cacheKey);
+    throw error;
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`AniList GraphQL Error: ${response.status} - ${errorText}`);
+  queryCache.set(cacheKey, { expiresAt: now + QUERY_CACHE_MS, promise: request });
+  if (queryCache.size > 100) {
+    for (const [key, value] of queryCache) {
+      if (value.expiresAt <= now) queryCache.delete(key);
+    }
   }
 
-  const json = await response.json();
-  if (json.errors) {
-    throw new Error(`AniList GraphQL Errors: ${JSON.stringify(json.errors)}`);
-  }
-
-  return json.data;
+  return request;
 }
 
 // Helper: Strip HTML tags from description/synopsis
@@ -59,7 +78,7 @@ function mapStatus(status) {
 
 // Helper: Map source
 function mapSource(source) {
-  if (!source) return "N/A";
+  if (!source) return null;
   return source.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
@@ -88,10 +107,8 @@ function mapAniListAnimeToJikan(media) {
       resolvedEpisodes = media.nextAiringEpisode.episode - 1;
     } else if (media.streamingEpisodes?.length > 0) {
       resolvedEpisodes = media.streamingEpisodes.length;
-    } else if (media.status === "RELEASING") {
-      resolvedEpisodes = 1120;
     } else {
-      resolvedEpisodes = 0;
+      resolvedEpisodes = null;
     }
   }
 
@@ -123,8 +140,8 @@ function mapAniListAnimeToJikan(media) {
     status: mapStatus(media.status),
     duration: media.duration ? `${media.duration} min` : null,
     genres: media.genres?.map((g, index) => ({ mal_id: index, name: g })) || [],
-    studios: finalStudios.length > 0 ? finalStudios : [{ mal_id: 1, name: "Toei Animation" }],
-    producers: finalProducers.length > 0 ? finalProducers : finalStudios,
+    studios: finalStudios,
+    producers: finalProducers,
     source: mapSource(media.source),
     year: media.seasonYear || null,
     aired: {
@@ -267,6 +284,8 @@ function mapAniListEpisodesToJikan(streamingEpisodes, totalEpisodes) {
 
 const ANIME_FIELDS = `
   id
+  description
+  bannerImage
   title {
     english
     romaji
@@ -421,6 +440,7 @@ export async function getMangaDetailsCombined(id) {
     query ($id: Int) {
       Media(id: $id, type: MANGA) {
         id
+        idMal
         title {
           english
           romaji
@@ -436,6 +456,9 @@ export async function getMangaDetailsCombined(id) {
         }
         averageScore
         popularity
+        favourites
+        updatedAt
+        siteUrl
         format
         chapters
         volumes
@@ -513,6 +536,11 @@ export async function getMangaDetailsCombined(id) {
           site
           url
           type
+          color
+          icon
+          language
+          notes
+          isDisabled
         }
       }
     }
@@ -530,11 +558,12 @@ export async function getMangaDetailsCombined(id) {
 
     return {
       mal_id: m.id,
+      malId: m.idMal,
       title: m.title?.english || m.title?.romaji || m.title?.userPreferred || "Manga",
       title_english: m.title?.english,
       title_japanese: m.title?.native,
       synopsis: stripHtml(m.description || ""),
-      background: `Original manga masterpiece authored and illustrated by ${mainAuthor}. First published in official Japanese serialization starting in ${m.startDate?.year || "Japan"}. This work pioneered the story world and served as the direct foundational source material for the animated series adaptations.`,
+      background: `${mainAuthor} is credited on this manga, which began publishing in ${m.startDate?.year || "Japan"}. This is the original story used for its related anime adaptations.`,
       images: {
         jpg: {
           image_url: m.coverImage?.large,
@@ -543,12 +572,17 @@ export async function getMangaDetailsCombined(id) {
       },
       bannerImage: m.bannerImage,
       score: m.averageScore ? (m.averageScore / 10).toFixed(1) : "N/A",
+      popularity: m.popularity || 0,
+      favourites: m.favourites || 0,
+      updatedAt: m.updatedAt,
+      siteUrl: m.siteUrl,
       chapters: m.chapters || "Publishing / Ongoing",
       volumes: m.volumes || "Unknown",
       status: mapStatus(m.status),
       genres: m.genres || [],
       countryOfOrigin: m.countryOfOrigin || "JP",
       format: m.format || "MANGA",
+      source: m.source || "ORIGINAL",
       startDate: m.startDate,
       endDate: m.endDate,
       characters: m.characters?.edges || [],
@@ -605,6 +639,11 @@ export async function getAnimeDetailsCombined(id) {
           site
           url
           type
+          color
+          icon
+          language
+          notes
+          isDisabled
         }
         nextAiringEpisode {
           episode
@@ -875,6 +914,7 @@ export async function getAnimeListByIds(ids) {
           averageScore
           episodes
           format
+          genres
         }
       }
     }
@@ -950,6 +990,42 @@ export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY
     console.error("Error fetching popular manga:", error);
     return { media: [], pageInfo: { hasNextPage: false } };
   }
+}
+
+export async function searchManga(search, perPage = 12) {
+  const query = `
+    query ($search: String, $perPage: Int) {
+      Page(page: 1, perPage: $perPage) {
+        media(type: MANGA, search: $search, sort: SEARCH_MATCH, isAdult: false) {
+          id
+          title { english romaji userPreferred }
+          coverImage { extraLarge large medium }
+          averageScore
+          format
+          chapters
+          volumes
+          status
+          genres
+          startDate { year }
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { search, perPage });
+  return (data.Page.media || []).map((m) => ({
+    mal_id: m.id,
+    title: m.title?.english || m.title?.romaji || m.title?.userPreferred || "Manga",
+    title_english: m.title?.english,
+    images: { jpg: { image_url: m.coverImage?.large, large_image_url: m.coverImage?.extraLarge || m.coverImage?.large } },
+    score: m.averageScore ? (m.averageScore / 10).toFixed(1) : null,
+    chapters: m.chapters,
+    volumes: m.volumes,
+    status: mapStatus(m.status),
+    genres: m.genres || [],
+    year: m.startDate?.year,
+    format: m.format || "MANGA",
+    type: "Manga",
+  }));
 }
 
 export async function getAnimeByGenre(genre, perPage = 24, page = 1, sort = "FAVOURITES_DESC") {
@@ -1050,5 +1126,3 @@ export async function getGenreArtworks() {
     return {};
   }
 }
-
-

@@ -2,15 +2,16 @@ import React, { Component, type ReactNode, type ErrorInfo, Suspense, lazy } from
 import { BrowserRouter, Routes, Route, useLocation, Link } from "react-router-dom";
 import Nav from "./Components/Nav";
 import ScrollButton from "./Components/ScrollButton";
-import Galaxy from "./Components/Galaxy";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useGlobalContext } from "./context/global";
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
 
-// Code-Splitting / Lazy-Loaded Heavy Dimension Routes for Lightning Fast Mobile Performance
+// Route-level code splitting keeps the first mobile load small.
 const Homepage = lazy(() => import("./Components/Homepage"));
+const Galaxy = lazy(() => import("./Components/Galaxy"));
+const Popular = lazy(() => import("./Components/Popular"));
 const AnimeItem = lazy(() => import("./Components/AnimeItem"));
 const Gallery = lazy(() => import("./Components/Gallery"));
 const Favourites = lazy(() => import("./Components/Favourites"));
@@ -26,6 +27,7 @@ const Genres = lazy(() => import("./Components/Genres"));
 const Manga = lazy(() => import("./Components/Manga"));
 const MangaItem = lazy(() => import("./Components/MangaItem"));
 const NeuralDiscovery = lazy(() => import("./Components/NeuralDiscovery"));
+const NotFound = lazy(() => import("./Components/NotFound"));
 
 // Global Error Boundary to prevent black screen crashes
 interface ErrorBoundaryProps {
@@ -103,49 +105,49 @@ function Layout({ children }: { children: ReactNode }) {
     }
   }, [location.pathname, setSearch]);
 
-  const [isMobile, setIsMobile] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 767px)").matches : false
+  );
 
   React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const handleChange = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   return (
     <div className="relative min-h-screen bg-[#141414] text-white flex flex-col">
       {/* Ambient WebGL Galaxy Shader Background with Mobile Static Optimization */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
-        <Galaxy
-          mouseRepulsion={false}
-          mouseInteraction={false}
-          density={1}
-          glowIntensity={0.4}
-          saturation={0.7}
-          hueShift={170}
-          twinkleIntensity={0.8}
-          rotationSpeed={0.05}
-          repulsionStrength={0}
-          autoCenterRepulsion={0}
-          starSpeed={0.1}
-          speed={0.2}
-          transparent={true}
-          disableAnimation={isMobile}
-        />
-      </div>
+      {!isMobile && (
+        <Suspense fallback={null}>
+          <div className="fixed inset-0 pointer-events-none z-0 opacity-30">
+            <Galaxy
+              mouseRepulsion={false}
+              mouseInteraction={false}
+              density={0.8}
+              glowIntensity={0.3}
+              saturation={0.55}
+              hueShift={170}
+              twinkleIntensity={0.5}
+              rotationSpeed={0.035}
+              repulsionStrength={0}
+              autoCenterRepulsion={0}
+              starSpeed={0.07}
+              speed={0.15}
+              transparent={true}
+            />
+          </div>
+        </Suspense>
+      )}
 
       <Nav />
       <div className={`relative z-10 flex-1 ${isHome ? "mt-0" : "mt-[70px]"}`}>
         <ErrorBoundary>
           <Suspense
             fallback={
-              <div className="min-h-[50vh] flex flex-col items-center justify-center p-8 text-center text-white">
-                <div className="w-8 h-8 border-2 border-[#ffd700] border-t-transparent rounded-full animate-spin mb-3" />
-                <span className="text-xs font-montserrat font-bold text-[#ffd700] uppercase tracking-wider">
-                  Loading Dimension...
-                </span>
+              <div className="page-skeleton" aria-label="Loading page">
+                <span /><span /><span />
               </div>
             }
           >
@@ -198,6 +200,14 @@ export function App() {
           element={
             <Layout>
               <Genres />
+            </Layout>
+          }
+        />
+        <Route
+          path="/popular"
+          element={
+            <Layout>
+              <Popular />
             </Layout>
           }
         />
@@ -282,6 +292,14 @@ export function App() {
           }
         />
         <Route
+          path="/airing"
+          element={
+            <Layout>
+              <Trending mode="airing" />
+            </Layout>
+          }
+        />
+        <Route
           path="/upcoming"
           element={
             <Layout>
@@ -317,6 +335,14 @@ export function App() {
             >
               <Gallery />
             </Suspense>
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <Layout>
+              <NotFound />
+            </Layout>
           }
         />
       </Routes>

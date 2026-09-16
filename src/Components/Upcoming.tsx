@@ -92,7 +92,7 @@ export const Upcoming: React.FC = () => {
                   <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
                   <span>
                     {loading
-                      ? "Fetching Next Batch..."
+                      ? "Loading more..."
                       : `Load More (${upcomingAnime.length} loaded)`}
                   </span>
                 </button>

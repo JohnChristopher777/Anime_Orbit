@@ -18,6 +18,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   const { login, signup, resetPassword, signInWithGoogle } = useAuth();
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeWithEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    document.addEventListener("keydown", closeWithEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeWithEscape);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,11 +73,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-[1200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-dialog-title"
+      className="fixed inset-0 z-[3000] bg-[#101014] sm:bg-black/85 sm:backdrop-blur-md flex items-start sm:items-center justify-center overflow-y-auto p-0 sm:p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md bg-[#161618] border border-[#ffd700]/40 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 relative font-inter"
+        className="w-full min-h-dvh sm:min-h-0 sm:max-w-md bg-[#161618] sm:border sm:border-white/15 sm:rounded-2xl px-5 py-20 sm:p-8 shadow-2xl space-y-6 relative font-inter"
       >
         {/* Close Button */}
         <button
@@ -81,7 +96,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <Sparkles size={14} />
             <span>Anime Orbit</span>
           </div>
-          <h2 className="text-2xl font-black font-staatliches uppercase tracking-wide text-white">
+          <h2 id="auth-dialog-title" className="text-2xl font-black font-staatliches uppercase tracking-wide text-white">
             {mode === "login"
               ? "Welcome Back"
               : mode === "signup"

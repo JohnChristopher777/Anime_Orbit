@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getPopularManga } from "../services/anilist";
+import { getPopularManga, searchManga } from "../services/anilist";
 import SEO from "./SEO";
 import Footer from "./Footer";
-import { BookOpen, Star, RefreshCw, Sparkles, Filter, ArrowLeft, Home } from "lucide-react";
+import { BookOpen, Star, RefreshCw, Filter, ArrowLeft, Home, Search, X } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import AppDropdown from "./AppDropdown";
 
 export const Manga: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,12 +16,19 @@ export const Manga: React.FC = () => {
   const [hasNextPage, setHasNextPage] = useState(true);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
+  const requestVersion = useRef(0);
 
-  const fetchManga = useCallback(async (targetPage: number, sort: string, append = false) => {
+  const fetchManga = useCallback(async (targetPage: number, sort: string, append = false, query = "") => {
+    const version = ++requestVersion.current;
     try {
       if (!append) setInitialLoading(true);
       setLoading(true);
-      const res = await getPopularManga(targetPage, 24, sort);
+      const res = query
+        ? { media: await searchManga(query, 48), pageInfo: { hasNextPage: false } }
+        : await getPopularManga(targetPage, 24, sort);
+      if (version !== requestVersion.current) return;
       if (append) {
         setMangaList((prev) => [...prev, ...res.media]);
       } else {
@@ -30,27 +38,32 @@ export const Manga: React.FC = () => {
     } catch (err) {
       console.error("Error fetching manga catalog:", err);
     } finally {
-      setLoading(false);
-      setInitialLoading(false);
+      if (version === requestVersion.current) {
+        setLoading(false);
+        setInitialLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setActiveSearch(searchQuery.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     setPage(1);
-    fetchManga(1, sortParam, false);
-  }, [sortParam, fetchManga]);
+    fetchManga(1, sortParam, false, activeSearch);
+  }, [sortParam, activeSearch, fetchManga]);
 
   const handleLoadMore = () => {
-    if (!loading && hasNextPage) {
+    if (!loading && hasNextPage && !activeSearch) {
       const nextPage = page + 1;
       setPage(nextPage);
       fetchManga(nextPage, sortParam, true);
     }
   };
 
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSearchParams({ sort: e.target.value });
-  };
+  const handleSortChange = (value: string) => setSearchParams({ sort: value });
 
   return (
     <div className="min-h-screen bg-[#07070b] text-white flex flex-col font-inter">
@@ -67,37 +80,26 @@ export const Manga: React.FC = () => {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 text-xs font-bold text-[#ffd700] uppercase tracking-wider font-montserrat">
               <BookOpen size={15} />
-              <span>Original Source Universe</span>
+              <span>Explore Manga</span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-staatliches tracking-wide uppercase text-white drop-shadow">
-              Manga Masterpieces
+              Manga Library
             </h1>
             <p className="text-xs sm:text-sm text-neutral-400">
-              Discover foundational manga storylines, original mangaka conceptions, and adaptations.
+              Search any title or browse manga readers are enjoying now.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-[#12121a] border border-white/15 px-3 py-1.5 rounded-xl text-xs">
+          <div className="flex w-full sm:w-auto flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <label className="relative block min-w-0 sm:w-72">
+              <span className="sr-only">Search manga</span>
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+              <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search any manga..." className="w-full rounded-xl border border-white/15 bg-[#17171d] py-2.5 pl-10 pr-9 text-sm text-white outline-none transition-colors placeholder:text-neutral-500 focus:border-[#ffd700]" />
+              {searchQuery && <button type="button" onClick={() => setSearchQuery("")} aria-label="Clear manga search" className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"><X size={14} /></button>}
+            </label>
+            <div className="flex items-center gap-2 text-xs">
               <Filter size={14} className="text-[#ffd700]" />
-              <select
-                value={sortParam}
-                onChange={handleSortChange}
-                className="bg-transparent text-white font-montserrat font-bold text-xs outline-none cursor-pointer"
-              >
-                <option value="POPULARITY_DESC" className="bg-[#12121a]">
-                  Most Popular
-                </option>
-                <option value="SCORE_DESC" className="bg-[#12121a]">
-                  Top Rated (Highest Score)
-                </option>
-                <option value="START_DATE_DESC" className="bg-[#12121a]">
-                  Newest Releases
-                </option>
-                <option value="FAVOURITES_DESC" className="bg-[#12121a]">
-                  Most Favorited
-                </option>
-              </select>
+              <AppDropdown ariaLabel="Sort manga" className="w-52" value={sortParam} onChange={handleSortChange} options={[{ value: "POPULARITY_DESC", label: "Most Popular" }, { value: "SCORE_DESC", label: "Top Rated" }, { value: "START_DATE_DESC", label: "Newest Releases" }, { value: "FAVOURITES_DESC", label: "Most Favorited" }]} />
             </div>
           </div>
         </div>
@@ -195,7 +197,7 @@ export const Manga: React.FC = () => {
             </div>
 
             {/* Manual Locked Load More */}
-            {hasNextPage && (
+            {hasNextPage && !activeSearch && (
               <div className="flex justify-center pt-8">
                 <button
                   onClick={handleLoadMore}

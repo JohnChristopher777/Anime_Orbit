@@ -18,6 +18,7 @@ export interface FavouriteAnime {
     image: string;
     score?: number | string | null;
     episodes?: number | null;
+    genres?: string[];
     addedAt?: string;
 }
 
@@ -92,6 +93,7 @@ export const FavouritesProvider: React.FC<{ children: ReactNode }> = ({ children
                 image: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || anime.image || "",
                 score: anime.score || null,
                 episodes: anime.episodes || null,
+                genres: (anime.genres || []).map((genre: any) => typeof genre === "string" ? genre : genre?.name).filter(Boolean),
                 addedAt: new Date().toISOString()
             });
             toast.success(`${anime.title || anime.title_english || "Anime"} added to favorites!`);

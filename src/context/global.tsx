@@ -291,18 +291,6 @@ export const GlobalContextProvider: React.FC<{ children: ReactNode }> = ({ child
     }
   };
 
-  React.useEffect(() => {
-    const fetchData = async () => {
-      await getPopularAnime(1);
-      await getTrendingAnime(1);
-      await getAiringAnime(1);
-      await getTopAiringAnime();
-      await getUpcomingAnime(1);
-    };
-
-    fetchData();
-  }, [getPopularAnime, getTrendingAnime, getAiringAnime, getTopAiringAnime, getUpcomingAnime]);
-
   return (
     <GlobalContext.Provider
       value={{
