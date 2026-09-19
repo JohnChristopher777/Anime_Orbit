@@ -6,6 +6,9 @@ import {
   setDoc,
   deleteDoc,
   onSnapshot,
+  writeBatch,
+  getDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
 import { toast } from "react-toastify";
@@ -28,6 +31,8 @@ export interface WatchlistItem {
   startDate?: string;
   endDate?: string;
   personalNotes?: string;
+  progress?: number;
+  userScore?: number;
   mediaType?: "ANIME" | "MANGA";
 }
 
@@ -37,10 +42,36 @@ export interface MangaWatchlistItem extends WatchlistItem {
   format?: string;
 }
 
+export interface DeletedLibraryItem extends MangaWatchlistItem {
+  originalKey: string;
+  sourceCollection: "watchlist";
+  deletedAt: string | Timestamp;
+  purgeAfter: string | Timestamp;
+}
+
+const dateMillis = (value: string | Timestamp | undefined) => {
+  if (!value) return Number.NaN;
+  return typeof value === "string" ? Date.parse(value) : value.toMillis();
+};
+
+const localTrashKey = (uid: string) => `anime_orbit_local_trash_${uid}`;
+const readLocalTrash = (uid: string): DeletedLibraryItem[] => {
+  try {
+    const records = JSON.parse(localStorage.getItem(localTrashKey(uid)) || "[]");
+    return Array.isArray(records) ? records : [];
+  } catch {
+    return [];
+  }
+};
+const writeLocalTrash = (uid: string, records: DeletedLibraryItem[]) => {
+  localStorage.setItem(localTrashKey(uid), JSON.stringify(records));
+};
+
 interface WatchlistContextType {
   watchlist: WatchlistItem[];
   watched: WatchlistItem[];
   mangaWatchlist: MangaWatchlistItem[];
+  deletedItems: DeletedLibraryItem[];
   loading: boolean;
   addToWatchlist: (anime: any) => Promise<void>;
   removeFromWatchlist: (animeId: number) => Promise<void>;
@@ -50,10 +81,13 @@ interface WatchlistContextType {
   isWatched: (animeId: number) => boolean;
   updateAnimeStatus: (anime: any, status: string | null) => Promise<void>;
   getAnimeStatus: (animeId: number) => string | null;
-  updateWatchlistEntry: (animeId: number, updates: Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes">) => Promise<void>;
+  updateWatchlistEntry: (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore">>) => Promise<void>;
   addMangaToWatchlist: (manga: any) => Promise<void>;
   removeMangaFromWatchlist: (mangaId: number) => Promise<void>;
-  updateMangaWatchlistEntry: (mangaId: number, updates: Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes">) => Promise<void>;
+  updateMangaWatchlistEntry: (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore">>) => Promise<void>;
+  restoreDeletedItem: (originalKey: string) => Promise<void>;
+  permanentlyDeleteItem: (originalKey: string) => Promise<void>;
+  emptyTrash: () => Promise<void>;
 }
 
 const WatchlistContext = createContext<WatchlistContextType | undefined>(undefined);
@@ -71,6 +105,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [watched, setWatched] = useState<WatchlistItem[]>([]);
   const [mangaWatchlist, setMangaWatchlist] = useState<MangaWatchlistItem[]>([]);
+  const [deletedItems, setDeletedItems] = useState<DeletedLibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch watchlist and watched anime from Firestore
@@ -79,6 +114,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
       setWatchlist([]);
       setWatched([]);
       setMangaWatchlist([]);
+      setDeletedItems([]);
       setLoading(false);
       return;
     }
@@ -118,9 +154,37 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
       );
 
+      const trashRef = collection(db, "users", currentUser.uid, "trash");
+      const unsubscribeTrash = onSnapshot(trashRef, (snapshot) => {
+        const now = Date.now();
+        const active: DeletedLibraryItem[] = [];
+        const expiredKeys: string[] = [];
+        snapshot.docs.forEach((entry) => {
+          const item = { id: entry.id, ...entry.data() } as DeletedLibraryItem;
+          if (dateMillis(item.purgeAfter) <= now) expiredKeys.push(entry.id);
+          else if (!item.sourceCollection || item.sourceCollection === "watchlist") active.push(item);
+        });
+        const allLocal = readLocalTrash(currentUser.uid).filter((item) => dateMillis(item.purgeAfter) > now);
+        writeLocalTrash(currentUser.uid, allLocal);
+        const localActive = allLocal.filter((item) => !item.sourceCollection || item.sourceCollection === "watchlist");
+        const merged = [...active, ...localActive.filter((local) => !active.some((cloud) => cloud.originalKey === local.originalKey))];
+        setDeletedItems(merged.sort((a, b) => dateMillis(b.deletedAt) - dateMillis(a.deletedAt)));
+        if (expiredKeys.length) {
+          const cleanup = writeBatch(db);
+          expiredKeys.forEach((key) => cleanup.delete(doc(db, "users", currentUser.uid, "trash", key)));
+          void cleanup.commit();
+        }
+      }, () => {
+        const allLocal = readLocalTrash(currentUser.uid).filter((item) => dateMillis(item.purgeAfter) > Date.now());
+        writeLocalTrash(currentUser.uid, allLocal);
+        const active = allLocal.filter((item) => !item.sourceCollection || item.sourceCollection === "watchlist");
+        setDeletedItems(active);
+      });
+
       return () => {
         unsubscribeWatchlist();
         unsubscribeWatched();
+        unsubscribeTrash();
       };
     } catch {
       setLoading(false);
@@ -161,16 +225,72 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
+  const restoreDeletedItem = async (originalKey: string) => {
+    if (!currentUser) return;
+    try {
+      let item = deletedItems.find((entry) => entry.originalKey === originalKey || entry.id === originalKey);
+      if (!item) {
+        const snapshot = await getDoc(doc(db, "users", currentUser.uid, "trash", originalKey));
+        if (snapshot.exists()) item = { id: snapshot.id, ...snapshot.data() } as DeletedLibraryItem;
+      }
+      if (!item) return;
+      const { id: _id, originalKey: _key, sourceCollection: _source, deletedAt: _deleted, purgeAfter: _purge, ...restored } = item;
+      const batch = writeBatch(db);
+      batch.set(doc(db, "users", currentUser.uid, "watchlist", item.originalKey), restored, { merge: true });
+      batch.delete(doc(db, "users", currentUser.uid, "trash", item.originalKey));
+      try {
+        await batch.commit();
+      } catch {
+        await setDoc(doc(db, "users", currentUser.uid, "watchlist", item.originalKey), restored, { merge: true });
+      }
+      const remainingLocal = readLocalTrash(currentUser.uid).filter((entry) => entry.originalKey !== item!.originalKey);
+      writeLocalTrash(currentUser.uid, remainingLocal);
+      setDeletedItems((items) => items.filter((entry) => entry.originalKey !== item!.originalKey));
+      toast.success(`${item.title} restored`);
+    } catch {
+      toast.error("Could not restore this title");
+    }
+  };
+
+  const softDeleteItem = async (item: WatchlistItem | MangaWatchlistItem, originalKey: string) => {
+    if (!currentUser) return;
+    const deletedAt = new Date();
+    const purgeAfter = new Date(deletedAt.getTime() + 5 * 24 * 60 * 60 * 1000);
+    const deletedItem: DeletedLibraryItem = {
+      ...item,
+      originalKey,
+      sourceCollection: "watchlist",
+      deletedAt: Timestamp.fromDate(deletedAt),
+      purgeAfter: Timestamp.fromDate(purgeAfter),
+    };
+    const batch = writeBatch(db);
+    batch.set(doc(db, "users", currentUser.uid, "trash", originalKey), deletedItem);
+    batch.delete(doc(db, "users", currentUser.uid, "watchlist", originalKey));
+    try {
+      await batch.commit();
+    } catch {
+      const localItem = { ...deletedItem, deletedAt: deletedAt.toISOString(), purgeAfter: purgeAfter.toISOString() };
+      const local = readLocalTrash(currentUser.uid).filter((entry) => entry.originalKey !== originalKey);
+      writeLocalTrash(currentUser.uid, [localItem, ...local]);
+      await deleteDoc(doc(db, "users", currentUser.uid, "watchlist", originalKey));
+      setDeletedItems((items) => [localItem, ...items.filter((entry) => entry.originalKey !== originalKey)]);
+    }
+    toast(({ closeToast }) => (
+      <div className="flex items-center gap-3 text-xs">
+        <span className="min-w-0 flex-1"><strong className="block truncate text-white">{item.title}</strong><span className="text-neutral-400">Moved to Trash for 5 days</span></span>
+        <button type="button" className="rounded-full bg-[#ffd700] px-3 py-1.5 font-bold text-black" onClick={() => { void restoreDeletedItem(originalKey); closeToast?.(); }}>Undo</button>
+      </div>
+    ), { autoClose: 7000 });
+  };
+
   const removeFromWatchlist = async (animeId: number) => {
     if (!currentUser) return;
-
+    const item = watchlist.find((entry) => entry.mal_id === animeId);
+    if (!item) return;
     try {
-      await deleteDoc(
-        doc(db, "users", currentUser.uid, "watchlist", animeId.toString())
-      );
-      toast.info("Removed from watchlist");
+      await softDeleteItem(item, animeId.toString());
     } catch {
-      toast.error("Failed to remove from watchlist");
+      toast.error("Failed to move this title to Trash");
     }
   };
 
@@ -201,7 +321,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
         animeData
       );
 
-      await removeFromWatchlist(anime.mal_id);
+      await deleteDoc(doc(db, "users", currentUser.uid, "watchlist", anime.mal_id.toString()));
       toast.success("Marked as watched!");
     } catch {
       toast.error("Failed to mark as watched");
@@ -237,13 +357,17 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     if (!status) {
       try {
-        await deleteDoc(
-          doc(db, "users", currentUser.uid, "watchlist", anime.mal_id.toString())
-        );
+        const currentItem = watchlist.find((entry) => entry.mal_id === anime.mal_id);
+        if (currentItem) {
+          await softDeleteItem(currentItem, anime.mal_id.toString());
+        } else {
+          await deleteDoc(
+            doc(db, "users", currentUser.uid, "watchlist", anime.mal_id.toString())
+          );
+        }
         await deleteDoc(
           doc(db, "users", currentUser.uid, "watched", anime.mal_id.toString())
         );
-        toast.info("Removed from tracker");
       } catch {
         toast.error("Failed to remove tracker status");
       }
@@ -251,6 +375,8 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     try {
+      const existingItem = watchlist.find((item) => item.mal_id === anime.mal_id);
+      const episodeTotal = Number(anime.episodes || existingItem?.episodes || 0);
       const animeData: WatchlistItem = {
         mal_id: anime.mal_id,
         title: anime.title || anime.title_english || "Unknown Anime",
@@ -263,6 +389,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
         mediaType: "ANIME",
         genres: anime.genres?.map((g: any) => g.name || g) || [],
         status: status,
+        ...(status === "Completed" && episodeTotal > 0 ? { progress: episodeTotal, endDate: existingItem?.endDate || new Date().toISOString().slice(0, 10) } : {}),
         updatedAt: new Date().toISOString(),
       };
 
@@ -297,18 +424,36 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     return item ? (item.status || "Plan to Watch") : null;
   };
 
-  const updateWatchlistEntry = async (animeId: number, updates: Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes">) => {
+  const updateWatchlistEntry = async (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore">>) => {
     if (!currentUser) return;
     try {
       const currentItem = watchlist.find((item) => item.mal_id === animeId);
       const updatedAt = new Date().toISOString();
-      await setDoc(doc(db, "users", currentUser.uid, "watchlist", animeId.toString()), { ...updates, mediaType: "ANIME", updatedAt }, { merge: true });
-      if (updates.status === "Completed" && currentItem) {
-        await setDoc(doc(db, "users", currentUser.uid, "watched", animeId.toString()), { ...currentItem, ...updates, watchedAt: updatedAt }, { merge: true });
-      } else if (updates.status) {
+      const progress = Math.max(0, Number(updates.progress ?? currentItem?.progress ?? 0));
+      const requestedStatus = updates.status || currentItem?.status || "Plan to Watch";
+      const hasEpisodeTotal = Number(currentItem?.episodes || 0) > 0;
+      const reachedFinalEpisode = Boolean(hasEpisodeTotal && progress >= Number(currentItem?.episodes));
+      const derivedStatus = reachedFinalEpisode
+        ? "Completed"
+        : hasEpisodeTotal && requestedStatus === "Completed"
+          ? "Watching"
+          : progress > 0 && requestedStatus === "Plan to Watch"
+            ? "Watching"
+            : requestedStatus;
+      const normalizedUpdates = {
+        ...updates,
+        status: derivedStatus,
+        progress: hasEpisodeTotal ? Math.min(progress, Number(currentItem?.episodes)) : progress,
+        ...(reachedFinalEpisode ? { endDate: updates.endDate || new Date().toISOString().slice(0, 10) } : {}),
+      };
+      await setDoc(doc(db, "users", currentUser.uid, "watchlist", animeId.toString()), { ...normalizedUpdates, mediaType: "ANIME", updatedAt }, { merge: true });
+      if (normalizedUpdates.status === "Completed" && currentItem) {
+        await setDoc(doc(db, "users", currentUser.uid, "watched", animeId.toString()), { ...currentItem, ...normalizedUpdates, watchedAt: updatedAt }, { merge: true });
+        window.dispatchEvent(new CustomEvent("orbit_review_ready", { detail: { animeId, title: currentItem.title } }));
+      } else if (normalizedUpdates.status) {
         await deleteDoc(doc(db, "users", currentUser.uid, "watched", animeId.toString()));
       }
-      toast.success("Anime tracker saved");
+      if (reachedFinalEpisode) toast.success("Final episode logged — ready for your review");
     } catch {
       toast.error("Could not save watch notes");
     }
@@ -347,19 +492,69 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const removeMangaFromWatchlist = async (mangaId: number) => {
     if (!currentUser) return;
+    const item = mangaWatchlist.find((entry) => entry.mal_id === mangaId);
+    if (!item) return;
     try {
-      await deleteDoc(doc(db, "users", currentUser.uid, "watchlist", `manga-${mangaId}`));
-      toast.info("Manga removed from your list");
+      await softDeleteItem(item, `manga-${mangaId}`);
     } catch {
-      toast.error("Could not remove manga");
+      toast.error("Could not move this manga to Trash");
     }
   };
 
-  const updateMangaWatchlistEntry = async (mangaId: number, updates: Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes">) => {
+  const permanentlyDeleteItem = async (originalKey: string) => {
     if (!currentUser) return;
     try {
-      await setDoc(doc(db, "users", currentUser.uid, "watchlist", `manga-${mangaId}`), { ...updates, mediaType: "MANGA", updatedAt: new Date().toISOString() }, { merge: true });
-      toast.success("Manga tracker saved");
+      try {
+        await deleteDoc(doc(db, "users", currentUser.uid, "trash", originalKey));
+      } catch {
+        // The recovery entry may be local while production rules are still propagating.
+      }
+      writeLocalTrash(currentUser.uid, readLocalTrash(currentUser.uid).filter((item) => item.originalKey !== originalKey));
+      setDeletedItems((items) => items.filter((item) => item.originalKey !== originalKey));
+      toast.info("Permanently deleted");
+    } catch {
+      toast.error("Could not permanently delete this title");
+    }
+  };
+
+  const emptyTrash = async () => {
+    if (!currentUser || !deletedItems.length) return;
+    try {
+      const batch = writeBatch(db);
+      deletedItems.forEach((item) => batch.delete(doc(db, "users", currentUser.uid, "trash", item.originalKey)));
+      try { await batch.commit(); } catch { /* Local recovery still needs clearing. */ }
+      writeLocalTrash(currentUser.uid, []);
+      setDeletedItems([]);
+      toast.info("Trash emptied");
+    } catch {
+      toast.error("Could not empty Trash");
+    }
+  };
+
+  const updateMangaWatchlistEntry = async (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore">>) => {
+    if (!currentUser) return;
+    try {
+      const currentItem = mangaWatchlist.find((item) => item.mal_id === mangaId);
+      const progress = Math.max(0, Number(updates.progress ?? currentItem?.progress ?? 0));
+      const total = Number(currentItem?.chapters || 0);
+      const requestedStatus = updates.status || currentItem?.status || "Plan to Read";
+      const reachedFinalChapter = total > 0 && progress >= total;
+      const derivedStatus = reachedFinalChapter
+        ? "Completed"
+        : total > 0 && requestedStatus === "Completed"
+          ? "Reading"
+          : progress > 0 && requestedStatus === "Plan to Read"
+            ? "Reading"
+            : requestedStatus;
+      await setDoc(doc(db, "users", currentUser.uid, "watchlist", `manga-${mangaId}`), {
+        ...updates,
+        status: derivedStatus,
+        progress: total > 0 ? Math.min(progress, total) : progress,
+        ...(reachedFinalChapter ? { endDate: updates.endDate || new Date().toISOString().slice(0, 10) } : {}),
+        mediaType: "MANGA",
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+      toast.success(reachedFinalChapter ? "Final chapter logged — manga completed" : "Manga tracker saved");
     } catch {
       toast.error("Could not save reading notes");
     }
@@ -369,6 +564,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     watchlist,
     watched,
     mangaWatchlist,
+    deletedItems,
     loading,
     addToWatchlist,
     removeFromWatchlist,
@@ -382,6 +578,9 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     addMangaToWatchlist,
     removeMangaFromWatchlist,
     updateMangaWatchlistEntry,
+    restoreDeletedItem,
+    permanentlyDeleteItem,
+    emptyTrash,
   };
 
   return (

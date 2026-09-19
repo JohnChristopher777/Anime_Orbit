@@ -9,7 +9,6 @@ import { toast } from "react-toastify";
 
 interface PublicUserData {
   displayName: string;
-  userId?: string;
   avatarUrl?: string;
   bio?: string;
   favoriteGenre?: string;
@@ -37,7 +36,6 @@ export const PublicProfile: React.FC = () => {
           // STRICT CYBER-DEFENSE & PRIVACY: Only extract safe public fields, NEVER age, birthDate, deletion status or email
           setUserData({
             displayName: d.displayName || "Anime Fan",
-            userId: d.userId || id,
             avatarUrl: d.avatarUrl,
             bio: d.bio,
             favoriteGenre: d.favoriteGenre || "Action",
@@ -51,7 +49,6 @@ export const PublicProfile: React.FC = () => {
             const d = querySnap.docs[0].data();
             setUserData({
               displayName: d.displayName || "Anime Fan",
-              userId: d.userId || id,
               avatarUrl: d.avatarUrl,
               bio: d.bio,
               favoriteGenre: d.favoriteGenre || "Action",
@@ -105,13 +102,13 @@ export const PublicProfile: React.FC = () => {
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
       <SEO
-        title={`${userData.displayName} (@${userData.userId || "user"}) - Anime Orbit Profile`}
+        title={`${userData.displayName} - Anime Orbit Profile`}
         description={`Explore ${userData.displayName}'s favorite anime, top genres, and watchlist on Anime Orbit.`}
         keywords="anime user profile, anime favorites, anime orbit"
         url={`https://animeorbit.web.app/user/${id}`}
       />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16 space-y-8 flex-1 w-full font-inter">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-16 space-y-8 flex-1 w-full font-inter">
         {/* Back Link */}
         <Link
           to="/"
@@ -156,11 +153,7 @@ export const PublicProfile: React.FC = () => {
                   </span>
                 </div>
 
-                {userData.userId && (
-                  <p className="text-xs font-mono font-bold text-[#ffd700]/90">
-                    @{userData.userId}
-                  </p>
-                )}
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-500">Public anime profile</p>
 
                 {userData.bio ? (
                   <p className="text-xs sm:text-sm text-neutral-300 max-w-lg leading-relaxed pt-1">

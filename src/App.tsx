@@ -27,6 +27,8 @@ const Genres = lazy(() => import("./Components/Genres"));
 const Manga = lazy(() => import("./Components/Manga"));
 const MangaItem = lazy(() => import("./Components/MangaItem"));
 const NeuralDiscovery = lazy(() => import("./Components/NeuralDiscovery"));
+const FranchiseExplorer = lazy(() => import("./Components/FranchiseExplorer"));
+const FranchiseDetails = lazy(() => import("./Components/FranchiseDetails"));
 const NotFound = lazy(() => import("./Components/NotFound"));
 
 // Global Error Boundary to prevent black screen crashes
@@ -142,7 +144,7 @@ function Layout({ children }: { children: ReactNode }) {
       )}
 
       <Nav />
-      <div className={`relative z-10 flex-1 ${isHome ? "mt-0" : "mt-[70px]"}`}>
+      <div className={`relative z-10 flex-1 ${isHome ? "mt-0" : "mt-[64px] sm:mt-[70px]"}`}>
         <ErrorBoundary>
           <Suspense
             fallback={
@@ -314,6 +316,14 @@ export function App() {
               <NeuralDiscovery />
             </Layout>
           }
+        />
+        <Route
+          path="/franchises"
+          element={<Layout><FranchiseExplorer /></Layout>}
+        />
+        <Route
+          path="/franchise/:id"
+          element={<Layout><FranchiseDetails /></Layout>}
         />
         <Route
           path="/neural-search"

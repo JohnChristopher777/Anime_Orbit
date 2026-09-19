@@ -6,15 +6,17 @@ import AnimeCard from "./AnimeCard";
 import ProgressiveImage from "./ProgressiveImage";
 import AuthModal from "./AuthModal";
 import SEO from "./SEO";
-import { List, Share2, Copy, Download, ExternalLink, X, Check, LogIn, Plus, Search, Save, Trash2, NotebookPen } from "lucide-react";
+import { List, Share2, Copy, Download, ExternalLink, X, Check, LogIn, Plus, Search, Save, Trash2, NotebookPen, Star, RotateCcw, Clock3, Layers3 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getPopularAnime, getPopularManga, searchAnime, searchManga } from "../services/anilist";
+import { getFranchiseGroups, getPopularAnime, getPopularManga, searchAnime, searchManga } from "../services/anilist";
 import AppDropdown from "./AppDropdown";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { db } from "../firebase/config";
 
 interface TrackerFieldsProps {
   item: WatchlistItem | MangaWatchlistItem;
   mediaType: "anime" | "manga";
-  onSave: (updates: { status?: string; startDate?: string; endDate?: string; personalNotes?: string }) => Promise<void>;
+  onSave: (updates: { status?: string; startDate?: string; endDate?: string; personalNotes?: string; progress?: number; userScore?: number }) => Promise<void>;
 }
 
 const statusToken = (status = "") => status.toLowerCase().replace(/\s+/g, "-");
@@ -24,12 +26,17 @@ const trackerTimestamp = (item: WatchlistItem | MangaWatchlistItem) => {
   return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
 };
 
+const deletedDateMillis = (value: any) => value?.toMillis ? value.toMillis() : Date.parse(value || "");
+
 const TrackerFields: React.FC<TrackerFieldsProps> = ({ item, mediaType, onSave }) => {
   const [status, setStatus] = useState(item.status || (mediaType === "manga" ? "Plan to Read" : "Plan to Watch"));
   const [startDate, setStartDate] = useState(item.startDate || "");
   const [endDate, setEndDate] = useState(item.endDate || "");
   const [personalNotes, setPersonalNotes] = useState(item.personalNotes || "");
+  const [progress, setProgress] = useState(Number(item.progress || 0));
+  const [userScore, setUserScore] = useState(Number(item.userScore || 0));
   const [saving, setSaving] = useState(false);
+  const progressTotal = mediaType === "manga" ? Number((item as MangaWatchlistItem).chapters || 0) : Number(item.episodes || 0);
 
   const handleSave = async () => {
     if (startDate && endDate && endDate < startDate) {
@@ -38,7 +45,7 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({ item, mediaType, onSave }
     }
     setSaving(true);
     try {
-      await onSave({ status, startDate, endDate, personalNotes: personalNotes.trim() });
+      await onSave({ status, startDate, endDate, personalNotes: personalNotes.trim(), progress, userScore });
     } finally {
       setSaving(false);
     }
@@ -55,6 +62,11 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({ item, mediaType, onSave }
           <label><span>Started</span><input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} /></label>
           <label><span>Finished</span><input type="date" value={endDate} min={startDate || undefined} onChange={(event) => setEndDate(event.target.value)} /></label>
         </div>
+        <div className="tracker-fields__dates">
+            <label><span>{mediaType === "manga" ? "Chapter progress" : "Episode progress"}</span><input type="number" min={0} max={mediaType === "manga" ? (item as MangaWatchlistItem).chapters || undefined : item.episodes || undefined} value={progress} onChange={(event) => { const total = mediaType === "manga" ? Number((item as MangaWatchlistItem).chapters || Infinity) : Number(item.episodes || Infinity); setProgress(Math.max(0, Math.min(total, Number(event.target.value) || 0))); }} /></label>
+            <label><span>Your score</span><input type="number" min={0} max={10} step={1} value={userScore} onChange={(event) => setUserScore(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} /></label>
+          </div>
+        {progressTotal > 0 && <label className="tracker-fields__progress"><span>{mediaType === "manga" ? "Reading progress" : "Watching progress"}<strong>{progress} / {progressTotal}</strong></span><input className="media-progress__slider" aria-label={`${mediaType === "manga" ? "Chapter" : "Episode"} progress`} type="range" min={0} max={progressTotal} step={1} value={Math.min(progress, progressTotal)} style={{ "--progress": `${Math.min(100, (progress / progressTotal) * 100)}%` } as React.CSSProperties} onChange={(event) => setProgress(Number(event.target.value))} /></label>}
         <label className="tracker-fields__notes"><span>Personal notes</span><textarea rows={2} maxLength={800} value={personalNotes} onChange={(event) => setPersonalNotes(event.target.value)} placeholder={mediaType === "manga" ? "Last chapter, favorite panel, thoughts..." : "Last episode, favorite arc, thoughts..."} /></label>
         <button type="button" onClick={handleSave} disabled={saving}><Save size={13} /> {saving ? "Saving..." : "Save changes"}</button>
       </div>
@@ -72,6 +84,10 @@ export const Watchlist: React.FC = () => {
     updateMangaWatchlistEntry,
     addToWatchlist,
     addMangaToWatchlist,
+    deletedItems,
+    restoreDeletedItem,
+    permanentlyDeleteItem,
+    emptyTrash,
     loading,
   } = useWatchlist();
   const { currentUser } = useAuth();
@@ -87,6 +103,22 @@ export const Watchlist: React.FC = () => {
   const [addLoading, setAddLoading] = useState(false);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [expandedTracker, setExpandedTracker] = useState<string | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [reviewedAnimeIds, setReviewedAnimeIds] = useState<Set<number>>(new Set());
+  const [mergeFranchises, setMergeFranchises] = useState(false);
+  const [franchiseGroups, setFranchiseGroups] = useState<any[]>([]);
+  const [franchiseLoading, setFranchiseLoading] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setReviewedAnimeIds(new Set());
+      return;
+    }
+    const reviewsQuery = query(collection(db, "reviews"), where("userId", "==", currentUser.uid));
+    return onSnapshot(reviewsQuery, (snapshot) => {
+      setReviewedAnimeIds(new Set(snapshot.docs.map((entry) => Number(entry.data().animeId)).filter(Number.isFinite)));
+    }, () => setReviewedAnimeIds(new Set()));
+  }, [currentUser]);
 
   useEffect(() => {
     if (!addModalOpen) {
@@ -101,13 +133,13 @@ export const Watchlist: React.FC = () => {
         const existing = mediaTab === "anime" ? watchlist : mangaWatchlist;
         const existingIds = new Set(existing.map((item) => item.mal_id));
         const tasteGenres = new Set(existing.flatMap((item: any) => (item.genres || []).map((genre: any) => typeof genre === "string" ? genre : genre?.name).filter(Boolean)));
-        const rawResults = query.length >= 2
+        const rawResults = query.length >= 1
           ? (mediaTab === "anime" ? await searchAnime(query, 16) : await searchManga(query, 16))
           : (mediaTab === "anime" ? (await getPopularAnime(30, 1)).media : (await getPopularManga(1, 30, "POPULARITY_DESC")).media);
         const results = (Array.isArray(rawResults) ? rawResults : [])
           .filter((item) => !existingIds.has(item.mal_id))
           .sort((a, b) => {
-            if (query.length >= 2) return 0;
+            if (query.length >= 1) return 0;
             const affinity = (item: any) => (item.genres || []).filter((genre: any) => tasteGenres.has(typeof genre === "string" ? genre : genre?.name)).length;
             return affinity(b) - affinity(a) || Number(b.score || 0) - Number(a.score || 0);
           })
@@ -118,7 +150,7 @@ export const Watchlist: React.FC = () => {
       } finally {
         if (current) setAddLoading(false);
       }
-    }, addQuery.trim().length >= 2 ? 300 : 0);
+    }, addQuery.trim().length >= 1 ? 300 : 0);
     return () => { current = false; window.clearTimeout(timer); };
   }, [addModalOpen, addQuery, mediaTab, watchlist, mangaWatchlist]);
 
@@ -128,6 +160,55 @@ export const Watchlist: React.FC = () => {
   const mangaRank = useMemo(() => new Map(
     [...mangaWatchlist].sort((a, b) => trackerTimestamp(a) - trackerTimestamp(b)).map((item, index) => [item.mal_id, index + 1]),
   ), [mangaWatchlist]);
+  const reviewCandidates = useMemo(() => watchlist.filter((item) => {
+    const finishedEpisodes = Boolean(item.episodes && Number(item.progress) >= Number(item.episodes));
+    return (item.status === "Completed" || item.status === "Dropped" || item.status === "On-Hold" || finishedEpisodes) && !reviewedAnimeIds.has(Number(item.mal_id));
+  }), [watchlist, reviewedAnimeIds]);
+
+  useEffect(() => {
+    if (!mergeFranchises || !watchlist.length) {
+      setFranchiseGroups([]);
+      return;
+    }
+    let active = true;
+    setFranchiseLoading(true);
+    getFranchiseGroups(watchlist.map((item) => item.mal_id))
+      .then((groups: any[]) => { if (active) setFranchiseGroups(groups || []); })
+      .catch(() => { if (active) setFranchiseGroups([]); })
+      .finally(() => { if (active) setFranchiseLoading(false); });
+    return () => { active = false; };
+  }, [mergeFranchises, watchlist]);
+
+  const mergedWatchlist = useMemo(() => {
+    const source = activeFilter === "All" ? watchlist : watchlist.filter((item) => (item.status || "Plan to Watch") === activeFilter);
+    if (!mergeFranchises) return [];
+    const used = new Set<number>();
+    const combined = franchiseGroups.map((group) => {
+      const members = source.filter((item) => group.memberIds?.includes(item.mal_id));
+      if (!members.length) return null;
+      members.forEach((item) => used.add(item.mal_id));
+      const startDates = members.map((item) => item.startDate).filter(Boolean).sort();
+      const endDates = members.map((item) => item.endDate).filter(Boolean).sort();
+      const notes = members.filter((item) => item.personalNotes).map((item) => ({ title: item.title, note: item.personalNotes }));
+      const statuses = [...new Set(members.map((item) => item.status || "Plan to Watch"))];
+      return {
+        ...members[0],
+        mal_id: group.mal_id,
+        title: group.title,
+        image_url: group.images?.jpg?.large_image_url || members[0].image_url,
+        score: group.score,
+        episodes: members.reduce((sum, item) => sum + Number(item.episodes || 0), 0),
+        progress: members.reduce((sum, item) => sum + Number(item.progress || 0), 0),
+        startDate: startDates[0] || "",
+        endDate: endDates[endDates.length - 1] || "",
+        status: statuses.length === 1 ? statuses[0] : "Mixed statuses",
+        notes,
+        members,
+      };
+    }).filter(Boolean) as any[];
+    source.filter((item) => !used.has(item.mal_id)).forEach((item) => combined.push({ ...item, notes: item.personalNotes ? [{ title: item.title, note: item.personalNotes }] : [], members: [item] }));
+    return combined;
+  }, [activeFilter, franchiseGroups, mergeFranchises, watchlist]);
 
   if (!currentUser) {
     return (
@@ -170,7 +251,7 @@ export const Watchlist: React.FC = () => {
 
   // Generate clean, sanitized standalone HTML document for sharing
   const generateStandaloneHtml = () => {
-    const userTitle = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Anime Master";
+    const userTitle = currentUser?.displayName || "Anime Fan";
     const userAvatar = currentUser?.photoURL || "";
     const escapeHtml = (str: string = "") =>
       str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -296,7 +377,7 @@ export const Watchlist: React.FC = () => {
   };
 
   return (
-    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-12 space-y-4">
+    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-4">
       <SEO
         title="My Watchlist - Anime Tracker & History"
         description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Orbit."
@@ -329,14 +410,40 @@ export const Watchlist: React.FC = () => {
             <Share2 size={15} />
             <span>Share Watchlist</span>
           </button>
+          <button onClick={() => setTrashOpen((open) => !open)} className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-neutral-300 hover:border-[#ffd700]/50 hover:text-white">
+            <Trash2 size={14} /><span>Trash</span>{deletedItems.length > 0 && <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px]">{deletedItems.length}</span>}
+          </button>
         </div>
       </div>
 
+      {trashOpen && (
+        <section className="watchlist-trash" aria-labelledby="watchlist-trash-title">
+          <div className="watchlist-trash__header">
+            <div><span><Clock3 size={13} /> Recovery</span><h2 id="watchlist-trash-title">Recently removed</h2><p>Titles stay here for five days before automatic cleanup.</p></div>
+            {deletedItems.length > 0 && <button type="button" onClick={() => { if (window.confirm("Permanently delete every item in Trash? This cannot be undone.")) void emptyTrash(); }}><Trash2 size={13} /> Empty Trash</button>}
+          </div>
+          {deletedItems.length > 0 ? <div className="watchlist-trash__list">
+            {deletedItems.map((item) => {
+              const daysLeft = Math.max(1, Math.ceil((deletedDateMillis(item.purgeAfter) - Date.now()) / 86400000));
+              return <article key={item.originalKey}>
+                <ProgressiveImage src={item.image_url || item.image} alt="" wrapperClassName="watchlist-trash__cover" className="h-full w-full object-cover" />
+                <div><strong>{item.title}</strong><span>{daysLeft} {daysLeft === 1 ? "day" : "days"} left</span></div>
+                <button type="button" onClick={() => restoreDeletedItem(item.originalKey)}><RotateCcw size={13} /> Restore</button>
+                <button type="button" className="is-danger" aria-label={`Permanently delete ${item.title}`} onClick={() => { if (window.confirm(`Permanently delete ${item.title}?`)) void permanentlyDeleteItem(item.originalKey); }}><Trash2 size={13} /></button>
+              </article>;
+            })}
+          </div> : <p className="watchlist-trash__empty">Trash is empty.</p>}
+        </section>
+      )}
+
       {mediaTab === "anime" && (
-        <div className="tracker-filters">
+        <div className="flex items-center justify-between gap-3">
+        <div className="tracker-filters min-w-0">
           {["All", "Watching", "Caught Up", "Plan to Watch", "Completed", "On-Hold", "Dropped"].map((filter) => (
             <button key={filter} data-status={statusToken(filter)} onClick={() => setActiveFilter(filter)} className={activeFilter === filter ? "is-active" : ""}>{filter}</button>
           ))}
+        </div>
+        <button type="button" aria-pressed={mergeFranchises} onClick={() => setMergeFranchises((value) => !value)} className={`franchise-filter ${mergeFranchises ? "is-active" : ""}`}><Layers3 size={13} /><span className="hidden sm:inline">Franchise view</span></button>
         </div>
       )}
 
@@ -348,20 +455,40 @@ export const Watchlist: React.FC = () => {
         </div>
       )}
 
+      {mediaTab === "anime" && reviewCandidates.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-[#ffd700]/25 bg-[#ffd700]/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3"><span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl bg-[#ffd700] text-black"><Star size={17} fill="currentColor" /></span><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[.08em] text-[#ffd700]">Ready for your rating</p><h2 className="mt-1 truncate font-montserrat text-sm font-bold text-white">{reviewCandidates[0].title}</h2><p className="mt-1 text-xs text-neutral-400">{reviewCandidates.length} finished or paused {reviewCandidates.length === 1 ? "show has" : "shows have"} no review yet.</p></div></div>
+          <Link to={`/anime/${reviewCandidates[0].mal_id}?tab=reviews`} className="inline-flex flex-shrink-0 items-center justify-center gap-2 rounded-full bg-[#ffd700] px-4 py-2 text-xs font-bold text-black">Review now</Link>
+        </div>
+      )}
+
       {loading ? (
         <div className="tracker-grid" aria-label="Loading watchlist">
           {Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-44 rounded-xl bg-white/[0.05] animate-pulse" />)}
         </div>
+      ) : mediaTab === "anime" && mergeFranchises ? (
+        franchiseLoading ? <div className="tracker-grid">{Array.from({ length: 3 }).map((_, index) => <div key={index} className="h-44 rounded-xl bg-white/[0.05] animate-pulse" />)}</div> : mergedWatchlist.length > 0 ? <div className="tracker-grid">
+          {mergedWatchlist.map((item, index) => <article key={`franchise-${item.mal_id}-${index}`} className="tracker-card tracker-franchise-card" data-status={statusToken(item.status)}>
+            <span className="tracker-card__rank">#{index + 1}</span>
+            <div className="tracker-card__media"><ProgressiveImage src={item.image_url || item.image} alt={item.title} wrapperClassName="aspect-[2/3] rounded-xl" className="h-full w-full object-cover" /><div className="pt-2"><h3 className="font-montserrat text-xs font-bold text-white line-clamp-2">{item.title}</h3><p className="mt-1 text-[9px] text-neutral-500">{item.members.length} {item.members.length === 1 ? "entry" : "entries"}</p></div></div>
+            <div className="tracker-card__content"><div className="tracker-card__summary"><span>{item.status}</span><p>{item.progress || 0} / {item.episodes || "?"} combined episodes</p><small>{item.startDate ? `From ${item.startDate}` : "No start date"}{item.endDate ? ` · through ${item.endDate}` : ""}</small>{item.notes.length > 0 && <div className="tracker-franchise-card__notes">{item.notes.map((note: any) => <span key={`${note.title}-${note.note}`}><strong>{note.title}</strong>{note.note}</span>)}</div>}</div><div className="tracker-card__actions"><Link to={`/franchise/${item.mal_id}`}><Layers3 size={13} />View {item.members.length > 1 ? "franchise" : "details"}</Link></div></div>
+          </article>)}
+        </div> : <div className="text-center py-16 text-sm text-neutral-500">No franchise entries match this filter.</div>
       ) : mediaTab === "anime" && filteredItems.length > 0 ? (
         <div className="tracker-grid">
           {filteredItems.map((item) => (
             <div key={item.mal_id} data-status={statusToken(item.status || "Plan to Watch")} className={`tracker-card ${expandedTracker === `anime-${item.mal_id}` ? "is-open" : ""}`}>
               <span className="tracker-card__rank" title="Order by start date">#{animeRank.get(item.mal_id)}</span>
               <div className="tracker-card__media">
-                <AnimeCard compact anime={item as any} onRemove={(animeId) => removeFromWatchlist(animeId)} />
-                <button className="tracker-card__note" type="button" aria-label={`Edit notes for ${item.title}`} aria-expanded={expandedTracker === `anime-${item.mal_id}`} onClick={() => setExpandedTracker((current) => current === `anime-${item.mal_id}` ? null : `anime-${item.mal_id}`)}><NotebookPen size={14} /></button>
+                <AnimeCard compact anime={item as any} />
               </div>
-              {expandedTracker === `anime-${item.mal_id}` ? <TrackerFields mediaType="anime" item={item} onSave={async (updates) => { await updateWatchlistEntry(item.mal_id, updates as any); setExpandedTracker(null); }} /> : <div className="tracker-card__summary"><span>{item.status || "Plan to Watch"}</span><p>{item.personalNotes || "Add a note"}</p><small>{item.startDate ? `Started ${item.startDate}` : "No start date"}</small></div>}
+              <div className="tracker-card__content">
+                {expandedTracker === `anime-${item.mal_id}` ? <TrackerFields mediaType="anime" item={item} onSave={async (updates) => { await updateWatchlistEntry(item.mal_id, updates as any); setExpandedTracker(null); }} /> : <div className="tracker-card__summary"><span>{item.status || "Plan to Watch"}</span><p>{item.personalNotes || "No personal note yet"}</p><small>{item.progress || 0}{item.episodes ? ` / ${item.episodes}` : ""} episodes · {item.startDate ? `Started ${item.startDate}` : "Start date not set"}{item.endDate ? ` · Finished ${item.endDate}` : ""}</small></div>}
+                <div className="tracker-card__actions">
+                  <button type="button" aria-expanded={expandedTracker === `anime-${item.mal_id}`} onClick={() => setExpandedTracker((current) => current === `anime-${item.mal_id}` ? null : `anime-${item.mal_id}`)}><NotebookPen size={13} />{expandedTracker === `anime-${item.mal_id}` ? "Close details" : "View details"}</button>
+                  <button type="button" className="is-remove" onClick={() => removeFromWatchlist(item.mal_id)}><Trash2 size={13} /></button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -375,10 +502,14 @@ export const Watchlist: React.FC = () => {
                   <ProgressiveImage src={item.image_url || item.image} alt={item.title} wrapperClassName="aspect-[2/3] rounded-xl" className="w-full h-full object-cover group-hover:scale-[1.02]" />
                   <div className="pt-2"><h3 className="font-montserrat font-bold text-xs text-white line-clamp-2">{item.title}</h3><p className="text-[10px] text-neutral-400 mt-1">{item.chapters ? `${item.chapters} chapters` : item.format || "Manga"}{item.score ? ` · ★ ${item.score}` : ""}</p></div>
                 </Link>
-                <button onClick={() => removeMangaFromWatchlist(item.mal_id)} className="tracker-card__remove" aria-label={`Remove ${item.title}`} title="Remove from list"><Trash2 size={13} /></button>
-                <button className="tracker-card__note" type="button" aria-label={`Edit notes for ${item.title}`} aria-expanded={expandedTracker === `manga-${item.mal_id}`} onClick={() => setExpandedTracker((current) => current === `manga-${item.mal_id}` ? null : `manga-${item.mal_id}`)}><NotebookPen size={14} /></button>
               </div>
-              {expandedTracker === `manga-${item.mal_id}` ? <TrackerFields mediaType="manga" item={item} onSave={async (updates) => { await updateMangaWatchlistEntry(item.mal_id, updates as any); setExpandedTracker(null); }} /> : <div className="tracker-card__summary"><span>{item.status || "Plan to Read"}</span><p>{item.personalNotes || "Add a note"}</p><small>{item.startDate ? `Started ${item.startDate}` : "No start date"}</small></div>}
+              <div className="tracker-card__content">
+                {expandedTracker === `manga-${item.mal_id}` ? <TrackerFields mediaType="manga" item={item} onSave={async (updates) => { await updateMangaWatchlistEntry(item.mal_id, updates as any); setExpandedTracker(null); }} /> : <div className="tracker-card__summary"><span>{item.status || "Plan to Read"}</span><p>{item.personalNotes || "No personal note yet"}</p><small>{item.progress || 0}{item.chapters ? ` / ${item.chapters}` : ""} chapters · {item.startDate ? `Started ${item.startDate}` : "Start date not set"}{item.endDate ? ` · Finished ${item.endDate}` : ""}</small></div>}
+                <div className="tracker-card__actions">
+                  <button type="button" aria-expanded={expandedTracker === `manga-${item.mal_id}`} onClick={() => setExpandedTracker((current) => current === `manga-${item.mal_id}` ? null : `manga-${item.mal_id}`)}><NotebookPen size={13} />{expandedTracker === `manga-${item.mal_id}` ? "Close details" : "View details"}</button>
+                  <button type="button" className="is-remove" onClick={() => removeMangaFromWatchlist(item.mal_id)}><Trash2 size={13} /></button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -405,7 +536,7 @@ export const Watchlist: React.FC = () => {
               <input autoFocus value={addQuery} onChange={(event) => setAddQuery(event.target.value)} placeholder={`Search ${mediaTab} titles...`} className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-[#ffd700]" />
             </div>
             <div className="mt-4 max-h-[55vh] overflow-y-auto space-y-2 pr-1">
-              {!addLoading && addQuery.trim().length < 2 && addResults.length > 0 && <p className="px-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-[#ffd700]">Recommended for you</p>}
+              {!addLoading && addQuery.trim().length < 1 && addResults.length > 0 && <p className="px-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-[#ffd700]">Recommended for you</p>}
               {addLoading ? Array.from({ length: 4 }).map((_, index) => <div key={index} className="h-20 rounded-xl bg-white/5 animate-pulse" />) : addResults.map((item) => {
                 const alreadyAdded = mediaTab === "anime"
                   ? watchlist.some((entry) => entry.mal_id === item.mal_id)
@@ -433,7 +564,7 @@ export const Watchlist: React.FC = () => {
                   </div>
                 );
               })}
-              {!addLoading && addQuery.trim().length >= 2 && addResults.length === 0 && <p className="py-8 text-center text-sm text-neutral-500">No matches found.</p>}
+              {!addLoading && addQuery.trim().length >= 1 && addResults.length === 0 && <p className="py-8 text-center text-sm text-neutral-500">No matches found.</p>}
             </div>
           </div>
         </div>

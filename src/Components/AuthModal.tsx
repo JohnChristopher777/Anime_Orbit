@@ -63,8 +63,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       await signInWithGoogle();
       toast.success("Signed in with Google!");
       onClose();
-    } catch {
-      toast.error("Google sign in failed");
+    } catch (error: any) {
+      const messages: Record<string, string> = {
+        "auth/unauthorized-domain": `Google sign-in is not authorized for ${window.location.hostname}. Add this domain in Firebase Authentication settings.`,
+        "auth/operation-not-allowed": "Google sign-in is disabled in Firebase Authentication.",
+        "auth/account-exists-with-different-credential": "This email already uses another sign-in method. Sign in with that method first.",
+        "auth/popup-closed-by-user": "Google sign-in was cancelled.",
+        "auth/network-request-failed": "Google sign-in could not connect. Check your network and try again.",
+      };
+      toast.error(messages[error?.code] || error?.message || "Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useFavourites } from "../context/FavouritesContext";
 import { useAuth } from "../context/AuthContext";
 import { useGlobalContext } from "../context/global";
@@ -6,6 +7,7 @@ import AnimeCard from "./AnimeCard";
 import AuthModal from "./AuthModal";
 import SEO from "./SEO";
 import Footer from "./Footer";
+import { getFranchiseGroups } from "../services/anilist";
 import {
   Heart,
   LogIn,
@@ -29,6 +31,9 @@ import {
   ChevronDown,
   Info,
   ExternalLink,
+  GitBranch,
+  BookOpen,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -59,8 +64,67 @@ const PRESET_COLORS = [
   "#00d2d3",
 ];
 
+const freshMangaTiers = (): Tier[] => DEFAULT_TIERS.map((tier) => ({ ...tier, animeIds: [] }));
+
+const MangaTierBoard: React.FC<{ items: any[] }> = ({ items }) => {
+  const [mangaTiers, setMangaTiers] = useState<Tier[]>(() => {
+    try {
+      const saved = localStorage.getItem("anime_orbit_manga_tierlist");
+      return saved ? JSON.parse(saved) : freshMangaTiers();
+    } catch {
+      return freshMangaTiers();
+    }
+  });
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const itemMap = new Map(items.map((item) => [item.mal_id, item]));
+  const assigned = new Set(mangaTiers.flatMap((tier) => tier.animeIds));
+  const waiting = items.filter((item) => !assigned.has(item.mal_id));
+  const ranks = new Map<number, number>();
+  let nextRank = 1;
+  mangaTiers.forEach((tier) => tier.animeIds.forEach((mediaId) => { if (itemMap.has(mediaId)) ranks.set(mediaId, nextRank++); }));
+
+  useEffect(() => {
+    localStorage.setItem("anime_orbit_manga_tierlist", JSON.stringify(mangaTiers));
+  }, [mangaTiers]);
+
+  const placeInTier = (tierId: string, mediaId = selectedId) => {
+    if (mediaId === null) return;
+    setMangaTiers((current) => current.map((tier) => {
+      const without = tier.animeIds.filter((id) => id !== mediaId);
+      return tier.id === tierId ? { ...tier, animeIds: [...without, mediaId] } : { ...tier, animeIds: without };
+    }));
+    setSelectedId(null);
+  };
+
+  const returnToWaiting = (mediaId: number) => {
+    setMangaTiers((current) => current.map((tier) => ({ ...tier, animeIds: tier.animeIds.filter((id) => id !== mediaId) })));
+    setSelectedId(null);
+  };
+
+  const renderCard = (item: any) => {
+    const selected = selectedId === item.mal_id;
+    return <button key={item.mal_id} type="button" draggable onDragStart={(event) => event.dataTransfer.setData("text/manga-id", String(item.mal_id))} onClick={(event) => { event.stopPropagation(); setSelectedId((current) => current === item.mal_id ? null : item.mal_id); }} className={`manga-tier-card ${selected ? "is-selected" : ""}`} aria-pressed={selected} title={`${item.title} — select to move`}>
+      {ranks.has(item.mal_id) && <span>#{ranks.get(item.mal_id)}</span>}
+      <img src={item.image || "/lost.jpg"} alt="" loading="lazy" />
+      <strong>{item.title}</strong>
+    </button>;
+  };
+
+  return <div className="manga-tier-board">
+    <header><div><span>Manga tier list</span><h2>Rank your favorite reads</h2><p>Select a cover, then choose a row. Drag and drop also works on desktop.</p></div><button type="button" onClick={() => { setMangaTiers(freshMangaTiers()); setSelectedId(null); }}>Reset tiers</button></header>
+    {selectedId !== null && <div className="manga-tier-selection"><span>{itemMap.get(selectedId)?.title || "Manga"} selected</span><button type="button" onClick={() => returnToWaiting(selectedId)}>Move to waiting</button><button type="button" onClick={() => setSelectedId(null)}>Cancel</button></div>}
+    <div className="manga-tier-rows">
+      {mangaTiers.map((tier) => <section key={tier.id} onClick={() => placeInTier(tier.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const mediaId = Number(event.dataTransfer.getData("text/manga-id")); if (mediaId) placeInTier(tier.id, mediaId); }} className={selectedId !== null ? "is-target" : ""}>
+        <div className="manga-tier-label" style={{ background: tier.color, color: tier.textColor }}>{tier.name}</div>
+        <div className="manga-tier-items">{tier.animeIds.map((mediaId) => itemMap.get(mediaId)).filter(Boolean).map(renderCard)}{!tier.animeIds.some((mediaId) => itemMap.has(mediaId)) && <small>{selectedId !== null ? `Place in ${tier.name}` : "No manga ranked here"}</small>}</div>
+      </section>)}
+    </div>
+    <section className="manga-tier-waiting" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const mediaId = Number(event.dataTransfer.getData("text/manga-id")); if (mediaId) returnToWaiting(mediaId); }}><div><span>Waiting to rank</span><strong>{waiting.length}</strong></div><div>{waiting.map(renderCard)}{waiting.length === 0 && <small>Every favorite manga has a tier.</small>}</div></section>
+  </div>;
+};
+
 export const Favourites: React.FC = () => {
-  const { favourites, addToFavourites, removeFromFavourites, loading } = useFavourites();
+  const { favourites, mangaFavourites, deletedFavourites, addToFavourites, removeFromFavourites, removeMangaFromFavourites, restoreFavourite, permanentlyDeleteFavourite, loading } = useFavourites();
   const { currentUser } = useAuth();
   const { popularAnime, topAiringAnime } = useGlobalContext();
 
@@ -108,6 +172,11 @@ export const Favourites: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [favoriteMedia, setFavoriteMedia] = useState<"anime" | "manga">("anime");
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [mergeFranchises, setMergeFranchises] = useState(false);
+  const [franchiseGroups, setFranchiseGroups] = useState<any[]>([]);
+  const [franchiseLoading, setFranchiseLoading] = useState(false);
 
   const autoScrollTimer = useRef<number | null>(null);
 
@@ -118,6 +187,31 @@ export const Favourites: React.FC = () => {
   useEffect(() => {
     localStorage.setItem("anime_orbit_tier_notes", JSON.stringify(customNotes));
   }, [customNotes]);
+
+  useEffect(() => {
+    if (!mergeFranchises || favourites.length === 0) {
+      setFranchiseGroups([]);
+      return;
+    }
+    let active = true;
+    setFranchiseLoading(true);
+    getFranchiseGroups(favourites.map((item) => item.mal_id))
+      .then((groups) => {
+        if (active) setFranchiseGroups(groups || []);
+      })
+      .catch(() => {
+        if (active) {
+          setFranchiseGroups([]);
+          toast.error("Franchise view could not be loaded right now.");
+        }
+      })
+      .finally(() => {
+        if (active) setFranchiseLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [mergeFranchises, favourites]);
 
   // Clean up auto scroll timer on unmount
   useEffect(() => {
@@ -178,6 +272,69 @@ export const Favourites: React.FC = () => {
 
   // Map of all available favorites for quick lookup
   const favMap = new Map(favourites.map((f) => [f.mal_id, f]));
+
+  // This is a derived view only: it never rewrites the user's saved favorites or tier rows.
+  const franchiseTierRows = (() => {
+    if (!mergeFranchises) return [];
+    const used = new Set<number>();
+    const summaries: any[] = franchiseGroups.map((group) => {
+      const memberIds = (group.memberIds || []).filter((id: number) => favMap.has(id));
+      memberIds.forEach((id: number) => used.add(id));
+      const members = memberIds.map((id: number) => favMap.get(id)).filter(Boolean);
+      const rankedMembers = memberIds
+        .map((id: number) => ({ id, rank: linearRankMap.get(id) || Number.MAX_SAFE_INTEGER }))
+        .sort((a: any, b: any) => a.rank - b.rank);
+      const leadId = rankedMembers[0]?.id || memberIds[0];
+      const tier = tiers.find((candidate) => candidate.animeIds.some((id) => memberIds.includes(id)));
+      const notes = memberIds
+        .map((id: number) => ({
+          title: favMap.get(id)?.title || favMap.get(id)?.title_english || "Anime",
+          note: customNotes[id],
+        }))
+        .filter((entry: any) => entry.note);
+      return {
+        ...group,
+        mal_id: leadId || group.mal_id,
+        title: favMap.get(leadId)?.title || group.title,
+        tierId: tier?.id || "unranked",
+        members,
+        memberIds,
+        notes,
+        rank: leadId ? linearRankMap.get(leadId) : undefined,
+      };
+    }).filter((group) => group.memberIds.length > 0);
+
+    favourites.forEach((favorite) => {
+      if (used.has(favorite.mal_id)) return;
+      const tier = tiers.find((candidate) => candidate.animeIds.includes(favorite.mal_id));
+      summaries.push({
+        mal_id: favorite.mal_id,
+        title: favorite.title || favorite.title_english,
+        images: (favorite as any).images || { jpg: { large_image_url: favorite.image } },
+        score: favorite.score,
+        franchiseEntries: 1,
+        memberIds: [favorite.mal_id],
+        members: [favorite],
+        tierId: tier?.id || "unranked",
+        notes: customNotes[favorite.mal_id]
+          ? [{ title: favorite.title || favorite.title_english || "Anime", note: customNotes[favorite.mal_id] }]
+          : [],
+        rank: linearRankMap.get(favorite.mal_id),
+      });
+    });
+
+    return [
+      ...tiers.map((tier) => ({ ...tier, groups: summaries.filter((group) => group.tierId === tier.id) })),
+      {
+        id: "unranked",
+        name: "Waiting",
+        color: "#404040",
+        textColor: "#ffffff",
+        animeIds: [],
+        groups: summaries.filter((group) => group.tierId === "unranked"),
+      },
+    ].filter((row) => row.groups.length > 0);
+  })();
 
   // Clean drag & drop handlers
   const handleDragStart = (e: React.DragEvent, animeId: number) => {
@@ -430,8 +587,7 @@ export const Favourites: React.FC = () => {
 
   // Generate Tier List HTML for Share / Export
   const generateTierListHtml = () => {
-    const userTitle = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Anime Master";
-    const userId = currentUser?.uid || "orbit-guest";
+    const userTitle = currentUser?.displayName || "Anime Fan";
     const userAvatar = currentUser?.photoURL || "";
     const escapeHtml = (str: string = "") =>
       str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -482,8 +638,6 @@ export const Favourites: React.FC = () => {
     .user-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #ffd700; }
     .avatar-fallback { width: 42px; height: 42px; border-radius: 50%; background: #ffd700; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
     h1 { font-size: 2.2rem; color: #ffd700; text-transform: uppercase; margin: 0; }
-    .profile-link { color: #54a0ff; font-size: 0.85rem; text-decoration: none; font-weight: 700; }
-    .profile-link:hover { text-decoration: underline; }
     .tier-row { display: flex; min-height: 110px; margin-bottom: 0.75rem; background: #16161c; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
     .tier-label { width: 110px; min-width: 110px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
     .tier-items { flex: 1; display: flex; flex-wrap: wrap; gap: 0.6rem; padding: 0.6rem; align-items: center; }
@@ -505,11 +659,10 @@ export const Favourites: React.FC = () => {
         }
         <div style="text-align: left;">
           <div style="font-weight: 800; color: #fff; font-size: 0.95rem;">${escapeHtml(userTitle)}</div>
-          <div style="font-size: 0.75rem; color: #ffd700;">ID: ${escapeHtml(userId)}</div>
+          <div style="font-size: 0.75rem; color: #a0a0a0;">Shared favorites list</div>
         </div>
       </div>
       <h1>${escapeHtml(userTitle)}'s Anime Tier List</h1>
-      <a class="profile-link" href="https://animeorbit.web.app/user/${escapeHtml(userId)}" target="_blank">View Official Profile on Anime Orbit →</a>
     </header>
     <div class="tier-board">
       ${tiersHtml}
@@ -582,28 +735,32 @@ export const Favourites: React.FC = () => {
         url="https://animeorbit.web.app/favourites"
       />
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-8 pb-12 space-y-6 sm:space-y-8 flex-1 w-full">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6 sm:space-y-8 flex-1 w-full">
         {/* Header & Controls */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <Heart size={30} className="text-yellow-500 fill-yellow-500" />
             <h1 className="text-2xl sm:text-3xl font-extrabold font-montserrat text-white">
-              Favorites & Tier List
+              Favorites
             </h1>
             <span className="text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
-              {favourites.length} Anime
+              {favoriteMedia === "anime" ? `${favourites.length} Anime` : `${mangaFavourites.length} Manga`}
             </span>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex rounded-full border border-white/10 bg-white/5 p-1 text-xs font-bold">
+              <button type="button" onClick={() => setFavoriteMedia("anime")} className={`rounded-full px-4 py-1.5 ${favoriteMedia === "anime" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Anime</button>
+              <button type="button" onClick={() => { setFavoriteMedia("manga"); setMergeFranchises(false); }} className={`rounded-full px-4 py-1.5 ${favoriteMedia === "manga" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Manga</button>
+            </div>
             {/* Add Anime to Pool Button */}
-            <button
+            {favoriteMedia === "anime" ? <button
               onClick={() => setShowAddAnimeModal(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs transition-all shadow-[0_0_12px_rgba(255,215,0,0.3)] hover:scale-105 cursor-pointer"
             >
               <Plus size={14} />
               <span>Add Anime</span>
-            </button>
+            </button> : <Link to="/manga" className="inline-flex items-center gap-1.5 rounded-full bg-[#ffd700] px-3.5 py-2 text-xs font-bold text-black"><BookOpen size={14} />Browse manga</Link>}
 
             {/* View Toggle */}
             <div className="bg-white/5 p-1 rounded-full border border-white/10 flex items-center">
@@ -631,16 +788,32 @@ export const Favourites: React.FC = () => {
               </button>
             </div>
 
+            {favoriteMedia === "anime" && <button
+              type="button"
+              onClick={() => setMergeFranchises((value) => !value)}
+              aria-pressed={mergeFranchises}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border font-montserrat font-bold text-xs transition-colors ${
+                mergeFranchises
+                  ? "bg-violet-400/20 border-violet-300/60 text-violet-200"
+                  : "bg-white/5 border-white/15 text-neutral-300 hover:text-white"
+              }`}
+            >
+              <GitBranch size={14} />
+              Franchise view
+            </button>}
+
             {/* Share Button */}
-            <button
+            {favoriteMedia === "anime" && <button
               onClick={() => setShareModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-[#ffd700] border border-white/15 hover:border-[#ffd700] text-white hover:text-black font-montserrat font-bold text-xs transition-all cursor-pointer"
             >
               <Share2 size={14} />
               <span>Export Tier List</span>
-            </button>
+            </button>}
 
-            {viewMode === "tier" && (
+            <button type="button" onClick={() => setTrashOpen((value) => !value)} className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-bold text-neutral-300 hover:text-white"><Trash2 size={14} />Trash{deletedFavourites.length > 0 && <span className="rounded-full bg-white/10 px-1.5">{deletedFavourites.length}</span>}</button>
+
+            {favoriteMedia === "anime" && viewMode === "tier" && !mergeFranchises && (
               <>
                 <button
                   onClick={() => setShowAddTierModal(true)}
@@ -661,8 +834,22 @@ export const Favourites: React.FC = () => {
           </div>
         </div>
 
+        {trashOpen && (
+          <section className="favorite-trash">
+            <header><div><span>Recovery</span><h2>Recently removed favorites</h2><p>Restore a title within five days, or delete it permanently.</p></div></header>
+            {deletedFavourites.length > 0 ? <div className="favorite-trash__list">{deletedFavourites.map((item) => (
+              <article key={item.originalKey}>
+                <img src={item.image || "/lost.jpg"} alt="" loading="lazy" />
+                <div><strong>{item.title}</strong><span>{item.mediaType === "MANGA" ? "Manga" : "Anime"}</span></div>
+                <button type="button" onClick={() => restoreFavourite(item.originalKey)}><RotateCcw size={13} />Restore</button>
+                <button type="button" className="is-danger" aria-label={`Permanently delete ${item.title}`} onClick={() => permanentlyDeleteFavourite(item.originalKey)}><Trash2 size={13} /></button>
+              </article>
+            ))}</div> : <p className="favorite-trash__empty">Trash is empty.</p>}
+          </section>
+        )}
+
         {/* Selected Item Notification Banner */}
-        {selectedAnimeId !== null && (
+        {favoriteMedia === "anime" && selectedAnimeId !== null && (
           <div className="bg-emerald-950/80 border-2 border-emerald-400 rounded-xl p-3 flex items-center justify-between shadow-[0_0_20px_rgba(52,211,153,0.3)] animate-pulse">
             <div className="flex items-center gap-2 text-emerald-300 text-xs sm:text-sm font-bold">
               <Sparkles size={16} />
@@ -679,10 +866,66 @@ export const Favourites: React.FC = () => {
           </div>
         )}
 
-        {loading ? (
+        {loading || franchiseLoading ? (
           <div className="py-20 text-center text-[#ffd700] font-montserrat font-bold flex items-center justify-center gap-2">
             <div className="w-5 h-5 border-2 border-[#ffd700] border-t-transparent rounded-full animate-spin" />
             <span>Loading favorites...</span>
+          </div>
+        ) : favoriteMedia === "manga" ? (
+          mangaFavourites.length > 0 ? (
+            viewMode === "tier" ? (
+              <MangaTierBoard items={mangaFavourites} />
+            ) : (
+              <div className="favorite-manga-grid">
+                {mangaFavourites.map((item) => <article key={item.mal_id}>
+                  <Link to={`/manga/${item.mal_id}`}><img src={item.image || "/lost.jpg"} alt={item.title} loading="lazy" /><div><span>{item.format || "Manga"}</span><h2>{item.title}</h2><p>{item.chapters ? `${item.chapters} chapters` : "Publishing details pending"}{item.score ? ` · ★ ${item.score}` : ""}</p></div></Link>
+                  <button type="button" onClick={() => removeMangaFromFavourites(item.mal_id)}><Trash2 size={13} />Remove</button>
+                </article>)}
+              </div>
+            )
+          ) : <div className="text-center py-20 bg-neutral-900/40 rounded-2xl border border-white/5 space-y-4"><BookOpen size={35} className="mx-auto text-[#ffd700]" /><p className="font-montserrat font-bold text-lg text-white">No favorite manga yet</p><Link to="/manga" className="inline-flex items-center gap-2 rounded-full bg-[#ffd700] px-5 py-2.5 text-xs font-bold text-black">Browse manga</Link></div>
+        ) : mergeFranchises ? (
+          <div className="favorite-franchise-board" aria-label="Favorites grouped by franchise">
+            <div className="favorite-franchise-note">
+              <GitBranch size={17} />
+              <p>
+                Related seasons are grouped for viewing only. Your individual favorites, notes and tier placements stay unchanged.
+              </p>
+            </div>
+            {franchiseTierRows.map((row) => (
+              <section className="favorite-franchise-row" key={row.id}>
+                <div className="favorite-franchise-tier" style={{ backgroundColor: row.color, color: row.textColor }}>
+                  {row.name}
+                </div>
+                <div className="favorite-franchise-groups">
+                  {row.groups.map((group: any) => {
+                    const cover = group.images?.jpg?.large_image_url || group.members?.[0]?.images?.jpg?.large_image_url || group.members?.[0]?.image;
+                    return (
+                      <article className="favorite-franchise-card" key={`${row.id}-${group.mal_id}`}>
+                        <img src={cover} alt="" loading="lazy" />
+                        <div className="favorite-franchise-copy">
+                          <span className="favorite-franchise-kicker">
+                            {group.rank ? `#${group.rank} · ` : ""}{group.memberIds.length} saved {group.memberIds.length === 1 ? "title" : "titles"}
+                          </span>
+                          <h3>{group.title}</h3>
+                          <p>{group.memberIds.length > 1 ? `${group.memberIds.length} connected entries combined` : "Single entry"}</p>
+                          {group.notes.length > 0 && (
+                            <div className="favorite-franchise-notes">
+                              {group.notes.map((entry: any) => (
+                                <span key={`${entry.title}-${entry.note}`}>{entry.title}: {entry.note}</span>
+                              ))}
+                            </div>
+                          )}
+                          <a href={`/franchise/${group.mal_id}`} className="favorite-franchise-link">
+                            Full franchise guide <ChevronRight size={14} />
+                          </a>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         ) : viewMode === "grid" ? (
           favourites.length === 0 ? (

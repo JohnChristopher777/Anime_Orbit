@@ -8,18 +8,22 @@ import {
   query,
   where,
   onSnapshot,
+  getDocs,
   deleteDoc,
   doc,
 } from "firebase/firestore";
-import { MessageCircle, Star, Trash2, LogIn, ExternalLink } from "lucide-react";
+import { AlertCircle, MessageCircle, Star, Trash2, LogIn, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "react-toastify";
 import AuthModal from "./AuthModal";
+import ProgressiveImage from "./ProgressiveImage";
 
 export const MyReviews: React.FC = () => {
   const { currentUser } = useAuth();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!currentUser) {
@@ -30,21 +34,30 @@ export const MyReviews: React.FC = () => {
 
     try {
       setLoading(true);
+      setLoadError("");
       const q = query(collection(db, "reviews"), where("userId", "==", currentUser.uid));
+
+      const applySnapshot = (snapshot: any) => {
+        const fetched = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+          const left = a.createdAt?.toMillis?.() || a.createdAt?.toDate?.()?.getTime?.() || 0;
+          const right = b.createdAt?.toMillis?.() || b.createdAt?.toDate?.()?.getTime?.() || 0;
+          return right - left;
+        });
+        setReviews(fetched);
+        setLoadError("");
+        setLoading(false);
+      };
 
       const unsubscribe = onSnapshot(
         q,
-        (snapshot) => {
-          const fetched = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
-            const left = a.createdAt?.toMillis?.() || 0;
-            const right = b.createdAt?.toMillis?.() || 0;
-            return right - left;
-          });
-          setReviews(fetched);
-          setLoading(false);
-        },
-        () => {
-          setLoading(false);
+        applySnapshot,
+        async () => {
+          try {
+            applySnapshot(await getDocs(q));
+          } catch {
+            setLoadError("Your saved reviews could not be loaded. Check your connection and try again.");
+            setLoading(false);
+          }
         }
       );
 
@@ -52,7 +65,7 @@ export const MyReviews: React.FC = () => {
     } catch {
       setLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, reloadKey]);
 
   const handleDeleteReview = async (reviewId: string) => {
     try {
@@ -92,7 +105,7 @@ export const MyReviews: React.FC = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-12 space-y-6">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6">
       <SEO
         title="My Anime Reviews - Community Ratings"
         description="View, edit, and manage all your written anime ratings and reviews across all genres on Anime Orbit."
@@ -109,7 +122,13 @@ export const MyReviews: React.FC = () => {
         </div>
       </div>
 
-      {loading ? (
+      {loadError ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] px-5 py-12 text-center">
+          <AlertCircle size={24} className="text-[#ffd700]" />
+          <p className="max-w-md text-sm text-neutral-300">{loadError}</p>
+          <button type="button" onClick={() => setReloadKey((value) => value + 1)} className="inline-flex items-center gap-2 rounded-full bg-[#ffd700] px-4 py-2 text-xs font-bold text-black"><RefreshCw size={14} />Retry</button>
+        </div>
+      ) : loading ? (
         <div className="py-20 text-center text-[#ffd700] font-montserrat font-bold flex items-center justify-center gap-2">
           <div className="w-5 h-5 border-2 border-[#ffd700] border-t-transparent rounded-full animate-spin" />
           <span>Loading reviews...</span>
@@ -122,13 +141,7 @@ export const MyReviews: React.FC = () => {
               className="p-5 bg-neutral-900/60 border border-white/10 hover:border-[#ffd700]/30 rounded-2xl flex flex-col sm:flex-row gap-5 items-start justify-between transition-all"
             >
               <div className="flex gap-4 items-start flex-1 min-w-0">
-                {rev.animeImage && (
-                  <img
-                    src={rev.animeImage}
-                    alt={rev.animeTitle}
-                    className="w-16 h-24 object-cover rounded-xl border border-white/10 flex-shrink-0"
-                  />
-                )}
+                {rev.animeImage && <ProgressiveImage src={rev.animeImage} alt={rev.animeTitle || "Anime cover"} wrapperClassName="w-16 h-24 rounded-xl border border-white/10 flex-shrink-0" className="h-full w-full object-cover" />}
                 <div className="space-y-2 flex-1 min-w-0">
                   <div className="flex items-center gap-3 flex-wrap">
                     <Link

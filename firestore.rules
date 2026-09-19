@@ -35,6 +35,10 @@ service cloud.firestore {
         allow read: if true;
         allow write: if isOwner(userId);
       }
+
+      match /trash/{itemId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
     // Root collections for atomic user data (Watchlists, Tierlists, Favourites)
@@ -46,6 +50,23 @@ service cloud.firestore {
     match /watchlists/{userId} {
       allow read: if true;
       allow write: if isOwner(userId);
+    }
+
+    // One authenticated vote per user and weekly poll.
+    match /seasonPolls/{pollId} {
+      allow read: if true;
+
+      match /votes/{userId} {
+        allow read: if true;
+        allow create: if request.resource.data.voterKey == userId
+          && request.resource.data.animeId is int
+          && request.resource.data.keys().hasOnly(['animeId', 'voterKey', 'updatedAt']);
+        allow update: if request.resource.data.voterKey == userId
+          && resource.data.voterKey == userId
+          && request.resource.data.animeId is int
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['animeId', 'updatedAt']);
+        allow delete: if false;
+      }
     }
 
     // Anime Reviews (Validated string lengths and owner-only update/delete)
@@ -68,9 +89,16 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && isValidString(request.resource.data.content, 1, 2000);
       allow update: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-        && isValidString(request.resource.data.content, 1, 2000);
+        && ((resource.data.userId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && isValidString(request.resource.data.content, 1, 2000))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'reports'])
+            && request.resource.data.get('likes', []) is list
+            && request.resource.data.get('dislikes', []) is list
+            && request.resource.data.get('reports', []) is list
+            && request.resource.data.get('likes', []).size() <= 10000
+            && request.resource.data.get('dislikes', []).size() <= 10000
+            && request.resource.data.get('reports', []).size() <= 1000));
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
   }

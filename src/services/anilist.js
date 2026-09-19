@@ -8,8 +8,11 @@ async function queryAniList(query, variables = {}) {
   const cached = queryCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.promise;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   const request = fetch(ANILIST_API_URL, {
     method: "POST",
+    signal: controller.signal,
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
@@ -30,7 +33,7 @@ async function queryAniList(query, variables = {}) {
   }).catch((error) => {
     queryCache.delete(cacheKey);
     throw error;
-  });
+  }).finally(() => clearTimeout(timeout));
 
   queryCache.set(cacheKey, { expiresAt: now + QUERY_CACHE_MS, promise: request });
   if (queryCache.size > 100) {
@@ -926,6 +929,195 @@ export async function getAnimeListByIds(ids) {
     console.error("Error fetching anime by IDs:", error);
     return [];
   }
+}
+
+export async function getSeasonalAnime(season, seasonYear, perPage = 10) {
+  const query = `
+    query SeasonalAnime($season: MediaSeason, $seasonYear: Int, $perPage: Int) {
+      Page(page: 1, perPage: $perPage) {
+        media(season: $season, seasonYear: $seasonYear, type: ANIME, sort: POPULARITY_DESC) {
+          ${ANIME_FIELDS}
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { season, seasonYear, perPage });
+  return (data.Page?.media || []).map(mapAniListAnimeToJikan);
+}
+
+export async function getFranchiseGroups(ids) {
+  const cleanIds = [...new Set((ids || []).map(Number).filter(Boolean))].slice(0, 25);
+  if (!cleanIds.length) return [];
+  const query = `
+    query FranchiseRelations($ids: [Int]) {
+      Page(page: 1, perPage: 25) {
+        media(id_in: $ids, type: ANIME) {
+          id
+          title { english romaji userPreferred }
+          coverImage { extraLarge large medium }
+          averageScore
+          popularity
+          format
+          episodes
+          relations {
+            edges {
+              relationType(version: 2)
+              node {
+                id
+                type
+                title { english romaji userPreferred }
+                coverImage { extraLarge large medium }
+                averageScore
+                popularity
+                format
+                episodes
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { ids: cleanIds });
+  const allowedRelations = new Set(["PREQUEL", "SEQUEL", "PARENT", "SIDE_STORY", "ALTERNATIVE"]);
+  const nodes = new Map();
+  const links = [];
+  (data.Page?.media || []).forEach((media) => {
+    nodes.set(media.id, media);
+    (media.relations?.edges || []).forEach((edge) => {
+      if (edge.node?.type === "ANIME" && allowedRelations.has(edge.relationType)) {
+        nodes.set(edge.node.id, edge.node);
+        links.push([media.id, edge.node.id]);
+      }
+    });
+  });
+  const parent = new Map([...nodes.keys()].map((id) => [id, id]));
+  const find = (id) => parent.get(id) === id ? id : (parent.set(id, find(parent.get(id))), parent.get(id));
+  links.forEach(([left, right]) => parent.set(find(right), find(left)));
+  const groups = new Map();
+  nodes.forEach((node, id) => {
+    const root = find(id);
+    if (!groups.has(root)) groups.set(root, []);
+    groups.get(root).push(node);
+  });
+  return [...groups.values()].map((members) => {
+    const unique = [...new Map(members.map((member) => [member.id, member])).values()];
+    const totalPopularity = unique.reduce((sum, member) => sum + Number(member.popularity || 0), 0);
+    const weightedScore = totalPopularity
+      ? unique.reduce((sum, member) => sum + Number(member.averageScore || 0) * Number(member.popularity || 0), 0) / totalPopularity
+      : unique.reduce((sum, member) => sum + Number(member.averageScore || 0), 0) / Math.max(1, unique.length);
+    const lead = [...unique].sort((a, b) => Number(b.popularity || 0) - Number(a.popularity || 0))[0];
+    return {
+      mal_id: lead.id,
+      title: lead.title?.english || lead.title?.romaji || lead.title?.userPreferred,
+      images: { jpg: { large_image_url: lead.coverImage?.extraLarge || lead.coverImage?.large || lead.coverImage?.medium } },
+      score: weightedScore ? (weightedScore / 10).toFixed(1) : null,
+      popularity: totalPopularity,
+      franchiseEntries: unique.length,
+      memberIds: unique.map((member) => member.id),
+    };
+  }).sort((a, b) => b.popularity - a.popularity);
+}
+
+export async function getFranchiseDetails(id) {
+  const rootId = Number(id);
+  if (!rootId) return null;
+  const allowedRelations = new Set(["PREQUEL", "SEQUEL", "PARENT", "SIDE_STORY", "ALTERNATIVE", "SOURCE", "ADAPTATION", "SPIN_OFF"]);
+  const nodes = new Map();
+  const edges = [];
+  let frontier = [rootId];
+
+  const query = `
+    query FranchiseWalkthrough($ids: [Int]) {
+      Page(page: 1, perPage: 50) {
+        media(id_in: $ids) {
+          id
+          type
+          title { english romaji native userPreferred }
+          description
+          bannerImage
+          coverImage { extraLarge large medium }
+          averageScore
+          popularity
+          format
+          status
+          episodes
+          duration
+          chapters
+          volumes
+          genres
+          startDate { year month day }
+          endDate { year month day }
+          relations {
+            edges {
+              relationType(version: 2)
+              node { id type }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  for (let depth = 0; depth < 3 && frontier.length; depth += 1) {
+    const data = await queryAniList(query, { ids: frontier.slice(0, 50) });
+    const next = [];
+    (data.Page?.media || []).forEach((media) => {
+      nodes.set(media.id, media);
+      (media.relations?.edges || []).forEach((edge) => {
+        if (!edge.node?.id || !allowedRelations.has(edge.relationType)) return;
+        edges.push({ from: media.id, to: edge.node.id, relationType: edge.relationType });
+        if (!nodes.has(edge.node.id) && !next.includes(edge.node.id) && nodes.size + next.length < 50) next.push(edge.node.id);
+      });
+    });
+    frontier = next;
+  }
+
+  if (!nodes.size) return null;
+  const dateNumber = (date) => date?.year ? Number(`${date.year}${String(date.month || 1).padStart(2, "0")}${String(date.day || 1).padStart(2, "0")}`) : Number.MAX_SAFE_INTEGER;
+  const entries = [...nodes.values()].map((media) => ({
+    mal_id: media.id,
+    mediaType: media.type,
+    title: media.title?.english || media.title?.romaji || media.title?.userPreferred || "Untitled",
+    title_japanese: media.title?.native || "",
+    synopsis: stripHtml(media.description || ""),
+    banner_image: media.bannerImage || "",
+    image: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || "",
+    score: media.averageScore ? (media.averageScore / 10).toFixed(1) : null,
+    popularity: Number(media.popularity || 0),
+    format: media.format || media.type,
+    status: mapStatus(media.status),
+    episodes: media.episodes || null,
+    duration: media.duration || null,
+    chapters: media.chapters || null,
+    volumes: media.volumes || null,
+    genres: media.genres || [],
+    startDate: media.startDate,
+    endDate: media.endDate,
+  })).sort((a, b) => dateNumber(a.startDate) - dateNumber(b.startDate));
+
+  const totalPopularity = entries.reduce((sum, entry) => sum + entry.popularity, 0);
+  const weightedScore = totalPopularity
+    ? entries.reduce((sum, entry) => sum + Number(entry.score || 0) * entry.popularity, 0) / totalPopularity
+    : 0;
+  const animeEntries = entries.filter((entry) => entry.mediaType === "ANIME");
+  const mangaEntries = entries.filter((entry) => entry.mediaType === "MANGA");
+  const root = entries.find((entry) => entry.mal_id === rootId) || entries[0];
+
+  return {
+    root,
+    title: root.title,
+    banner: root.banner_image || entries.find((entry) => entry.banner_image)?.banner_image || root.image,
+    entries,
+    edges,
+    combinedScore: weightedScore ? weightedScore.toFixed(1) : null,
+    totalPopularity,
+    totalEpisodes: animeEntries.reduce((sum, entry) => sum + Number(entry.episodes || (entry.format === "MOVIE" ? 1 : 0)), 0),
+    totalChapters: mangaEntries.reduce((sum, entry) => sum + Number(entry.chapters || 0), 0),
+    watchMinutes: animeEntries.reduce((sum, entry) => sum + (entry.format === "MOVIE" ? 120 : Number(entry.episodes || 0) * Number(entry.duration || 24)), 0),
+    firstRelease: entries[0]?.startDate || null,
+    latestRelease: entries[entries.length - 1]?.endDate || entries[entries.length - 1]?.startDate || null,
+  };
 }
 
 export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY_DESC") {

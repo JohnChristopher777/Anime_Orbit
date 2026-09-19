@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import styled from "styled-components";
 import { getAnimeDetailsCombined, getAnimeCharacters, getAnimeStaff } from "../services/anilist";
 import { useFavourites } from "../context/FavouritesContext";
@@ -15,12 +15,16 @@ import {
   where,
   orderBy,
   onSnapshot,
+  getDocs,
   serverTimestamp,
+  updateDoc,
+  doc,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import {
   Star,
   Heart,
-  Bookmark,
   Share2,
   Play,
   ArrowLeft,
@@ -30,7 +34,6 @@ import {
   ExternalLink,
   Film,
   UserCheck,
-  ChevronDown,
   Image as ImageIcon,
   Maximize2,
   X,
@@ -41,6 +44,12 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
+  ThumbsUp,
+  ThumbsDown,
+  Flag,
+  Reply,
+  Send,
+  Layers3,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Skeleton from "react-loading-skeleton";
@@ -80,6 +89,7 @@ const getStreamTag = (link: any) => {
 export const AnimeItem: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Anime Data State
   const [anime, setAnime] = useState<any>({});
@@ -99,11 +109,9 @@ export const AnimeItem: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [charSearch, setCharSearch] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get("tab") || "overview");
   const [showMore, setShowMore] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
-  const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   // Lightbox State
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -116,6 +124,9 @@ export const AnimeItem: React.FC = () => {
   const [revealedSpoilers, setRevealedSpoilers] = useState<Record<string, boolean>>({});
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [postingComment, setPostingComment] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [postingReply, setPostingReply] = useState(false);
 
   // Reviews State
   const [reviews, setReviews] = useState<any[]>([]);
@@ -127,7 +138,9 @@ export const AnimeItem: React.FC = () => {
   const [trailerLoaded, setTrailerLoaded] = useState(false);
   const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
   const { currentUser } = useAuth();
-  const { updateAnimeStatus, getAnimeStatus } = useWatchlist();
+  const { watchlist, updateAnimeStatus, getAnimeStatus, updateWatchlistEntry } = useWatchlist();
+  const [detailProgress, setDetailProgress] = useState(0);
+  const [progressSaving, setProgressSaving] = useState(false);
 
   const {
     title,
@@ -155,6 +168,28 @@ export const AnimeItem: React.FC = () => {
 
   const isFav = mal_id ? isFavourite(mal_id) : false;
   const currentStatus = mal_id ? getAnimeStatus(mal_id) : null;
+  const trackedAnime = mal_id ? watchlist.find((item) => item.mal_id === mal_id) : undefined;
+
+  useEffect(() => {
+    setDetailProgress(Number(trackedAnime?.progress || 0));
+  }, [trackedAnime?.mal_id, trackedAnime?.progress]);
+
+  const saveDetailProgress = async (nextProgress: number) => {
+    if (!trackedAnime) return;
+    const normalized = Math.max(0, Math.min(Number(totalEpisodes || Infinity), nextProgress));
+    setDetailProgress(normalized);
+    setProgressSaving(true);
+    try {
+      await updateWatchlistEntry(trackedAnime.mal_id, { status: trackedAnime.status, progress: normalized });
+    } finally {
+      setProgressSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (requestedTab && ["overview", "episodes", "characters", "staff", "related", "discussion", "reviews"].includes(requestedTab)) setActiveTab(requestedTab);
+  }, [searchParams]);
 
   // Fetch anime data
   useEffect(() => {
@@ -347,26 +382,29 @@ export const AnimeItem: React.FC = () => {
     if (!id) return;
     try {
       const commentsRef = collection(db, "comments");
-      const q = query(commentsRef, where("animeId", "==", id.toString()));
+      const numericId = Number(id);
+      const animeIds = Number.isFinite(numericId) ? [id.toString(), numericId] : [id.toString()];
+      const q = query(commentsRef, where("animeId", "in", animeIds));
+      const applySnapshot = (snapshot: any) => {
+        const fetched = snapshot.docs
+          .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+          .sort((a: any, b: any) => {
+            const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+            const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+            return tB - tA;
+          });
+        setComments(fetched);
+        setCommentsLoading(false);
+      };
       const unsubscribe = onSnapshot(
         q,
-        (snapshot) => {
-          const fetched = snapshot.docs
-            .map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }))
-            .sort((a: any, b: any) => {
-              const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-              const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-              return tB - tA;
-            });
-          setComments(fetched);
-          setCommentsLoading(false);
-        },
-        () => {
-          setComments([]);
-          setCommentsLoading(false);
+        applySnapshot,
+        async () => {
+          try {
+            applySnapshot(await getDocs(q));
+          } catch {
+            setCommentsLoading(false);
+          }
         }
       );
       return () => {
@@ -386,26 +424,29 @@ export const AnimeItem: React.FC = () => {
     if (!id) return;
     try {
       const reviewsRef = collection(db, "reviews");
-      const q = query(reviewsRef, where("animeId", "==", id.toString()));
+      const numericId = Number(id);
+      const animeIds = Number.isFinite(numericId) ? [id.toString(), numericId] : [id.toString()];
+      const q = query(reviewsRef, where("animeId", "in", animeIds));
+      const applySnapshot = (snapshot: any) => {
+        const fetched = snapshot.docs
+          .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+          .sort((a: any, b: any) => {
+            const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+            const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+            return tB - tA;
+          });
+        setReviews(fetched);
+        setReviewsLoading(false);
+      };
       const unsubscribe = onSnapshot(
         q,
-        (snapshot) => {
-          const fetched = snapshot.docs
-            .map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-            }))
-            .sort((a: any, b: any) => {
-              const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-              const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-              return tB - tA;
-            });
-          setReviews(fetched);
-          setReviewsLoading(false);
-        },
-        () => {
-          setReviews([]);
-          setReviewsLoading(false);
+        applySnapshot,
+        async () => {
+          try {
+            applySnapshot(await getDocs(q));
+          } catch {
+            setReviewsLoading(false);
+          }
         }
       );
       return () => {
@@ -448,6 +489,9 @@ export const AnimeItem: React.FC = () => {
         isSpoiler: isCommentSpoiler,
         animeTitle: displayTitle,
         animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
+        likes: [],
+        dislikes: [],
+        reports: [],
         createdAt: serverTimestamp(),
       });
       setNewComment("");
@@ -458,6 +502,48 @@ export const AnimeItem: React.FC = () => {
       toast.error("Failed to post comment. Try again!");
     } finally {
       setPostingComment(false);
+    }
+  };
+
+  const handleCommentReaction = async (comment: any, reaction: "like" | "dislike" | "report") => {
+    if (!currentUser) {
+      setAuthModalOpen(true);
+      return;
+    }
+    const reference = doc(db, "comments", comment.id);
+    const liked = (comment.likes || []).includes(currentUser.uid);
+    const disliked = (comment.dislikes || []).includes(currentUser.uid);
+    try {
+      if (reaction === "like") await updateDoc(reference, { likes: liked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid), dislikes: arrayRemove(currentUser.uid) });
+      if (reaction === "dislike") await updateDoc(reference, { dislikes: disliked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid), likes: arrayRemove(currentUser.uid) });
+      if (reaction === "report") {
+        await updateDoc(reference, { reports: arrayUnion(currentUser.uid) });
+        toast.info("Report received. Thank you for helping the community.");
+      }
+    } catch {
+      toast.error("Could not update this comment");
+    }
+  };
+
+  const handlePostReply = async (parent: any) => {
+    if (!currentUser || !replyText.trim()) return;
+    const cleanReply = sanitizeInput(replyText, 1200);
+    if (!cleanReply) return;
+    setPostingReply(true);
+    try {
+      await addDoc(collection(db, "comments"), {
+        animeId: id?.toString(), parentId: parent.parentId || parent.id,
+        userId: currentUser.uid, userName: currentUser.displayName || currentUser.email?.split("@")[0] || "Anonymous",
+        userAvatar: currentUser.photoURL || "", text: cleanReply, content: cleanReply,
+        animeTitle: displayTitle, animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
+        likes: [], dislikes: [], reports: [], createdAt: serverTimestamp(),
+      });
+      setReplyText("");
+      setReplyingTo(null);
+    } catch {
+      toast.error("Reply could not be posted");
+    } finally {
+      setPostingReply(false);
     }
   };
 
@@ -727,50 +813,59 @@ export const AnimeItem: React.FC = () => {
               <span>{isFav ? "Favorited" : "Add Favorite"}</span>
             </ActionButton>
 
-            <div style={{ position: "relative" }} ref={statusDropdownRef}>
-              <ActionButton
-                $variant={currentStatus ? "success" : "default"}
-                onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-              >
-                <Bookmark size={18} fill={currentStatus ? "#27ae60" : "none"} color={currentStatus ? "#27ae60" : "#fff"} />
-                <span>{currentStatus ? currentStatus : "Add to List"}</span>
-                <ChevronDown size={14} />
-              </ActionButton>
-
-              {statusDropdownOpen && (
-                <StatusDropdown>
-                  {["Watching", "Completed", "Plan to Watch", "On-Hold", "Dropped"].map((opt) => (
-                    <StatusOption
-                      key={opt}
-                      $active={currentStatus === opt}
-                      onClick={() => {
-                        updateAnimeStatus(anime, opt);
-                        setStatusDropdownOpen(false);
-                      }}
-                    >
-                      {opt}
-                    </StatusOption>
-                  ))}
-                  {currentStatus && (
-                    <StatusOption
-                      className="remove"
-                      onClick={() => {
-                        updateAnimeStatus(anime, null);
-                        setStatusDropdownOpen(false);
-                      }}
-                    >
-                      Remove from Tracker
-                    </StatusOption>
-                  )}
-                </StatusDropdown>
-              )}
-            </div>
+            <AppDropdown
+              ariaLabel="Set anime tracking status"
+              className="w-44"
+              value={currentStatus || ""}
+              placeholder="Add to list"
+              onChange={(value) => void updateAnimeStatus(anime, value === "remove" ? null : value)}
+              options={[
+                { value: "Plan to Watch", label: "Plan to Watch" },
+                { value: "Watching", label: "Watching" },
+                { value: "Caught Up", label: "Caught Up" },
+                { value: "Completed", label: "Completed" },
+                { value: "On-Hold", label: "On Hold" },
+                { value: "Dropped", label: "Dropped" },
+                ...(currentStatus ? [{ value: "remove", label: "Remove from list", tone: "danger" as const }] : []),
+              ]}
+            />
 
             <ActionButton onClick={handleShare}>
               <Share2 size={18} />
               <span>Share</span>
             </ActionButton>
+            <Link to={`/franchise/${mal_id}`} className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white transition-colors hover:border-[#ffd700]/60 hover:text-[#ffd700]">
+              <Layers3 size={17} /><span>Franchise guide</span>
+            </Link>
           </ActionsRow>
+
+          {trackedAnime && (
+            <div className="media-progress" aria-label="Your episode progress">
+              <div className="media-progress__heading"><span>Your progress</span><strong>{detailProgress} / {totalEpisodes || "?"} episodes</strong></div>
+              {totalEpisodes ? (
+                <input
+                  className="media-progress__slider"
+                  aria-label={`Episode progress: ${detailProgress} of ${totalEpisodes}`}
+                  type="range"
+                  min={0}
+                  max={totalEpisodes}
+                  step={1}
+                  value={detailProgress}
+                  style={{ "--progress": `${Math.min(100, (detailProgress / totalEpisodes) * 100)}%` } as React.CSSProperties}
+                  onChange={(event) => setDetailProgress(Number(event.target.value))}
+                  onPointerUp={() => void saveDetailProgress(detailProgress)}
+                  onKeyUp={() => void saveDetailProgress(detailProgress)}
+                  onBlur={() => void saveDetailProgress(detailProgress)}
+                />
+              ) : <div className="media-progress__bar is-unknown" aria-label="Episode total is not available" />}
+              <div className="media-progress__controls">
+                <button type="button" disabled={progressSaving || detailProgress <= 0} onClick={() => void saveDetailProgress(detailProgress - 1)}>−</button>
+                <input aria-label="Episode progress" type="number" min={0} max={totalEpisodes || undefined} value={detailProgress} onChange={(event) => setDetailProgress(Math.max(0, Number(event.target.value) || 0))} onBlur={() => void saveDetailProgress(detailProgress)} />
+                <button type="button" disabled={progressSaving || Boolean(totalEpisodes && detailProgress >= totalEpisodes)} onClick={() => void saveDetailProgress(detailProgress + 1)}>+</button>
+                <span>{progressSaving ? "Saving…" : trackedAnime.status || "Watching"}</span>
+              </div>
+            </div>
+          )}
         </HeroDetails>
       </HeroSection>
 
@@ -1234,9 +1329,12 @@ export const AnimeItem: React.FC = () => {
               {commentsLoading ? (
                 <LoadingText>Loading comments...</LoadingText>
               ) : comments.length > 0 ? (
-                comments.map((comment) => {
+                comments.filter((entry) => !entry.parentId).map((comment) => {
                   const isSpoiler = comment.isSpoiler;
                   const isRevealed = revealedSpoilers[comment.id];
+                  const replies = comments.filter((entry) => entry.parentId === comment.id);
+                  const liked = Boolean(currentUser && (comment.likes || []).includes(currentUser.uid));
+                  const disliked = Boolean(currentUser && (comment.dislikes || []).includes(currentUser.uid));
 
                   return (
                     <CommentCard key={comment.id}>
@@ -1295,6 +1393,28 @@ export const AnimeItem: React.FC = () => {
                                 <EyeOff size={12} /> Hide Spoiler
                               </button>
                             )}
+                          </div>
+                        )}
+                        <div className="comment-actions mt-3 text-[11px]">
+                          <button type="button" aria-pressed={liked} onClick={() => handleCommentReaction(comment, "like")} className={`comment-reaction ${liked ? "is-liked" : ""}`}><ThumbsUp size={13} />{comment.likes?.length || 0}</button>
+                          <button type="button" aria-pressed={disliked} onClick={() => handleCommentReaction(comment, "dislike")} className={`comment-reaction ${disliked ? "is-disliked" : ""}`}><ThumbsDown size={13} />{comment.dislikes?.length || 0}</button>
+                          <button type="button" onClick={() => { if (!currentUser) return setAuthModalOpen(true); setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }} className="comment-action-label"><Reply size={13} />Reply</button>
+                          <button type="button" disabled={Boolean(currentUser && (comment.reports || []).includes(currentUser.uid))} onClick={() => handleCommentReaction(comment, "report")} className="comment-report"><Flag size={12} />Report</button>
+                        </div>
+
+                        {replyingTo === comment.id && (
+                          <div className="mt-3 flex gap-2 rounded-xl border border-white/10 bg-black/20 p-2">
+                            <input autoFocus value={replyText} maxLength={1200} onChange={(event) => setReplyText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void handlePostReply(comment); } }} placeholder={`Reply to ${comment.userName}...`} className="min-w-0 flex-1 bg-transparent px-2 text-xs text-white outline-none placeholder:text-neutral-600" />
+                            <button type="button" disabled={postingReply || !replyText.trim()} onClick={() => handlePostReply(comment)} className="grid h-8 w-8 place-items-center rounded-lg bg-[#ffd700] text-black disabled:opacity-40"><Send size={14} /></button>
+                          </div>
+                        )}
+
+                        {replies.length > 0 && (
+                          <div className="mt-4 space-y-2 border-l border-white/10 pl-3 sm:pl-4">
+                            {replies.map((reply) => {
+                              const replyLiked = Boolean(currentUser && (reply.likes || []).includes(currentUser.uid));
+                              return <div key={reply.id} className="rounded-xl bg-white/[0.035] p-3"><div className="flex items-center justify-between gap-3"><span className="text-xs font-bold text-white">{reply.userName}</span><span className="text-[10px] text-neutral-600">{reply.createdAt?.toDate ? reply.createdAt.toDate().toLocaleDateString() : "Recently"}</span></div><p className="mt-1.5 text-xs leading-relaxed text-neutral-300">{reply.text || reply.content}</p><div className="comment-actions mt-2 text-[10px]"><button type="button" aria-pressed={replyLiked} onClick={() => handleCommentReaction(reply, "like")} className={`comment-reaction is-small ${replyLiked ? "is-liked" : ""}`}><ThumbsUp size={11} />{reply.likes?.length || 0}</button><button type="button" onClick={() => { setReplyingTo(comment.id); setReplyText(`@${reply.userName} `); }} className="comment-action-label is-small">Reply</button><button type="button" onClick={() => handleCommentReaction(reply, "report")} className="comment-report is-icon" aria-label="Report reply"><Flag size={11} /></button></div></div>;
+                            })}
                           </div>
                         )}
                       </CommentBody>

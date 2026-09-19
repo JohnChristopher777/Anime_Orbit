@@ -5,6 +5,7 @@ import ProgressiveImage from "./ProgressiveImage";
 
 interface HeroCarouselProps {
   trendingAnime?: any[];
+  loading?: boolean;
 }
 
 const getHeroImage = (anime: any) =>
@@ -14,9 +15,15 @@ const getHeroImage = (anime: any) =>
   anime?.images?.jpg?.image_url ||
   "";
 
+const getPosterImage = (anime: any) =>
+  anime?.images?.webp?.large_image_url ||
+  anime?.images?.jpg?.large_image_url ||
+  anime?.images?.jpg?.image_url ||
+  getHeroImage(anime);
+
 const hasWideArtwork = (anime: any) => Boolean(anime?.banner_image || anime?.images?.jpg?.banner_image);
 
-export const HeroCarousel: React.FC<HeroCarouselProps> = ({ trendingAnime = [] }) => {
+export const HeroCarousel: React.FC<HeroCarouselProps> = ({ trendingAnime = [], loading = false }) => {
   const slides = useMemo(() => {
     const wideSlides = trendingAnime.filter(hasWideArtwork);
     return (wideSlides.length ? wideSlides : trendingAnime).slice(0, 6);
@@ -55,14 +62,25 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ trendingAnime = [] }
 
   useEffect(() => {
     if (slides.length < 2) return;
-    const nextImage = getHeroImage(slides[(activeIndex + 1) % slides.length]);
+    const nextImage = isMobile
+      ? getPosterImage(slides[(activeIndex + 1) % slides.length])
+      : getHeroImage(slides[(activeIndex + 1) % slides.length]);
     if (!nextImage) return;
     const preloader = new Image();
     preloader.decoding = "async";
     preloader.src = nextImage;
-  }, [activeIndex, slides]);
+  }, [activeIndex, isMobile, slides]);
 
   if (!slides.length) {
+    if (!loading) {
+      return (
+        <section className="hero-shell" aria-label="Explore Anime Orbit">
+          <ProgressiveImage src="/animeorbit.jpg" alt="" aria-hidden="true" loading="eager" fetchPriority="high" wrapperClassName="hero-media" className="hero-media__image" />
+          <div className="hero-shade" />
+          <div className="hero-content"><h1>Find your next anime</h1><p>Browse new episodes, fan favorites, manga, complete franchises, and recommendations made from your list.</p><Link to="/discovery" className="hero-action"><TrendingUp size={17} /><span>Start exploring</span></Link></div>
+        </section>
+      );
+    }
     return (
       <section className="hero-shell hero-shell--loading" aria-label="Loading featured anime">
         <div className="hero-copy-skeleton">
@@ -74,7 +92,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ trendingAnime = [] }
 
   const anime = slides[activeIndex] || slides[0];
   const title = anime.title_english || anime.title || "Featured anime";
-  const heroImage = getHeroImage(anime);
+  const heroImage = isMobile ? getPosterImage(anime) : getHeroImage(anime);
 
   const onTouchEnd = (event: React.TouchEvent) => {
     if (touchStartX.current === null) return;

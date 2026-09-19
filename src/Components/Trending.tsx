@@ -3,7 +3,7 @@ import { useGlobalContext } from "../context/global";
 import AnimeCard from "./AnimeCard";
 import SEO from "./SEO";
 import Footer from "./Footer";
-import { TrendingUp, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
@@ -49,18 +49,15 @@ export const Trending: React.FC<TrendingProps> = ({ mode = "trending" }) => {
         keywords="airing anime, trending anime, current anime season, weekly anime episodes, Anime Orbit"
         url={`https://animeorbit.web.app/${isAiring ? "airing" : "trending"}`}
       />
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-8 pb-12 flex flex-col gap-6 sm:gap-8 flex-1 w-full">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 flex flex-col gap-6 sm:gap-8 flex-1 w-full">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10 flex-wrap gap-3">
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-            <TrendingUp size={24} className="text-[#ffd700] sm:w-7 sm:h-7" />
-            <h1 className="font-montserrat font-black text-xl sm:text-3xl text-white">
-              {isAiring ? "Currently Airing" : "Trending Anime"}
-            </h1>
-            <span className="font-montserrat text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
-              {items.length} Titles Loaded
-            </span>
-          </div>
+        <div className="flex items-center justify-between mb-1 flex-wrap gap-3">
+          <h1 className="font-staatliches font-bold text-2xl sm:text-3xl text-[#ffd700] tracking-wider drop-shadow">
+            {isAiring ? "Currently Airing" : "Trending Anime"}
+          </h1>
+          <span className="font-montserrat text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
+            {items.length} Titles Loaded
+          </span>
         </div>
 
         {/* Grid */}

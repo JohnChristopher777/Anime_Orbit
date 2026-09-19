@@ -16,6 +16,7 @@ import {
   LogOut,
   Compass,
   BookOpen,
+  Layers3,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useGlobalContext } from "../context/global";
@@ -154,6 +155,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </Link>
 
           <Link
+            to="/franchises"
+            onClick={() => handleLinkClick("/franchises")}
+            className={navClass("/franchises")}
+          >
+            <Layers3 size={18} className="text-[#ffd700]" />
+            <span>Franchises</span>
+          </Link>
+
+          <Link
             to="/about"
             onClick={() => handleLinkClick("/about")}
             className={navClass("/about")}
@@ -162,10 +172,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>About Us</span>
           </Link>
 
+          <div className="my-3 h-px w-full flex-shrink-0 bg-neutral-600/70" aria-hidden="true" />
+
           {currentUser && (
             <>
-              <div className="w-full h-px bg-neutral-600/70 my-3" aria-hidden="true" />
-
               <Link
                 to="/favourites"
                 onClick={() => handleLinkClick("/favourites")}

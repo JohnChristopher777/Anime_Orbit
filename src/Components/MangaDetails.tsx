@@ -23,11 +23,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Share2,
+  GitBranch,
+  Hash,
+  ListOrdered,
+  Heart,
 } from "lucide-react";
 import ProgressiveImage from "./ProgressiveImage";
 import { toast } from "react-toastify";
 import { useWatchlist } from "../context/WatchlistContext";
 import AppDropdown from "./AppDropdown";
+import { useFavourites } from "../context/FavouritesContext";
 
 export const MangaDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +42,16 @@ export const MangaDetails: React.FC = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [trackerBusy, setTrackerBusy] = useState(false);
+  const [chapterPage, setChapterPage] = useState(1);
+  const [chapterProgress, setChapterProgress] = useState(0);
+  const [progressSaving, setProgressSaving] = useState(false);
   const { mangaWatchlist, addMangaToWatchlist, removeMangaFromWatchlist, updateMangaWatchlistEntry } = useWatchlist();
+  const { addMangaToFavourites, removeMangaFromFavourites, isMangaFavourite } = useFavourites();
+  const trackedMangaEntry = mangaWatchlist.find((item) => item.mal_id === Number(id));
+
+  useEffect(() => {
+    setChapterProgress(Number(trackedMangaEntry?.progress || 0));
+  }, [trackedMangaEntry?.mal_id, trackedMangaEntry?.progress]);
 
   useEffect(() => {
     if (!lightboxOpen) return;
@@ -140,6 +154,7 @@ export const MangaDetails: React.FC = () => {
   const bannerImg = manga.bannerImage || posterImg;
   const trackedManga = mangaWatchlist.find((item) => item.mal_id === manga.mal_id);
   const isInMangaWatchlist = Boolean(trackedManga);
+  const isFavoriteManga = isMangaFavourite(manga.mal_id);
 
   const handleTrackerStatus = async (status: string) => {
     setTrackerBusy(true);
@@ -148,10 +163,22 @@ export const MangaDetails: React.FC = () => {
         await removeMangaFromWatchlist(manga.mal_id);
       } else {
         if (!isInMangaWatchlist) await addMangaToWatchlist(manga);
-        await updateMangaWatchlistEntry(manga.mal_id, { status });
+        await updateMangaWatchlistEntry(manga.mal_id, { status, ...(status === "Completed" && manga.chapters ? { progress: manga.chapters } : {}) });
       }
     } finally {
       setTrackerBusy(false);
+    }
+  };
+
+  const saveChapterProgress = async (nextProgress: number) => {
+    if (!trackedManga) return;
+    const normalized = Math.max(0, Math.min(Number(manga.chapters || Infinity), nextProgress));
+    setChapterProgress(normalized);
+    setProgressSaving(true);
+    try {
+      await updateMangaWatchlistEntry(manga.mal_id, { status: trackedManga.status, progress: normalized });
+    } finally {
+      setProgressSaving(false);
     }
   };
 
@@ -173,6 +200,13 @@ export const MangaDetails: React.FC = () => {
   const animeAdaptations = (manga.relations || []).filter(
     (r: any) => r.node?.type === "ANIME"
   );
+  const knownChapterCount = typeof manga.chapters === "number" ? manga.chapters : 0;
+  const chapterPageSize = 24;
+  const chapterPageCount = Math.max(1, Math.ceil(knownChapterCount / chapterPageSize));
+  const chapterStart = (chapterPage - 1) * chapterPageSize + 1;
+  const visibleChapters = knownChapterCount
+    ? Array.from({ length: Math.min(chapterPageSize, knownChapterCount - chapterStart + 1) }, (_, index) => chapterStart + index)
+    : [];
 
   return (
     <div className="min-h-screen bg-[#0a0a0e] text-white font-inter flex flex-col overflow-x-hidden">
@@ -185,7 +219,7 @@ export const MangaDetails: React.FC = () => {
       />
 
       {/* Back Button */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-20 pb-4 w-full relative z-20 flex flex-wrap items-center justify-between gap-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4 sm:pt-8 pb-4 w-full relative z-20 flex items-center">
         <button
           onClick={handleBack}
           className="inline-flex items-center gap-2 bg-[#12121a]/80 hover:bg-[#ffd700] text-neutral-300 hover:text-black border border-white/15 px-4 py-2 rounded-full text-xs font-montserrat font-bold transition-all shadow-md cursor-pointer hover:scale-105 backdrop-blur-md"
@@ -193,16 +227,10 @@ export const MangaDetails: React.FC = () => {
           <ArrowLeft size={14} />
           <span>Back</span>
         </button>
-        <div className="flex w-full sm:w-auto items-center gap-2">
-          <AppDropdown disabled={trackerBusy} ariaLabel="Set manga reading status" className="min-w-0 flex-1 sm:w-44 sm:flex-none" value={trackedManga?.status || ""} placeholder={trackerBusy ? "Saving..." : "Add to list"} onChange={handleTrackerStatus} options={[{ value: "Plan to Read", label: "Plan to Read" }, { value: "Reading", label: "Reading" }, { value: "Caught Up", label: "Caught Up" }, { value: "Completed", label: "Completed" }, { value: "On-Hold", label: "On Hold" }, { value: "Dropped", label: "Dropped" }, ...(isInMangaWatchlist ? [{ value: "remove", label: "Remove from list", tone: "danger" as const }] : [])]} />
-          <button onClick={handleShare} className="inline-flex min-w-0 flex-1 sm:flex-none items-center justify-center gap-2 bg-white/5 hover:bg-[#ffd700] text-white hover:text-black border border-white/15 px-3 sm:px-4 py-2 rounded-full text-[11px] sm:text-xs font-montserrat font-bold transition-colors">
-            <Share2 size={14} /><span><span className="sm:hidden">Share</span><span className="hidden sm:inline">Share manga</span></span>
-          </button>
-        </div>
       </div>
 
       {/* Hero Banner with Ambient Lighting */}
-      <div className="relative w-full h-[380px] md:h-[460px] max-w-7xl mx-auto px-4 sm:px-8 mb-10">
+      <div className="manga-detail-hero relative w-full h-[320px] sm:h-[380px] md:h-[460px] max-w-7xl mx-auto px-3 sm:px-8 mb-6 sm:mb-10">
         <div className="relative w-full h-full rounded-3xl overflow-hidden border border-[#ffd700]/30 shadow-[0_20px_50px_rgba(0,0,0,0.9)] bg-[#12121a]">
           {bannerImg && (
             <ProgressiveImage
@@ -232,15 +260,50 @@ export const MangaDetails: React.FC = () => {
                 {manga.title_japanese}
               </p>
             )}
+            <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold">
+              <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-emerald-300">{manga.status}</span>
+              <span className="rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-neutral-200">Started {formatMediaDate(manga.startDate)}</span>
+              <span className="rounded-full border border-[#ffd700]/30 bg-[#ffd700]/10 px-2.5 py-1 text-[#ffd700]">{knownChapterCount ? `${knownChapterCount} chapters` : "Chapter count pending"}</span>
+            </div>
           </div>
         </div>
       </div>
 
+      {trackedManga && (
+        <div className="mx-auto mb-6 w-full max-w-7xl px-3 sm:px-8">
+          <div className="media-progress" aria-label="Your chapter progress">
+            <div className="media-progress__heading"><span>Your reading progress</span><strong>{chapterProgress} / {manga.chapters || "?"} chapters</strong></div>
+            {manga.chapters ? (
+              <input
+                className="media-progress__slider"
+                aria-label={`Chapter progress: ${chapterProgress} of ${manga.chapters}`}
+                type="range"
+                min={0}
+                max={manga.chapters}
+                step={1}
+                value={chapterProgress}
+                style={{ "--progress": `${Math.min(100, (chapterProgress / manga.chapters) * 100)}%` } as React.CSSProperties}
+                onChange={(event) => setChapterProgress(Number(event.target.value))}
+                onPointerUp={() => void saveChapterProgress(chapterProgress)}
+                onKeyUp={() => void saveChapterProgress(chapterProgress)}
+                onBlur={() => void saveChapterProgress(chapterProgress)}
+              />
+            ) : <div className="media-progress__bar is-unknown" aria-label="Chapter total is not available" />}
+            <div className="media-progress__controls">
+              <button type="button" disabled={progressSaving || chapterProgress <= 0} onClick={() => void saveChapterProgress(chapterProgress - 1)}>−</button>
+              <input aria-label="Chapter progress" type="number" min={0} max={manga.chapters || undefined} value={chapterProgress} onChange={(event) => setChapterProgress(Math.max(0, Number(event.target.value) || 0))} onBlur={() => void saveChapterProgress(chapterProgress)} />
+              <button type="button" disabled={progressSaving || Boolean(manga.chapters && chapterProgress >= manga.chapters)} onClick={() => void saveChapterProgress(chapterProgress + 1)}>+</button>
+              <span>{progressSaving ? "Saving…" : trackedManga.status || "Reading"}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Details Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-16 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10">
+      <div className="manga-detail-layout max-w-7xl mx-auto px-3 sm:px-8 pb-16 w-full grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-10">
         {/* Left Column: Poster & Quick Meta */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="relative rounded-2xl overflow-hidden border-2 border-[#ffd700]/50 shadow-[0_20px_50px_rgba(0,0,0,0.9)] bg-neutral-900 group">
+          <div className="manga-detail-poster relative mx-auto w-full max-w-[250px] lg:max-w-none rounded-2xl overflow-hidden border-2 border-[#ffd700]/50 shadow-[0_20px_50px_rgba(0,0,0,0.9)] bg-neutral-900 group">
             {posterImg && (
               <ProgressiveImage
                 src={posterImg}
@@ -264,6 +327,13 @@ export const MangaDetails: React.FC = () => {
               <ImageIcon size={13} />
               <span>View Gallery</span>
             </button>
+          </div>
+
+          <div className="manga-detail-actions grid grid-cols-2 gap-2">
+            <AppDropdown disabled={trackerBusy} ariaLabel="Set manga reading status" className="col-span-2 w-full" value={trackedManga?.status || ""} placeholder={trackerBusy ? "Saving..." : "Add to list"} onChange={handleTrackerStatus} options={[{ value: "Plan to Read", label: "Plan to Read" }, { value: "Reading", label: "Reading" }, { value: "Caught Up", label: "Caught Up" }, { value: "Completed", label: "Completed" }, { value: "On-Hold", label: "On Hold" }, { value: "Dropped", label: "Dropped" }, ...(isInMangaWatchlist ? [{ value: "remove", label: "Remove from list", tone: "danger" as const }] : [])]} />
+            <button onClick={handleShare} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-[11px] font-bold text-white transition-colors hover:border-[#ffd700]/60 hover:text-[#ffd700]"><Share2 size={14} /><span>Share</span></button>
+            <button type="button" aria-pressed={isFavoriteManga} onClick={() => isFavoriteManga ? removeMangaFromFavourites(manga.mal_id) : addMangaToFavourites(manga)} className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[11px] font-bold ${isFavoriteManga ? "border-rose-400/60 bg-rose-400/15 text-rose-300" : "border-white/15 bg-white/5 text-white hover:border-rose-400/50 hover:text-rose-300"}`}><Heart size={14} fill={isFavoriteManga ? "currentColor" : "none"} /><span>Favorite</span></button>
+            <Link to={`/franchise/${manga.mal_id}`} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-[11px] font-bold text-white hover:border-[#ffd700]/60 hover:text-[#ffd700]"><GitBranch size={14} /><span>Franchise guide</span></Link>
           </div>
 
           {/* Key Facts Card */}
@@ -399,6 +469,21 @@ export const MangaDetails: React.FC = () => {
               {manga.synopsis || "No detailed synopsis available for this manga entry."}
             </p>
           </div>
+
+          <section className="manga-chapter-guide" aria-labelledby="manga-chapters-title">
+            <div className="manga-chapter-guide__header">
+              <div><span><ListOrdered size={13} /> Chapter guide</span><h2 id="manga-chapters-title">Published chapters</h2><p>AniList supplies the chapter count, but not individual official chapter titles or summaries. Missing names are shown honestly instead of being invented.</p></div>
+              {knownChapterCount > 0 && <strong>{knownChapterCount}</strong>}
+            </div>
+            {visibleChapters.length > 0 ? <>
+              <div className="manga-chapter-guide__grid">
+                {visibleChapters.map((chapter) => <article key={chapter} className={chapter === knownChapterCount ? "is-latest" : ""}>
+                  <span><Hash size={12} />{chapter}</span><div><h3>Chapter {chapter}</h3><p>{chapter === knownChapterCount ? "Latest chapter recorded by AniList" : "Official chapter title not supplied"}</p></div>
+                </article>)}
+              </div>
+              {chapterPageCount > 1 && <div className="manga-chapter-guide__pager"><button disabled={chapterPage === 1} onClick={() => setChapterPage((page) => Math.max(1, page - 1))}><ChevronLeft size={14} /> Previous</button><span>Page {chapterPage} of {chapterPageCount}</span><button disabled={chapterPage === chapterPageCount} onClick={() => setChapterPage((page) => Math.min(chapterPageCount, page + 1))}>Next <ChevronRight size={14} /></button></div>}
+            </> : <div className="manga-chapter-guide__empty">This publishing entry does not have a confirmed chapter total yet.</div>}
+          </section>
 
           {/* Related Anime Adaptations (Clickable Link Back to AnimeItem) */}
           {animeAdaptations.length > 0 && (

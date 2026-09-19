@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface ProgressiveImageProps
   extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {
@@ -25,6 +25,7 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
   const [resolvedSrc, setResolvedSrc] = useState(src || fallbackSrc);
   const [isLoading, setIsLoading] = useState(Boolean(src));
   const [usingFallback, setUsingFallback] = useState(!src);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     setResolvedSrc(src || fallbackSrc);
@@ -32,10 +33,36 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
     setIsLoading(Boolean(src));
   }, [src, fallbackSrc]);
 
+  useEffect(() => {
+    if (!isLoading) return;
+    const image = imageRef.current;
+    if (image?.complete) {
+      if (image.naturalWidth > 0) setIsLoading(false);
+      else if (resolvedSrc !== fallbackSrc) {
+        setResolvedSrc(fallbackSrc);
+        setUsingFallback(true);
+      } else setIsLoading(false);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      if (resolvedSrc !== fallbackSrc) {
+        setResolvedSrc(fallbackSrc);
+        setUsingFallback(true);
+      } else {
+        setIsLoading(false);
+      }
+    }, usingFallback ? 4500 : 12000);
+    return () => window.clearTimeout(timeout);
+  }, [fallbackSrc, isLoading, resolvedSrc, usingFallback]);
+
   return (
     <span className={`progressive-image ${usingFallback ? "progressive-image--fallback" : ""} ${wrapperClassName}`}>
       {isLoading && <span className="image-skeleton" aria-hidden="true" />}
       <img
+        ref={(node) => {
+          imageRef.current = node;
+          if (node?.complete && node.naturalWidth > 0) setIsLoading(false);
+        }}
         {...props}
         src={resolvedSrc}
         srcSet={usingFallback ? undefined : srcSet}

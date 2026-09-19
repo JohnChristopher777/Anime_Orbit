@@ -10,18 +10,32 @@ import ProgressiveImage from "./ProgressiveImage";
 import Footer from "./Footer";
 
 const Popular = lazy(() => import("./Popular"));
+const SeasonPolls = lazy(() => import("./SeasonPolls"));
+const FranchiseRankings = lazy(() => import("./FranchiseRankings"));
 
 const FEATURE_LINKS = [
-  { to: "/discovery", icon: Binoculars, eyebrow: "Anime Finder", title: "Remember the scene, not the title?", copy: "Upload a screenshot, describe a scene, search a quote, or get picks based on what you already like.", details: ["Screenshot match", "Scene clues", "Quote finder"], action: "Find an anime", artworkIndex: 1, layout: "spotlight" },
-  { to: "/watchlist", icon: Bookmark, eyebrow: "Your Watchlist", title: "Keep every show and manga in one place", copy: "Set watching or reading status, add start and finish dates, and save private notes for every title.", details: ["Watch status", "Start and finish dates", "Private notes"], action: "Open watchlist", artworkIndex: 3, layout: "reverse" },
-  { to: "/manga", icon: BookOpen, eyebrow: "Manga Library", title: "Find your next read", copy: "Browse manga, open full series pages, and track what you plan to read, are reading, or have finished.", details: ["Full manga search", "Reading status", "Chapter details"], action: "Browse manga", artworkIndex: 5, layout: "banner" },
-  { to: "/genres", icon: Layers3, eyebrow: "Browse Genres", title: "Jump straight into your mood", copy: "Explore action, romance, fantasy, slice of life, mystery, and other familiar anime genres.", details: ["17 genre shelves", "Fan favorites", "Quick sorting"], action: "Choose a genre", artworkIndex: 7, layout: "split" },
-  { to: "/favourites", icon: Heart, eyebrow: "Favorites", title: "Save the anime you would recommend", copy: "Keep your all-time favorites together and turn them into a personal tier list whenever you want.", details: ["Favorite shelf", "Personal tier list", "Easy sharing"], action: "See favorites", artworkIndex: 2, layout: "reverse" },
-  { to: "/profile", icon: User, eyebrow: "Your Profile", title: "See your anime life at a glance", copy: "Your tracked titles, favorites, reviews, and activity come together in one personal space.", details: ["Watch stats", "Top genres", "Recent activity"], action: "View profile", artworkIndex: 4, layout: "banner" },
-  { to: "/my-reviews", icon: MessageCircle, eyebrow: "Your Reviews", title: "Rate a series and share your take", copy: "Return to every review you posted, update your opinion, and help other fans decide what to watch.", details: ["Your ratings", "Written reviews", "Quick return"], action: "Read your reviews", artworkIndex: 6, layout: "split" },
-  { to: "/my-comments", icon: MessageSquare, eyebrow: "Discussions", title: "Pick up the conversation", copy: "Find the anime discussions you joined and keep talking with other fans without losing the thread.", details: ["Joined threads", "Spoiler controls", "Community replies"], action: "Open discussions", artworkIndex: 8, layout: "reverse" },
-  { to: "/about", icon: Info, eyebrow: "About Anime Orbit", title: "Built for finding, tracking, and talking anime", copy: "See how the app brings anime details, manga, discovery, lists, and community features together.", details: ["What is included", "How discovery works", "Privacy basics"], action: "About the project", artworkIndex: 0, layout: "banner" },
+  { to: "/discovery", icon: Binoculars, eyebrow: "Anime Finder", title: "Find an anime", copy: "Search with a screenshot, scene description, quote, mood, or titles you already enjoy.", details: ["Screenshot search", "Scene search", "Quote search"], action: "Open Anime Finder", artworkIndex: 1, layout: "spotlight" },
+  { to: "/watchlist", icon: Bookmark, eyebrow: "Watchlist", title: "Track anime and manga", copy: "Update episode or chapter progress, choose a status, and keep dates and notes with each title.", details: ["Episode progress", "Reading progress", "Notes & dates"], action: "View Watchlist", artworkIndex: 3, layout: "reverse" },
+  { to: "/manga", icon: BookOpen, eyebrow: "Manga", title: "Browse manga", copy: "Search the manga catalogue, check publication details, and add titles to your reading list.", details: ["Manga search", "Publication status", "Chapter totals"], action: "Browse Manga", artworkIndex: 5, layout: "banner" },
+  { to: "/genres", icon: Layers3, eyebrow: "Genres", title: "Browse by genre", copy: "Open Action, Romance, Fantasy, Slice of Life, Mystery, and other familiar categories.", details: ["17 genres", "Popular titles", "Sort and filter"], action: "Browse Genres", artworkIndex: 7, layout: "split" },
+  { to: "/favourites", icon: Heart, eyebrow: "Favorites", title: "Favorites and tier lists", copy: "Save favorite anime and manga, then rank your anime in a personal tier list.", details: ["Anime favorites", "Manga favorites", "Tier list"], action: "View Favorites", artworkIndex: 2, layout: "reverse" },
+  { to: "/profile", icon: User, eyebrow: "Profile", title: "Your anime stats", copy: "See episodes watched, estimated watch time, top genres, list activity, and your anime fingerprint.", details: ["Watch time", "Top genres", "Anime fingerprint"], action: "View Profile", artworkIndex: 4, layout: "banner" },
+  { to: "/my-reviews", icon: MessageCircle, eyebrow: "Reviews", title: "Your ratings and reviews", copy: "Read or revisit the scores and reviews you have posted for anime.", details: ["Ratings", "Written reviews", "Review history"], action: "View Reviews", artworkIndex: 6, layout: "split" },
+  { to: "/my-comments", icon: MessageSquare, eyebrow: "Discussions", title: "Your anime discussions", copy: "Return to comment threads, replies, and conversations you joined.", details: ["Comments", "Replies", "Spoiler controls"], action: "View Discussions", artworkIndex: 8, layout: "reverse" },
+  { to: "/about", icon: Info, eyebrow: "Anime Orbit", title: "About this project", copy: "Learn what Anime Orbit includes, how recommendations work, and how account data is handled.", details: ["Features", "Data & privacy", "Project details"], action: "About Anime Orbit", artworkIndex: 0, layout: "banner" },
 ];
+
+const FeaturePreview = ({ feature }: { feature: string }) => {
+  if (feature === "discovery") return <div className="feature-demo feature-demo--finder"><span>Describe a scene…</span><div><i /><b>3 close matches</b></div><div><i /><b>92% match</b></div></div>;
+  if (feature === "watchlist") return <div className="feature-demo feature-demo--tracker"><header><b>Watching</b><span>12 titles</span></header><div><i style={{ width: "76%" }} /><b>18 / 24 episodes</b></div><div><i style={{ width: "42%" }} /><b>5 / 12 episodes</b></div><div><i style={{ width: "90%" }} /><b>Caught up</b></div></div>;
+  if (feature === "manga") return <div className="feature-demo feature-demo--manga"><div><span>CH. 108</span></div><div><span>CH. 109</span></div><aside><b>Continue reading</b><small>Page 16 of 32</small></aside></div>;
+  if (feature === "genres") return <div className="feature-demo feature-demo--genres"><span>Action</span><span>Romance</span><span>Fantasy</span><span>Slice of Life</span><span>Mystery</span><b>Pick your mood</b></div>;
+  if (feature === "favourites") return <div className="feature-demo feature-demo--tiers"><div><b>S</b><i /><i /><i /></div><div><b>A</b><i /><i /></div><div><b>B</b><i /><i /><i /><i /></div></div>;
+  if (feature === "profile") return <div className="feature-demo feature-demo--profile"><svg viewBox="0 0 100 100"><polygon points="50,8 90,38 75,86 25,86 10,38" /><polygon points="50,20 80,41 69,74 31,71 22,41" /></svg><div><b>246h</b><span>watch time</span><b>612</b><span>episodes</span></div></div>;
+  if (feature === "my-reviews") return <div className="feature-demo feature-demo--reviews"><strong>9.0</strong><div><b>Worth the journey</b><p>Great character growth and a finale that lands.</p><span>Helpful · 42</span></div></div>;
+  if (feature === "my-comments") return <div className="feature-demo feature-demo--chat"><div><i />That final scene changed everything.</div><div><i />Exactly — the callback was perfect.</div><span>Reply to the discussion…</span></div>;
+  return <div className="feature-demo feature-demo--about"><b>DISCOVER</b><i /><b>TRACK</b><i /><b>READ</b><i /><b>DISCUSS</b></div>;
+};
 
 export function Homepage() {
   const {
@@ -91,30 +105,30 @@ export function Homepage() {
 
     return (
       <div className="home-catalog">
-        <AnimeRow title="Most Popular" items={safePopularAnime} to="/popular" loading={homeLoading} />
         <AnimeRow title="New Episodes" items={Array.isArray(airingAnime) ? airingAnime : []} to="/airing" loading={homeLoading} />
+        <AnimeRow title="Most Popular" items={safePopularAnime} to="/popular" loading={homeLoading} />
         <AnimeRow title="Coming Soon" items={Array.isArray(upcomingAnime) ? upcomingAnime : []} to="/upcoming" loading={homeLoading} />
+        <SeasonPolls />
+        <FranchiseRankings anime={safePopularAnime} />
         <div className="home-feature-stories" aria-labelledby="feature-guide-title">
-          <div className="home-feature-stories__intro">
-            <span>Everything in one orbit</span>
-            <h2 id="feature-guide-title">More than an anime chart</h2>
-            <p>Each part of Anime Orbit has its own home, so you can discover, track, read, and join the conversation without digging through menus.</p>
-          </div>
-          {FEATURE_LINKS.map(({ to, icon: Icon, eyebrow, title, copy, details, action, artworkIndex, layout }) => {
+          <header className="home-feature-stories__intro">
+            <h2 id="feature-guide-title">Anime site guide</h2>
+            <p>Discovery, tracking, manga, genres, reviews, and community—all in one place.</p>
+          </header>
+          {FEATURE_LINKS.map(({ to, icon: Icon, eyebrow, title, copy, action, artworkIndex, layout }) => {
               const artworkAnime = [...topAiringAnime, ...safePopularAnime][artworkIndex];
               const artwork = artworkAnime?.banner_image || artworkAnime?.images?.jpg?.large_image_url;
+              const feature = to.slice(1);
               return (
-                <section key={to} data-feature={to.slice(1)} className={`home-feature-story home-feature-story--${layout}`}>
+                <section key={to} data-feature={feature} className={`home-feature-story home-feature-story--${layout}`}>
                   <div className="home-feature-story__art" aria-hidden="true">
-                    {artwork ? <ProgressiveImage src={artwork} alt="" wrapperClassName="absolute inset-0" className="h-full w-full object-cover" /> : <Icon size={72} />}
+                    {artwork && <ProgressiveImage src={artwork} alt="" wrapperClassName="home-feature-story__background" className="h-full w-full object-cover" />}
+                    <FeaturePreview feature={feature} />
                   </div>
                   <div className="home-feature-story__copy">
                     <span className="home-feature-story__eyebrow"><Icon size={16} /> {eyebrow}</span>
                     <h3>{title}</h3>
                     <p>{copy}</p>
-                    <div className="home-feature-story__details" aria-label={`${eyebrow} features`}>
-                      {details.map((detail) => <span key={detail}><span aria-hidden="true" />{detail}</span>)}
-                    </div>
                     <Link to={to}>{action}<ArrowRight size={17} /></Link>
                   </div>
                 </section>
@@ -133,7 +147,7 @@ export function Homepage() {
         keywords="Anime Orbit, anime database, anime compass, all genres anime, One Piece, Bleach, Naruto, Vinland Saga, Attack on Titan, Jujutsu Kaisen"
         url="https://animeorbit.web.app/"
       />
-      {!search && <HeroCarousel trendingAnime={topAiringAnime} />}
+      {!search && <HeroCarousel trendingAnime={topAiringAnime} loading={homeLoading} />}
 
       <main className={`flex-1 ${search ? "mt-24 px-4" : ""}`}>
         <Suspense

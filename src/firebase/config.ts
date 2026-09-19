@@ -3,9 +3,13 @@ import { getAuth, type Auth } from 'firebase/auth';
 import { initializeFirestore, getFirestore, type Firestore } from 'firebase/firestore';
 
 // Resilient Firebase configuration with embedded default keys ensuring zero invalid-api-key errors across all deployments
+const hostedAuthDomain = typeof window !== "undefined" && /(^|\.)animeorbit\.web\.app$/i.test(window.location.hostname)
+  ? window.location.hostname
+  : undefined;
+
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBhH8xG5J5cz3E6KGKbqJ3bC-i64WSLyXA",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "shonen-anime-db.firebaseapp.com",
+    authDomain: hostedAuthDomain || import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "shonen-anime-db.firebaseapp.com",
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "shonen-anime-db",
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "shonen-anime-db.firebasestorage.app",
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "467498744963",

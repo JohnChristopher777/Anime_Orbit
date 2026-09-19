@@ -91,12 +91,9 @@ export const Nav: React.FC = () => {
 
   useEffect(() => {
     if (!mobileSearchOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const closeWithEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileSearchOpen(false); };
     document.addEventListener("keydown", closeWithEscape);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", closeWithEscape);
     };
   }, [mobileSearchOpen]);
@@ -104,7 +101,7 @@ export const Nav: React.FC = () => {
   useEffect(() => {
     const query = searchQuery.trim();
     const requestId = ++suggestionRequest.current;
-    if (query.length < 2) {
+    if (query.length < 1) {
       setSuggestions([]);
       setSuggestionsLoading(false);
       setShowSuggestions(false);
@@ -469,12 +466,12 @@ export const Nav: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Frosted Expandable Search Bar Dropdown (Screen < md) */}
+        {/* Compact mobile search below the navbar */}
         {mobileSearchOpen && (
-          <div className="md:hidden fixed inset-0 z-[2500] bg-[#101014] overflow-y-auto px-4 py-6 animate-in fade-in duration-150" role="dialog" aria-modal="true" aria-label="Search anime">
+          <div className="md:hidden absolute top-full left-0 right-0 z-[60] border-b border-white/10 bg-[#141414]/95 px-3 py-2.5 shadow-[0_16px_35px_rgba(0,0,0,.65)] backdrop-blur-xl animate-in fade-in slide-in-from-top-1 duration-150" role="search" aria-label="Search anime">
             <div className="w-full max-w-xl mx-auto">
-            <div className="flex items-center justify-between mb-5"><div><span className="text-[10px] uppercase tracking-wider font-bold text-[#ffd700]">Anime Orbit</span><h2 className="font-montserrat font-black text-xl text-white">Search anime</h2></div><button type="button" onClick={() => { setMobileSearchOpen(false); setShowSuggestions(false); }} className="grid w-10 h-10 place-items-center rounded-full border border-white/15 bg-white/5 text-white" aria-label="Close search"><X size={19} /></button></div>
-            <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+            <div className="flex items-center gap-2">
+            <form onSubmit={handleSearchSubmit} className="relative flex flex-1 items-center">
               <Search
                 size={16}
                 className="absolute left-3.5 text-[#ffd700] pointer-events-none"
@@ -484,13 +481,13 @@ export const Nav: React.FC = () => {
                 name="mobileSearch"
                 type="text"
                 autoFocus
-                placeholder="Search anime across all genres..."
+                placeholder="Search anime..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => {
                   if (suggestions.length > 0) setShowSuggestions(true);
                 }}
-                className="w-full bg-[#19191f] border border-white/20 focus:border-[#ffd700] text-white text-sm pl-10 pr-9 py-2.5 rounded-full outline-none transition-all placeholder-neutral-400 focus:bg-[#19191f] focus:shadow-[0_0_20px_rgba(255,215,0,0.22)] shadow-inner"
+                className="w-full bg-white/[0.09] border border-white/20 focus:border-[#ffd700] text-white text-sm pl-10 pr-9 py-2.5 rounded-full outline-none transition-all placeholder-neutral-400 focus:bg-white/[0.12] focus:shadow-[0_0_16px_rgba(255,215,0,0.18)]"
               />
               {searchQuery && (
                 <button
@@ -506,10 +503,12 @@ export const Nav: React.FC = () => {
                 </button>
               )}
             </form>
+            <button type="button" onClick={() => { setMobileSearchOpen(false); setShowSuggestions(false); }} className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full border border-white/20 bg-white/[0.09] text-neutral-300 hover:border-[#ffd700] hover:text-[#ffd700]" aria-label="Close search"><X size={17} /></button>
+            </div>
 
             {/* Mobile Suggestions Dropdown */}
             {showSuggestions && (suggestionsLoading || suggestions.length > 0) && (
-              <div className="nav-search-results mt-2.5 bg-[#15151b] border border-white/15 rounded-2xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-white/10 shadow-2xl">
+              <div className="nav-search-results mt-2.5 border border-white/15 rounded-xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-white/10 shadow-2xl">
                 {suggestionsLoading && <div className="nav-search-results__loading"><span /><span /><span /></div>}
                 {!suggestionsLoading && Array.from(
                   new Map(suggestions.map((item) => [item.mal_id, item])).values()
@@ -520,10 +519,16 @@ export const Nav: React.FC = () => {
                     anime.images?.jpg?.large_image_url;
 
                   return (
-                    <div
+                    <Link
                       key={`mob-sugg-${anime.mal_id}-${idx}`}
-                      onClick={() => handleSuggestionClick(anime.mal_id)}
-                      className="flex items-center gap-3 p-2.5 hover:bg-[#ffd700]/15 cursor-pointer transition-colors"
+                      to={`/anime/${anime.mal_id}`}
+                      onClick={() => {
+                        setShowSuggestions(false);
+                        setMobileSearchOpen(false);
+                        setSearchQuery("");
+                        setSearch("");
+                      }}
+                      className="flex items-center gap-3 bg-[#0f0f14]/95 p-2.5 hover:bg-[#ffd700]/15 cursor-pointer transition-colors"
                     >
                       <ProgressiveImage
                         src={img}
@@ -546,12 +551,12 @@ export const Nav: React.FC = () => {
                           <span>{anime.type || "TV"}</span>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
             )}
-            {!suggestionsLoading && searchQuery.trim().length >= 2 && showSuggestions && suggestions.length === 0 && <div className="mt-3 rounded-2xl border border-white/10 bg-[#15151b] p-8 text-center text-sm text-neutral-400">No matching anime found.</div>}
+            {!suggestionsLoading && searchQuery.trim().length >= 1 && showSuggestions && suggestions.length === 0 && <div className="mt-2 rounded-xl border border-white/10 bg-[#15151b] p-4 text-center text-xs text-neutral-400">No matching anime found.</div>}
             </div>
           </div>
         )}

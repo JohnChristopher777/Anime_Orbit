@@ -34,6 +34,7 @@ import AuthModal from "./AuthModal";
 import SEO from "./SEO";
 import Footer from "./Footer";
 import AppDropdown from "./AppDropdown";
+import { getAnimeListByIds } from "../services/anilist";
 
 const AVATAR_PRESETS = [
   "/avatars/1.png",
@@ -74,6 +75,7 @@ export const Profile: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [genreBackfill, setGenreBackfill] = useState<Record<number, string[]>>({});
 
   // Deletion States
   const [deletionScheduled, setDeletionScheduled] = useState(false);
@@ -172,6 +174,30 @@ export const Profile: React.FC = () => {
     };
     fetchUserProfile();
   }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const missingIds = [...watchlist, ...favourites]
+      .filter((item) => !(item.genres || []).length && !genreBackfill[item.mal_id])
+      .map((item) => Number(item.mal_id))
+      .filter(Boolean);
+    if (!missingIds.length) return;
+    let active = true;
+    getAnimeListByIds([...new Set(missingIds)]).then((titles: any[]) => {
+      if (!active) return;
+      setGenreBackfill((current) => {
+        const next = { ...current };
+        missingIds.forEach((mediaId) => { if (!next[mediaId]) next[mediaId] = []; });
+        titles.forEach((title) => {
+          next[Number(title.mal_id)] = (title.genres || [])
+            .map((genre: any) => typeof genre === "string" ? genre : genre?.name)
+            .filter(Boolean);
+        });
+        return next;
+      });
+    });
+    return () => { active = false; };
+  }, [currentUser, watchlist, favourites, genreBackfill]);
 
   // Validate User ID: 15 chars max, at least 1 number, at least 1 uppercase letter, allowed: . @ - _
   const validateUserId = (id: string): string | null => {
@@ -398,7 +424,8 @@ export const Profile: React.FC = () => {
   const pausedCount = watchlist.filter((item) => item.status === "On-Hold" || item.status === "Dropped").length;
   const completionRate = watchlist.length ? Math.round((completedCount / watchlist.length) * 100) : 0;
   const genreCounts = [...watchlist, ...favourites].reduce<Record<string, number>>((counts, item: any) => {
-    (item.genres || []).forEach((rawGenre: any) => {
+    const genres = (item.genres || []).length ? item.genres : genreBackfill[item.mal_id] || [];
+    genres.forEach((rawGenre: any) => {
       const genre = typeof rawGenre === "string" ? rawGenre : rawGenre?.name;
       if (genre) counts[genre] = (counts[genre] || 0) + 1;
     });
@@ -406,6 +433,29 @@ export const Profile: React.FC = () => {
   }, {});
   const topGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxGenreCount = topGenres[0]?.[1] || 1;
+  const totalEpisodesWatched = watchlist.reduce((total, item) => {
+    const logged = Math.max(0, Number(item.progress || 0));
+    if (item.status === "Completed" && item.episodes) return total + Math.max(logged, Number(item.episodes));
+    return total + logged;
+  }, 0);
+  const watchMinutes = watchlist.reduce((total, item) => {
+    const logged = Math.max(0, Number(item.progress || 0));
+    const completed = item.status === "Completed";
+    const isMovie = String(item.type || "").toLowerCase() === "movie";
+    if (isMovie) return total + (completed || logged > 0 ? 120 : 0);
+    return total + (completed && item.episodes ? Math.max(logged, Number(item.episodes)) : logged) * 24;
+  }, 0);
+  const interestAxes = Array.from({ length: 5 }, (_, index) => topGenres[index] || [`Taste ${index + 1}`, 0] as [string, number]);
+  const radarPoints = interestAxes.map(([, count], index) => {
+    const angle = -Math.PI / 2 + index * (Math.PI * 2 / 5);
+    const radius = 42 * (Number(count) / maxGenreCount);
+    return `${50 + Math.cos(angle) * radius},${50 + Math.sin(angle) * radius}`;
+  }).join(" ");
+  const radarGridPoints = (scale: number) => interestAxes.map((_, index) => {
+    const angle = -Math.PI / 2 + index * (Math.PI * 2 / 5);
+    return `${50 + Math.cos(angle) * 42 * scale},${50 + Math.sin(angle) * 42 * scale}`;
+  }).join(" ");
+  const identityGenre = topGenres[0]?.[0] || favoriteGenre || "Anime";
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
@@ -416,7 +466,7 @@ export const Profile: React.FC = () => {
         url="https://animeorbit.web.app/profile"
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 space-y-6 flex-1 w-full">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-16 space-y-6 flex-1 w-full">
         {/* Birthday Banner Greeting */}
         {isBirthdayToday && (
           <div className="relative bg-[#18181d] border border-[#ffd700]/35 rounded-2xl p-5 sm:p-6 text-center shadow-lg">
@@ -463,9 +513,9 @@ export const Profile: React.FC = () => {
         )}
 
         {/* Main Profile View Card with Cover Banner */}
-        <div className="relative bg-[#15151a] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+        <div className="profile-card relative bg-[#15151a] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
           {/* Custom Header Cover Banner */}
-          <div className="relative h-36 sm:h-48 w-full overflow-hidden bg-neutral-900">
+          <div className="profile-cover relative h-36 sm:h-48 w-full overflow-hidden bg-neutral-900">
             <img
               src={bannerUrl || BANNER_PRESETS[3]}
               alt="Profile Cover Banner"
@@ -510,7 +560,7 @@ export const Profile: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="space-y-2 min-w-0 sm:pb-2">
+                <div className="profile-identity-panel space-y-2 min-w-0 sm:pb-2">
                   <div className="flex items-center gap-2.5 justify-center sm:justify-start flex-wrap">
                     <h1 className="text-2xl sm:text-3xl font-black font-montserrat text-white truncate">
                       {displayName || currentUser.email?.split("@")[0]}
@@ -539,6 +589,12 @@ export const Profile: React.FC = () => {
                       @{userId}
                     </p>
                   )}
+
+                  <div className="profile-identity-stamp" aria-label="Anime profile identity">
+                    <span>Anime Orbit profile</span>
+                    <strong>{identityGenre} fan</strong>
+                    <small>{completedCount} completed · {Math.round(watchMinutes / 60)} watch hours</small>
+                  </div>
 
                   {/* Joined Date & Email */}
                   <div className="flex items-center gap-3 justify-center sm:justify-start text-xs text-neutral-400 flex-wrap">
@@ -591,6 +647,8 @@ export const Profile: React.FC = () => {
                 <div><strong>{caughtUpCount}</strong><span>Caught up</span></div>
                 <div><strong>{completedCount}</strong><span>Completed</span></div>
                 <div><strong>{favourites.length}</strong><span>Favorites</span></div>
+                <div><strong>{totalEpisodesWatched}</strong><span>Episodes watched</span></div>
+                <div><strong>{Math.round(watchMinutes / 60)}</strong><span>Watch hours</span></div>
               </div>
               <div className="profile-insights__demographics">
                 <div className="profile-completion">
@@ -598,6 +656,7 @@ export const Profile: React.FC = () => {
                   <div><h3>List progress</h3><p>{watchlist.length ? `${completedCount} completed · ${caughtUpCount} caught up · ${pausedCount} paused or dropped` : "Start tracking anime to build your viewing overview."}</p><div className="profile-status-bar"><span style={{ width: `${(watchingCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(caughtUpCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(completedCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(planToWatchCount / (watchlist.length || 1)) * 100}%` }} /></div></div>
                 </div>
                 <div className="profile-genres"><h3>Most watched genres</h3>{topGenres.length ? topGenres.map(([genre, count]) => <div key={genre}><span>{genre}</span><i><b style={{ width: `${(count / maxGenreCount) * 100}%` }} /></i><small>{count}</small></div>) : <p>Add genres through your Watchlist and Favorites to see your taste here.</p>}</div>
+                <div className="profile-radar"><div><span>Your anime fingerprint</span><h3>{userId ? `@${userId}` : displayName || "Anime fan"}</h3><p>Built from genres in your Watchlist and Favorites.</p></div><div className="profile-radar__chart"><svg viewBox="0 0 100 100" role="img" aria-label="Interest web chart">{[1,.75,.5,.25].map((scale) => <polygon key={scale} points={radarGridPoints(scale)} className="profile-radar__grid" />)}{interestAxes.map((_, index) => { const angle = -Math.PI / 2 + index * (Math.PI * 2 / 5); return <line key={`axis-${index}`} x1="50" y1="50" x2={50 + Math.cos(angle) * 42} y2={50 + Math.sin(angle) * 42} className="profile-radar__axis" />; })}<polygon points={radarPoints || "50,50 50,50 50,50 50,50 50,50"} className="profile-radar__area" />{interestAxes.map(([genre], index) => { const angle = -Math.PI / 2 + index * (Math.PI * 2 / 5); return <circle key={`${genre}-${index}`} cx={50 + Math.cos(angle) * 42 * (Number(interestAxes[index][1]) / maxGenreCount)} cy={50 + Math.sin(angle) * 42 * (Number(interestAxes[index][1]) / maxGenreCount)} r="2" />; })}</svg>{interestAxes.map(([genre], index) => <span key={`${genre}-label`} data-axis={index}>{genre}</span>)}</div></div>
               </div>
             </section>
           </div>

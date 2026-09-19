@@ -5,12 +5,17 @@ import {
     signOut,
     onAuthStateChanged,
     GoogleAuthProvider,
+    getRedirectResult,
     signInWithPopup,
+    signInWithRedirect,
+    setPersistence,
+    browserLocalPersistence,
     updateProfile,
     sendPasswordResetEmail,
     type User as FirebaseUser
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
+import { toast } from 'react-toastify';
 
 interface AuthContextType {
     currentUser: FirebaseUser | null;
@@ -52,7 +57,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const signInWithGoogle = async () => {
         const provider = new GoogleAuthProvider();
-        return signInWithPopup(auth, provider);
+        provider.setCustomParameters({ prompt: "select_account" });
+        await setPersistence(auth, browserLocalPersistence);
+        const prefersRedirect = typeof window !== "undefined"
+            && (window.matchMedia("(max-width: 767px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+        if (prefersRedirect) {
+            await signInWithRedirect(auth, provider);
+            return null;
+        }
+        try {
+            return await signInWithPopup(auth, provider);
+        } catch (error: any) {
+            if (["auth/popup-blocked", "auth/operation-not-supported-in-this-environment", "auth/web-storage-unsupported"].includes(error?.code)) {
+                await signInWithRedirect(auth, provider);
+                return null;
+            }
+            throw error;
+        }
     };
 
     const logout = async () => {
@@ -64,6 +85,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     useEffect(() => {
+        getRedirectResult(auth).catch((error: any) => {
+            const messages: Record<string, string> = {
+                "auth/unauthorized-domain": `Google sign-in is not authorized for ${window.location.hostname}.`,
+                "auth/operation-not-allowed": "Google sign-in is disabled for this Firebase project.",
+                "auth/network-request-failed": "Google sign-in could not connect. Check your network and try again.",
+            };
+            toast.error(messages[error?.code] || "Google sign-in could not be completed.");
+        });
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setCurrentUser(user);
             setLoading(false);

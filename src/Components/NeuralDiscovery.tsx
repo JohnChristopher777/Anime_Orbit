@@ -170,6 +170,7 @@ export const NeuralDiscovery: React.FC = () => {
   const [personalLoading, setPersonalLoading] = React.useState(false);
   const [libraryHydrating, setLibraryHydrating] = React.useState(false);
   const [libraryDetails, setLibraryDetails] = React.useState<any[]>([]);
+  const [libraryReadyKey, setLibraryReadyKey] = React.useState("");
   const [personalError, setPersonalError] = React.useState("");
   const initialVibeLoaded = React.useRef(false);
   const personalTasteLoaded = React.useRef("");
@@ -187,13 +188,24 @@ export const NeuralDiscovery: React.FC = () => {
   const savedLibraryKey = savedLibraryIds.join("|");
 
   React.useEffect(() => {
-    if (activeTab !== "for-you" || !savedLibraryKey || hydratedLibraryKey.current === savedLibraryKey) return;
+    if (!savedLibraryKey) {
+      setLibraryDetails([]);
+      setLibraryReadyKey("");
+      return;
+    }
+    if (activeTab !== "for-you" || hydratedLibraryKey.current === savedLibraryKey) return;
     let current = true;
     hydratedLibraryKey.current = savedLibraryKey;
     setLibraryHydrating(true);
+    setLibraryDetails([]);
     getAnimeListByIds(savedLibraryIds.slice(0, 50))
       .then((items: any[]) => { if (current) setLibraryDetails(Array.isArray(items) ? items : []); })
-      .finally(() => { if (current) setLibraryHydrating(false); });
+      .finally(() => {
+        if (current) {
+          setLibraryReadyKey(savedLibraryKey);
+          setLibraryHydrating(false);
+        }
+      });
     return () => { current = false; };
   }, [activeTab, savedLibraryIds, savedLibraryKey]);
 
@@ -422,19 +434,21 @@ export const NeuralDiscovery: React.FC = () => {
   };
 
   const buildRecommendations = React.useCallback(async () => {
-    if (!taste.length) return;
+    if (!savedLibraryIds.length) return;
     setPersonalLoading(true);
     setPersonalError("");
     setPersonalResults([]);
     try {
-      const responses = await Promise.allSettled(taste.map((genre) => getAnimeByGenre(genre, 18, 1, "POPULARITY_DESC")));
-      const savedIds = new Set([...favourites, ...watchlist].map((item: any) => item.mal_id));
+      const responses = taste.length
+        ? await Promise.allSettled(taste.map((genre) => getAnimeByGenre(genre, 18, 1, "POPULARITY_DESC")))
+        : [];
+      const savedIds = new Set(savedLibraryIds);
       const candidates = responses.flatMap((response) => response.status === "fulfilled" ? response.value.media || [] : []);
       if (!candidates.length) {
-        const fallback = await getPopularAnime(18, 1);
+        const fallback = await getPopularAnime(36, 1);
         candidates.push(...(fallback.media || []));
       }
-      const unique = [...new Map(candidates.filter((item: any) => !savedIds.has(item.mal_id)).map((item: any) => [item.mal_id, item])).values()] as any[];
+      const unique = [...new Map(candidates.filter((item: any) => !savedIds.has(Number(item.mal_id))).map((item: any) => [item.mal_id, item])).values()] as any[];
       unique.sort((a, b) => {
         const matches = (item: any) => (item.genres || []).filter((raw: any) => taste.includes(typeof raw === "string" ? raw : raw?.name)).length;
         return matches(b) - matches(a) || Number(b.score || 0) - Number(a.score || 0);
@@ -446,7 +460,7 @@ export const NeuralDiscovery: React.FC = () => {
     } finally {
       setPersonalLoading(false);
     }
-  }, [taste, favourites, watchlist]);
+  }, [taste, savedLibraryIds]);
 
   React.useEffect(() => {
     if (activeTab === "vibe" && !initialVibeLoaded.current) {
@@ -456,12 +470,12 @@ export const NeuralDiscovery: React.FC = () => {
   }, [activeTab, discoverGenre]);
 
   React.useEffect(() => {
-    const tasteKey = taste.join("|");
-    if (activeTab === "for-you" && tasteKey && personalTasteLoaded.current !== tasteKey) {
-      personalTasteLoaded.current = tasteKey;
+    const recommendationKey = `${savedLibraryKey}:${taste.join("|")}`;
+    if (activeTab === "for-you" && savedLibraryKey && libraryReadyKey === savedLibraryKey && personalTasteLoaded.current !== recommendationKey) {
+      personalTasteLoaded.current = recommendationKey;
       buildRecommendations();
     }
-  }, [activeTab, taste, buildRecommendations]);
+  }, [activeTab, taste, savedLibraryKey, libraryReadyKey, buildRecommendations]);
 
   const tabs: { id: FinderTab; label: string; icon: React.ElementType }[] = [
     { id: "screenshot", label: "Screenshot", icon: ImageIcon },
@@ -547,8 +561,8 @@ export const NeuralDiscovery: React.FC = () => {
 
         {activeTab === "for-you" && (
           <section className="finder-panel">
-            <div className="finder-panel__heading"><div><span>Your library</span><h2>Recommendations from what you saved</h2><p>Uses the genres in your favorites and anime watchlist, then leaves out titles already saved.</p></div>{taste.length > 0 && <button className="finder-refresh" onClick={buildRecommendations} disabled={personalLoading}><RefreshCw size={15} className={personalLoading ? "animate-spin" : ""} />Refresh picks</button>}</div>
-            {libraryHydrating ? <ResultSkeleton /> : !taste.length ? <div className="finder-library-empty"><Sparkles size={28} /><h3>Build a little history first</h3><p>Add a few anime to Favorites or Watchlist. Your picks will be built from their real genres.</p><div><Link to="/favourites"><Heart size={15} />Favorites</Link><Link to="/watchlist"><Bookmark size={15} />Watchlist</Link></div></div> : <><div className="finder-taste">Based on {taste.map((genre) => <span key={genre}><CheckCircle2 size={13} />{genre}</span>)}</div>{personalError && <div className="finder-error"><AlertCircle size={17} />{personalError}</div>}{personalLoading ? <ResultSkeleton /> : <AnimeResults items={personalResults} />}</>}
+            <div className="finder-panel__heading"><div><span>Your library</span><h2>Recommendations from what you saved</h2><p>Uses your favorites and anime watchlist, then leaves out titles already saved.</p></div>{savedLibraryIds.length > 0 && <button className="finder-refresh" onClick={buildRecommendations} disabled={personalLoading || libraryHydrating}><RefreshCw size={15} className={personalLoading ? "animate-spin" : ""} />Refresh picks</button>}</div>
+            {!savedLibraryIds.length ? <div className="finder-library-empty"><Sparkles size={28} /><h3>Build a little history first</h3><p>Add a few anime to Favorites or Watchlist and your picks will appear here.</p><div><Link to="/favourites"><Heart size={15} />Favorites</Link><Link to="/watchlist"><Bookmark size={15} />Watchlist</Link></div></div> : libraryHydrating ? <ResultSkeleton /> : <><div className="finder-taste">Based on {taste.length ? taste.map((genre) => <span key={genre}><CheckCircle2 size={13} />{genre}</span>) : <span><CheckCircle2 size={13} />Your saved anime</span>}</div>{personalError && <div className="finder-error"><AlertCircle size={17} />{personalError}</div>}{personalLoading ? <ResultSkeleton /> : <AnimeResults items={personalResults} empty="No new picks are available yet. Refresh to try again." />}</>}
           </section>
         )}
       </main>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getAnimeByGenre } from "../services/anilist";
+import { getAnimeByGenre, getAnimeListByIds } from "../services/anilist";
 import AnimeCard from "./AnimeCard";
 import SEO from "./SEO";
 import Footer from "./Footer";
@@ -12,9 +12,9 @@ import AppDropdown from "./AppDropdown";
 
 interface GenreCategory {
   id: number;
+  mediaId: number;
   name: string;
   representativeTitle: string;
-  localPath: string;
   fallbackImage: string;
   accent: string;
   tagline: string;
@@ -25,9 +25,9 @@ interface GenreCategory {
 const GENRE_CATEGORIES: GenreCategory[] = [
   {
     id: 1,
+    mediaId: 16498,
     name: "Action",
     representativeTitle: "Attack on Titan",
-    localPath: "/genres/1.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-C6FPmWm59CyP.jpg",
     accent: "#ff4d4d",
     tagline: "Big fights, rivalries, training arcs, and power-ups",
@@ -36,9 +36,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 2,
+    mediaId: 21,
     name: "Adventure",
     representativeTitle: "One Piece",
-    localPath: "/genres/2.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21-YCDoj1EkAxFn.jpg",
     accent: "#ffa500",
     tagline: "Epic journeys, loyal crews, and worlds worth exploring",
@@ -47,9 +47,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 3,
+    mediaId: 154587,
     name: "Fantasy",
     representativeTitle: "Frieren: Beyond Journey's End",
-    localPath: "/genres/3.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx154587-n2bQEEmxD4b5.jpg",
     accent: "#00d2d3",
     tagline: "Magic, monsters, kingdoms, and unforgettable adventures",
@@ -58,9 +58,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 4,
+    mediaId: 101921,
     name: "Romance",
     representativeTitle: "Kaguya-sama: Love is War",
-    localPath: "/genres/4.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101921-V46jTzzFcxrT.jpg",
     accent: "#ff6b81",
     tagline: "Slow burns, confessions, comedy, and heartfelt relationships",
@@ -69,9 +69,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 5,
+    mediaId: 9253,
     name: "Sci-Fi",
     representativeTitle: "Steins;Gate",
-    localPath: "/genres/5.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx9253-7pdcVzQSkpKq.png",
     accent: "#54a0ff",
     tagline: "Future tech, space travel, robots, and time loops",
@@ -80,9 +80,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 6,
+    mediaId: 113415,
     name: "Supernatural",
     representativeTitle: "Jujutsu Kaisen",
-    localPath: "/genres/6.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx113415-bbBWj4pEFseh.jpg",
     accent: "#a55eea",
     tagline: "Curses, spirits, demons, and powers beyond the ordinary",
@@ -91,9 +91,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 7,
+    mediaId: 101348,
     name: "Drama",
     representativeTitle: "Vinland Saga",
-    localPath: "/genres/7.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx101348-uXk0jYQk4jV3.jpg",
     accent: "#e17055",
     tagline: "Emotional stories, hard choices, and real character growth",
@@ -102,9 +102,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 8,
+    mediaId: 918,
     name: "Comedy",
     representativeTitle: "Gintama",
-    localPath: "/genres/8.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx918-6xX9f6mNn8mF.jpg",
     accent: "#ffd700",
     tagline: "Chaotic jokes, great timing, and lovable oddballs",
@@ -113,9 +113,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 9,
+    mediaId: 1535,
     name: "Mystery",
     representativeTitle: "Death Note",
-    localPath: "/genres/9.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1535-lawCwhwk8ERM.jpg",
     accent: "#70a1ff",
     tagline: "Clues, mind games, hidden motives, and clever twists",
@@ -124,9 +124,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 10,
+    mediaId: 20464,
     name: "Sports",
     representativeTitle: "Haikyuu!!",
-    localPath: "/genres/10.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20464-Yp3bW8N9Y9wL.jpg",
     accent: "#2ed573",
     tagline: "Rival teams, training, clutch plays, and tournament hype",
@@ -135,9 +135,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 11,
+    mediaId: 20605,
     name: "Horror",
     representativeTitle: "Tokyo Ghoul",
-    localPath: "/genres/11.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20605-z90sH3eH7W8s.jpg",
     accent: "#ff4757",
     tagline: "Monsters, survival, dread, and stories that stay with you",
@@ -146,9 +146,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 12,
+    mediaId: 130003,
     name: "Slice of Life",
     representativeTitle: "Bocchi the Rock!",
-    localPath: "/genres/12.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx130003-5kN1mCq6E9jB.jpg",
     accent: "#feca57",
     tagline: "Cozy days, friendship, school life, and small wins",
@@ -157,9 +157,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 13,
+    mediaId: 19,
     name: "Psychological",
     representativeTitle: "Monster",
-    localPath: "/genres/13.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx19-kH2W9Z2N6oYw.jpg",
     accent: "#576574",
     tagline: "Mind games, moral choices, unreliable memories, and tension",
@@ -168,9 +168,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 14,
+    mediaId: 20665,
     name: "Music",
     representativeTitle: "Your Lie in April",
-    localPath: "/genres/14.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20665-2gVv6xK4eW0Q.jpg",
     accent: "#1dd1a1",
     tagline: "Bands, performances, rivalry, and songs with real feeling",
@@ -179,9 +179,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 15,
+    mediaId: 21234,
     name: "Thriller",
     representativeTitle: "Erased",
-    localPath: "/genres/15.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx21234-7yP6P8QzB4mX.jpg",
     accent: "#eb4d4b",
     tagline: "Close calls, conspiracies, chases, and sharp plot twists",
@@ -190,9 +190,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 16,
+    mediaId: 1575,
     name: "Mecha",
     representativeTitle: "Code Geass",
-    localPath: "/genres/16.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1575-kL6wT9xV8zNm.jpg",
     accent: "#6c5ce7",
     tagline: "Giant robots, smart battles, war, and rebellion",
@@ -201,9 +201,9 @@ const GENRE_CATEGORIES: GenreCategory[] = [
   },
   {
     id: 17,
+    mediaId: 9756,
     name: "Mahou Shoujo",
     representativeTitle: "Madoka Magica",
-    localPath: "/genres/17.jpg",
     fallbackImage: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx9756-c0kE6WzX9yP2.jpg",
     accent: "#fd79a8",
     tagline: "Magical girls, transformations, friendship, and dark bargains",
@@ -222,7 +222,9 @@ export const Genres: React.FC = () => {
   const [hasNextPage, setHasNextPage] = useState(true);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [genreCovers, setGenreCovers] = useState<Record<string, string>>({});
+  const [exactGenreCovers, setExactGenreCovers] = useState<Record<number, string>>({});
+  const [genreHeroImages, setGenreHeroImages] = useState<Record<string, string>>({});
+  const [genreCoversReady, setGenreCoversReady] = useState(false);
   const [genreScrollProgress, setGenreScrollProgress] = useState(0);
   const requestVersion = useRef(0);
   const genreRailRef = useRef<HTMLDivElement>(null);
@@ -234,9 +236,11 @@ export const Genres: React.FC = () => {
       setLoading(true);
       const res = await getAnimeByGenre(genre, 24, targetPage, sort);
       if (version !== requestVersion.current) return;
-      const firstArtwork = res.media?.find((item: any) => item?.banner_image || item?.images?.jpg?.large_image_url);
-      const cover = firstArtwork?.banner_image || firstArtwork?.images?.jpg?.large_image_url;
-      if (cover) setGenreCovers((previous) => ({ ...previous, [genre]: cover }));
+      if (!append) {
+        const hero = res.media?.find((item: any) => item?.banner_image)?.banner_image
+          || res.media?.find((item: any) => item?.images?.jpg?.large_image_url)?.images?.jpg?.large_image_url;
+        if (hero) setGenreHeroImages((current) => ({ ...current, [genre]: hero }));
+      }
       if (append) {
         setAnimeList((prev) => [...prev, ...res.media]);
       } else {
@@ -257,6 +261,22 @@ export const Genres: React.FC = () => {
   useEffect(() => {
     fetchGenreAnime(activeGenre, 1, sortOption, false);
   }, [activeGenre, sortOption, fetchGenreAnime]);
+
+  useEffect(() => {
+    let active = true;
+    getAnimeListByIds(GENRE_CATEGORIES.map((genre) => genre.mediaId))
+      .then((titles: any[]) => {
+        if (!active) return;
+        const covers: Record<number, string> = {};
+        titles.forEach((title) => {
+          const cover = title?.images?.jpg?.large_image_url || title?.images?.jpg?.image_url;
+          if (cover) covers[Number(title.mal_id)] = cover;
+        });
+        setExactGenreCovers(covers);
+      })
+      .finally(() => { if (active) setGenreCoversReady(true); });
+    return () => { active = false; };
+  }, []);
 
   const handleSelectGenre = (genre: string) => {
     if (genre === activeGenre) return;
@@ -287,14 +307,8 @@ export const Genres: React.FC = () => {
   };
 
   const currentGenreMeta = GENRE_CATEGORIES.find((g) => g.name === activeGenre) || GENRE_CATEGORIES[0];
-  const representativeSearch = currentGenreMeta.representativeTitle.toLowerCase().split(":")[0];
-  const featuredAnime = animeList.find((item: any) => {
-    const candidateTitle = `${item?.title_english || ""} ${item?.title || ""}`.toLowerCase();
-    return candidateTitle.includes(representativeSearch);
-  }) || animeList.find((item: any) => item?.banner_image) || animeList[0];
-  const activeBanner = featuredAnime?.banner_image || "";
-  const activeDynamicCover = activeBanner || featuredAnime?.images?.jpg?.large_image_url || genreCovers[activeGenre] || "";
-  const featuredTitle = featuredAnime?.title_english || featuredAnime?.title || currentGenreMeta.representativeTitle;
+  const activeHeroImage = genreHeroImages[activeGenre];
+  const featuredTitle = currentGenreMeta.representativeTitle;
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
@@ -305,7 +319,7 @@ export const Genres: React.FC = () => {
         url={`https://animeorbit.web.app/genres?genre=${encodeURIComponent(activeGenre)}`}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16 w-full flex-1">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-16 w-full flex-1">
         
         {/* Responsive Grid Layout: Left Column = Results, Right Column = Genre Sidebar (Desktop) */}
         <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -314,15 +328,15 @@ export const Genres: React.FC = () => {
           <main className="flex-1 w-full min-w-0 order-2 lg:order-1 space-y-8">
             
             <div className="genre-hero relative rounded-2xl overflow-hidden border border-white/10 p-6 sm:p-8 bg-[#17171c] flex items-end">
-              {activeDynamicCover ? (
+              {activeHeroImage ? (
                 <ProgressiveImage
-                  key={`${activeGenre}-${activeDynamicCover}`}
-                  src={activeDynamicCover}
+                  key={`${activeGenre}-${activeHeroImage}`}
+                  src={activeHeroImage}
                   alt=""
                   aria-hidden="true"
                   loading="eager"
                   fetchPriority="high"
-                  wrapperClassName={`genre-hero-media ${activeBanner ? "" : "genre-hero-media--poster"}`}
+                  wrapperClassName="genre-hero-media"
                   className="w-full h-full object-cover"
                 />
               ) : <span className="genre-hero-placeholder image-skeleton" aria-hidden="true" />}
@@ -422,12 +436,18 @@ export const Genres: React.FC = () => {
           {/* 🧭 Right Column: Square Genre Selector (Transparent BG, Titles Outside Div, No Cutout) */}
           <aside className="relative w-full min-w-0 lg:w-72 lg:flex-shrink-0 order-1 lg:order-2 lg:sticky lg:top-24 rounded-2xl border border-white/10 bg-[#17171b] p-3 sm:p-4">
             <div className="flex items-center justify-between gap-3 pb-3 border-b border-white/10">
-              <h2 className="font-montserrat font-black text-base sm:text-lg text-white flex items-center gap-2">
+              <h2 className="min-w-0 font-montserrat font-bold text-sm sm:text-base text-white flex items-center gap-2 whitespace-nowrap">
                 <Layers size={18} className="text-[#ffd700]" />
                 <span>Browse genres</span>
               </h2>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-neutral-500">{GENRE_CATEGORIES.length} genres</span>
+              <div className="flex flex-shrink-0 items-center gap-1.5">
+                <span className="text-[11px] font-bold text-neutral-500" title={`${GENRE_CATEGORIES.length} genres`}>{GENRE_CATEGORIES.length}</span>
+                <button type="button" onClick={() => moveGenreRail(-1)} aria-label="Previous genres" className="genre-rail-button">
+                  <ArrowLeft size={15} className="lg:hidden" /><ArrowUp size={15} className="hidden lg:block" />
+                </button>
+                <button type="button" onClick={() => moveGenreRail(1)} aria-label="More genres" className="genre-rail-button">
+                  <ArrowRight size={15} className="lg:hidden" /><ArrowDown size={15} className="hidden lg:block" />
+                </button>
               </div>
             </div>
 
@@ -435,7 +455,7 @@ export const Genres: React.FC = () => {
             <div ref={genreRailRef} onScroll={(event) => { const rail = event.currentTarget; const desktop = window.matchMedia("(min-width: 1024px)").matches; const max = desktop ? rail.scrollHeight - rail.clientHeight : rail.scrollWidth - rail.clientWidth; const current = desktop ? rail.scrollTop : rail.scrollLeft; setGenreScrollProgress(max > 0 ? current / max : 0); }} className="genre-category-rail flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto lg:max-h-[66vh] pt-3 pb-2 scroll-smooth">
               {GENRE_CATEGORIES.map((cat) => {
                 const isSelected = cat.name === activeGenre;
-                const categoryCover = isSelected ? activeDynamicCover : genreCovers[cat.name];
+                const categoryCover = exactGenreCovers[cat.mediaId];
                 return (
                   <button
                     key={cat.name}
@@ -445,10 +465,12 @@ export const Genres: React.FC = () => {
                     }`}
                   >
                     {categoryCover ? (
-                      <ProgressiveImage src={categoryCover} alt="" aria-hidden="true" wrapperClassName="w-14 h-11 rounded-lg flex-shrink-0" className="w-full h-full object-cover" />
+                      <ProgressiveImage key={`${cat.mediaId}-${categoryCover}`} src={categoryCover} fallbackSrc="/lost.jpg" alt={cat.representativeTitle} wrapperClassName="w-14 h-11 rounded-lg flex-shrink-0" className="w-full h-full object-cover" />
+                    ) : genreCoversReady ? (
+                      <ProgressiveImage src="/lost.jpg" alt="Artwork unavailable" wrapperClassName="w-14 h-11 rounded-lg flex-shrink-0" className="w-full h-full object-contain bg-white" />
                     ) : (
                       <span className="w-14 h-11 rounded-lg flex-shrink-0 grid place-items-center font-montserrat font-black text-base" style={{ color: cat.accent, backgroundColor: `${cat.accent}18` }}>
-                        {cat.name.slice(0, 1)}
+                        <span className="image-skeleton h-full w-full rounded-lg" aria-hidden="true" />
                       </span>
                     )}
                     <div className="min-w-0">
