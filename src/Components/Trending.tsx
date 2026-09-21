@@ -6,12 +6,14 @@ import Footer from "./Footer";
 import { RefreshCw } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import CatalogGenreFilter, { filterCatalogByGenre } from "./CatalogGenreFilter";
 
 interface TrendingProps {
   mode?: "trending" | "airing";
 }
 
 export const Trending: React.FC<TrendingProps> = ({ mode = "trending" }) => {
+  const [genre, setGenre] = React.useState("ALL");
   const {
     trendingAnime,
     trendingPage,
@@ -28,6 +30,7 @@ export const Trending: React.FC<TrendingProps> = ({ mode = "trending" }) => {
   const page = isAiring ? airingPage : trendingPage;
   const hasMore = isAiring ? hasMoreAiring : hasMoreTrending;
   const fetchPage = isAiring ? getAiringAnime : getTrendingAnime;
+  const visibleItems = React.useMemo(() => filterCatalogByGenre(items, genre), [genre, items]);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -55,9 +58,7 @@ export const Trending: React.FC<TrendingProps> = ({ mode = "trending" }) => {
           <h1 className="font-staatliches font-bold text-2xl sm:text-3xl text-[#ffd700] tracking-wider drop-shadow">
             {isAiring ? "Currently Airing" : "Trending Anime"}
           </h1>
-          <span className="font-montserrat text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
-            {items.length} Titles Loaded
-          </span>
+          <div className="catalog-page-tools"><span className="catalog-count">{items.length} Titles Loaded</span><CatalogGenreFilter items={items} value={genre} onChange={setGenre} /></div>
         </div>
 
         {/* Grid */}
@@ -87,10 +88,11 @@ export const Trending: React.FC<TrendingProps> = ({ mode = "trending" }) => {
         ) : items.length > 0 ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-6">
-              {items.map((anime: any, idx: number) => (
+              {visibleItems.map((anime: any, idx: number) => (
                 <AnimeCard key={`${mode}-${anime.mal_id}-${idx}`} anime={anime} />
               ))}
             </div>
+            {!visibleItems.length && <div className="catalog-filter-empty">No {genre} titles are loaded yet. Choose another genre.</div>}
 
             {hasMore && (
               <div className="flex flex-col items-center justify-center py-8 gap-3">

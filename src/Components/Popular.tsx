@@ -6,6 +6,8 @@ import SEO from "./SEO";
 import { RefreshCw, Search, ArrowLeft, Home } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import CatalogGenreFilter, { filterCatalogByGenre } from "./CatalogGenreFilter";
+import Footer from "./Footer";
 
 interface PopularProps {
   rendered?: "popular" | "search" | string;
@@ -13,6 +15,7 @@ interface PopularProps {
 }
 
 export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularAnime }) => {
+  const [genre, setGenre] = React.useState("ALL");
   const {
     popularAnime: contextPopularAnime,
     popularPage,
@@ -22,6 +25,7 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
   } = useGlobalContext();
 
   const safePopularAnime = popularAnime || contextPopularAnime || [];
+  const visibleAnime = React.useMemo(() => rendered === "search" ? safePopularAnime : filterCatalogByGenre(safePopularAnime, genre), [genre, rendered, safePopularAnime]);
 
   useEffect(() => {
     if (rendered !== "search" && contextPopularAnime.length === 0) getPopularAnime(1);
@@ -109,7 +113,7 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen py-8 px-4">
+    <div className="min-h-screen flex flex-col"><main className="flex flex-col items-center py-8 px-4 flex-1">
       <SEO
         title={rendered === "search" ? "Search Anime Results" : "Top Rated & Most Popular Anime of All Time"}
         description="Explore the highest-rated and most popular anime series and movies across all genres. Filter, search, and discover timeless masterpieces on Anime Orbit."
@@ -122,18 +126,15 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
             <h2 className="font-staatliches font-bold text-2xl sm:text-3xl text-[#ffd700] tracking-wider drop-shadow">
               {rendered === "search" ? "Search Results" : "Popular Anime"}
             </h2>
-            {rendered !== "search" && (
-              <span className="font-montserrat text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
-                {safePopularAnime.length} Titles Loaded
-              </span>
-            )}
+            {rendered !== "search" && <div className="catalog-page-tools"><span className="catalog-count">{safePopularAnime.length} Titles Loaded</span><CatalogGenreFilter items={safePopularAnime} value={genre} onChange={setGenre} /></div>}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
-            {safePopularAnime.map((anime, index) => (
+            {visibleAnime.map((anime, index) => (
               <AnimeCard anime={anime} key={`popular-${anime.mal_id}-${index}`} />
             ))}
           </div>
+          {!visibleAnime.length && <div className="catalog-filter-empty">No {genre} titles are loaded yet. Choose another genre.</div>}
 
           {rendered !== "search" && hasMorePopular && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
@@ -149,7 +150,7 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
           )}
         </div>
       )}
-    </div>
+    </main>{rendered !== "search" && <Footer />}</div>
   );
 };
 

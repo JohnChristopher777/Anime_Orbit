@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, ArrowUp, Compass, Heart, List, User, Flame, Calendar, Layers } from "lucide-react";
+import { Sparkles, Compass, Heart, ListTodo, User, Flame, Calendar, Layers, BookOpen, Brain, MessageCircle, GitBranch } from "lucide-react";
 
 export const Footer: React.FC = () => {
   const handleScrollTop = () => {
@@ -28,10 +28,10 @@ export const Footer: React.FC = () => {
               Orbit
             </span>
           </Link>
-          <p className="text-xs text-neutral-300 leading-relaxed max-w-xs">
+          <p className="text-sm text-neutral-300 leading-relaxed max-w-xs">
             Your cosmic universe compass across every anime genre. Explore episode guides, character artwork, tier list rankings, and synced community tracking.
           </p>
-          <div className="pt-1 flex items-center gap-2 text-xs font-bold text-[#ffd700]">
+          <div className="pt-1 flex items-center gap-2 text-sm font-bold text-[#ffd700]">
             <Sparkles size={14} className="text-[#ffd700] animate-pulse" />
             <span>Built for true anime enthusiasts</span>
           </div>
@@ -43,15 +43,15 @@ export const Footer: React.FC = () => {
             <Compass size={15} />
             <span>Explore Universe</span>
           </h4>
-          <ul className="space-y-2.5 text-xs text-neutral-300">
+          <ul className="space-y-2.5 text-sm text-neutral-300">
             <li>
-              <Link to="/" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
+              <Link to="/popular" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
                 <Flame size={13} className="text-[#ffd700]" />
-                <span>Popular Masterpieces</span>
+                <span>Popular Anime</span>
               </Link>
             </li>
             <li>
-              <Link to="/trending" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
+              <Link to="/airing" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
                 <Flame size={13} className="text-[#ffd700]" />
                 <span>Top Airing Series</span>
               </Link>
@@ -68,6 +68,12 @@ export const Footer: React.FC = () => {
                 <span>Genre Universe Explorer</span>
               </Link>
             </li>
+            <li>
+              <Link to="/franchises" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
+                <GitBranch size={13} className="text-[#ffd700]" />
+                <span>Franchise Guides</span>
+              </Link>
+            </li>
           </ul>
         </div>
 
@@ -77,10 +83,10 @@ export const Footer: React.FC = () => {
             <User size={15} />
             <span>Personal Hub</span>
           </h4>
-          <ul className="space-y-2.5 text-xs text-neutral-300">
+          <ul className="space-y-2.5 text-sm text-neutral-300">
             <li>
               <Link to="/watchlist" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
-                <List size={13} className="text-[#ffd700]" />
+                <ListTodo size={13} className="text-[#ffd700]" />
                 <span>My Watchlist</span>
               </Link>
             </li>
@@ -111,10 +117,22 @@ export const Footer: React.FC = () => {
             <Sparkles size={15} />
             <span>Manga & Community</span>
           </h4>
-          <ul className="space-y-2.5 text-xs text-neutral-300">
+          <ul className="space-y-2.5 text-sm text-neutral-300">
+            <li>
+              <Link to="/manga" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
+                <BookOpen size={13} className="text-[#ffd700]" />
+                <span>Browse Manga</span>
+              </Link>
+            </li>
+            <li>
+              <Link to="/discovery" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
+                <Brain size={13} className="text-[#ffd700]" />
+                <span>Anime Discovery</span>
+              </Link>
+            </li>
             <li>
               <Link to="/my-reviews" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
-                <Sparkles size={13} className="text-[#ffd700]" />
+                <MessageCircle size={13} className="text-[#ffd700]" />
                 <span>My Anime Reviews</span>
               </Link>
             </li>
@@ -134,7 +152,7 @@ export const Footer: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto border-t border-[#ffd700]/20 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left text-xs text-neutral-400">
+      <div className="max-w-7xl mx-auto border-t border-[#ffd700]/20 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left text-sm text-neutral-400">
         <div>
           © {new Date().getFullYear()} <span className="text-[#ffd700] font-bold">Anime Orbit</span> | All anime, manga artwork, and metadata belong to their respective creators.
         </div>

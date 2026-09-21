@@ -167,3 +167,132 @@ AniList `PREQUEL`, `SEQUEL`, `PARENT`, `SIDE_STORY`, and `ALTERNATIVE` relation 
 - Franchise detail media is explicitly positioned as an absolute full-surface layer so the shared progressive-image wrapper cannot collapse the banner.
 - Franchise filters are derived from AniList media type/format and do not alter the chronological source data.
 - Manga tier membership is stored separately in `anime_orbit_manga_tierlist`; the original favorites records remain untouched and reversible.
+
+## Current correction batch — 2026-09-20
+
+- [x] Prevent first-load/offscreen images from incorrectly falling back to the same local artwork; keep skeletons reliable with lazy loading.
+- [x] Place the Undo action at the far-right edge of removal toasts.
+- [x] Order homepage catalogue rows as Popular, New Episodes, then Coming Soon.
+- [x] Give Franchise Rankings the shared catalogue header with loaded count and filter dropdown.
+- [x] Add genre dropdown filters to homepage rows and the Popular, Airing, and Upcoming pages.
+- [x] Move Favorites tier Add Row and Reset controls below the final tier; Reset requires confirmation.
+- [x] Apply the same tier-control logic and visual language to manga Favorites, media-specific Trash views, and Franchise view.
+- [x] Keep switch/button motion fluid and capped below 500ms.
+- [x] Improve Profile section hierarchy so identity, headline stats, progress, genres, and interest chart are immediately distinguishable.
+- [x] Change desktop navigation destinations to Popular and Airing; shorten the profile label to first name with a five-character maximum.
+- [x] Replace expanded Watchlist Close Details/Delete actions with Save and Cancel semantics.
+- [x] Normalize Watchlist status colors to a restrained palette; use status color only for the side strip and episode/chapter tag.
+- [x] Integrate a secure Gemini-backed discovery gateway for image, scene, character/setting, and dialogue matching, then resolve candidates against AniList.
+- [x] Repair gallery picture refresh and make recommendation refresh return a new eligible slice.
+- [x] Redesign Favorites grid view with persistent visible numbering and stronger hierarchy.
+- [ ] Configure `GEMINI_API_KEY` in the Netlify server environment when deploying; the key must never be placed in a `VITE_` browser variable.
+
+### 2026-09-20 implementation notes
+
+- Lazy-image failure timers start only when an image is within 600px of the viewport, so valid native-lazy requests are not replaced before loading begins.
+- Catalogue genre filters derive their choices from the currently loaded titles and do not trigger redundant network requests.
+- Gemini requests use `/.netlify/functions/discovery`, structured JSON, compressed inline images, remote-image size/private-network guards, and AniList title resolution. trace.moe and local/AniList clue matching remain fallbacks.
+- Anime and manga tier membership remain separate and reversible. Trash content follows the active Anime/Manga tab.
+
+## Current correction batch — profile, manga favourites and tracker clarity
+
+- [x] Increase muted Profile labels for readability and remove the decorative yellow side rule.
+- [x] Bring Manga Favorites to feature parity with Anime Favorites, including add, tier management, numbered grid, and Trash flows.
+- [x] Move MangaItem chapter progress below its action buttons; completing fills the total and reducing progress returns the title to Reading. Apply the equivalent Watching rule to anime progress.
+- [x] Keep tracker dropdown choices neutral except for the destructive Remove action.
+- [x] Use state colour only on each Watchlist title's status chip, not its card edge or progress tag.
+- [x] Add Popular to the sidebar.
+- [x] Expand the footer with newer destinations and render it on Watchlist, Reviews, Discussions, and other missing catalogue pages.
+- [x] Make Watchlist Trash discoverable with a visible item count and active state.
+
+### 2026-09-20 implementation notes
+
+- Manga Favorites now searches AniList directly, supports persistent tier creation/reordering/renaming/removal, exposes its add action from the waiting pool, and orders its numbered grid from saved tier ranks.
+- Episode and chapter progress enforce one consistent rule in detail pages and expanded Watchlist editors: reaching the known total completes the title; reducing a completed total resumes Watching or Reading.
+- Watchlist status filters stay neutral, while the compact status chip is the sole state-colour indicator on each title card.
+
+## Header alignment correction — 2026-09-20
+
+- [x] Match Watchlist, Reviews, and Discussions page headers to Favorites with the same screen margins, title typography, divider spacing, and separate count badge.
+
+## Current consistency batch — 2026-09-20
+
+- [x] Add restrained yellow highlights, borders, and primary controls to Watchlist cards while retaining status colour on the status chip.
+- [x] Present manga Favorites inside the same tier workspace pattern as anime while keeping manga ranks separately persisted.
+- [x] Replace the three homepage row filters with one universal genre filter controlling Popular, New Episodes, and Coming Soon.
+- [x] Use the `ListTodo` icon for Watchlist destinations throughout the site.
+- [x] Match AnimeItem's list selector to the other action buttons and give its progress panel the shared frosted treatment.
+- [x] Restore the large AnimeItem artwork backdrop on mobile.
+
+### 2026-09-20 implementation notes
+
+- The homepage selector derives genres from all three loaded collections and passes one controlled genre into each row; full catalogue pages retain their own filters.
+- Manga and anime tier data remain independent, but both now use the same responsive tier workspace with ranked rows and a separate waiting column.
+- AnimeItem restores its banner/poster backdrop below 768px with a dark fade so the foreground poster and controls remain readable.
+
+## Current media fallback and Favorites correction — 2026-09-21
+
+- [x] Use the original rich Anime Favorites tier workspace for both Anime and Manga tabs; only the active media data, tier storage, notes, links, add picker, and labels change.
+- [x] Keep Anime and Manga tier membership and notes independently persisted without rendering a separate simplified manga board.
+- [x] Make Anime and Manga Favorites grid view share the same card layout and numbering behavior.
+- [x] Match Favorites add/search dialogs to the Watchlist picker: above navigation, viewport-safe, one-character search, loading skeletons, recommendations, and reliable result scrolling.
+- [x] Add a key-free Kitsu fallback linked through AniList `idMal` for episode/chapter metadata and trailers.
+- [x] Keep AniList explicit or next-airing episode totals authoritative; use Kitsu totals only when AniList has no count so long-running series are not inflated by stub records.
+- [x] Restore missing AnimeItem trailers from Kitsu when AniList has none.
+- [x] Enrich AnimeItem episode batches with available titles, summaries, dates, lengths, and thumbnails as the selected range changes.
+- [x] Resolve MangaItem chapter totals with fallback data and paginate available chapter titles, summaries, and publication dates without inventing missing text.
+- [x] Sync corrected episode/chapter totals back into Firebase watchlist records so detail pages, progress controls, and Watchlist agree.
+- [x] Restyle AnimeItem progress as a rounded frosted action surface with button-matched borders, controls, and yellow interaction accents.
+
+### Implementation notes
+
+- The public Kitsu JSON:API is called through `/api/edge`; mapping lookup uses the MyAnimeList bridge and exact-title lookup is a fallback when a mapping is absent.
+- Supplemental requests use a seven-second abort timeout and five-minute in-memory cache. Any Kitsu failure returns the AniList record instead of blocking the page.
+- Chapter records frequently omit official names or summaries. The UI displays a neutral numbered fallback and never presents generated text as official metadata.
+
+## Current layering, navigation, metadata and readability correction — 2026-09-21
+
+- [x] Render Favorites Anime/Manga add-search dialogs above the sticky navigation through document-level portals.
+- [x] Separate the AnimeItem footer from the final content section and remove trailing page padding below the footer.
+- [x] Correct the homepage universal genre menu stacking order above all three catalogue rails.
+- [x] Support native trackpad horizontal scrolling on Popular, New Episodes, and Coming Soon, pausing automatic movement during user input.
+- [x] Keep the green Favorites selected state and add a glowing red soft-trash action that uses the existing five-day recovery flow.
+- [x] Increase small informative typography in Profile, Franchise, and the global footer to the established Watchlist readability range.
+- [x] Add Jikan episode-title/date fallback after AniList/Kitsu and stop presenting generated episode placeholders as published metadata.
+- [x] Add chapter range navigation matching the episode range row and label unavailable chapter details honestly.
+- [x] Expose the same Share Tier List action for Manga Favorites, using manga tiers, ranks, notes, and titles in the export.
+
+### Implementation notes
+
+- Homepage rails preserve vertical wheel scrolling; direct horizontal deltas and Shift+wheel move the rail, and automatic marquee movement pauses for five seconds afterward.
+- AniList remains authoritative for totals. Kitsu supplies rich episode/chapter fields where present, while Jikan supplies missing anime episode titles and air dates by MAL ID. No source is used to fabricate chapter names or summaries.
+- Favorites modal portals use a page-level stacking context so their search fields and results cannot be clipped by page containers or covered by navigation.
+
+## Manga metadata, genre mode and supporting-copy correction — 2026-09-21
+
+- [x] Increase the small supporting labels, descriptions, list metadata, and actions in Favorites Trash, Watchlist Trash, and MangaItem without enlarging unrelated page titles.
+- [x] Remove Kitsu's unsupported `sort=number` chapter parameter that caused HTTP 400 responses.
+- [x] Use AniList's chapter total when available; otherwise derive the highest numeric English chapter from MangaDex instead of trusting Kitsu's inflated relationship count.
+- [x] Display available Kitsu chapter names and lengths in 50-chapter ranges with the same active/inactive button treatment as AnimeItem episode ranges.
+- [x] Use Kitsu episode thumbnails when published and the title's banner/poster as a visual fallback instead of an empty black episode image.
+- [x] Add an Anime/Manga switch to Genres, with independent AniList manga queries, manga cards, pagination, sorting, SEO text, and MangaItem genre deep links.
+- [x] Force Manga genre card artwork to fill and crop consistently inside the 2:3 cover surface, including fallback artwork.
+
+### Implementation notes
+
+- Kitsu's One Piece manga record reports no explicit chapter count and exposes thousands of pre-generated stub rows, so its relationship `meta.count` is intentionally ignored for manga totals.
+- MangaDex is used only as a public metadata fallback for the highest available numeric chapter; Kitsu remains the supplemental source for chapter titles and lengths.
+- User-provided AnimeItem alignment/responsiveness changes were preserved; this batch only added the episode-image fallback prop inside that component.
+
+## Manga provider stability, genre cards and publication labels — 2026-09-21
+
+- [x] Stop sending Kitsu chapter relationship requests with unsupported 50-item limits; keep 50-item UI ranges while fetching accepted 20 + 20 + 10 chunks.
+- [x] Stop calling MangaDex directly from the browser. Resolve missing totals through the same-origin `/api/manga-metadata` endpoint with retries, timeouts, caching, and a non-breaking fallback response.
+- [x] Skip MangaDex entirely whenever AniList already supplies a chapter total.
+- [x] Make manga results in Genres use the same 2:3 artwork component, crop, metadata baseline, and responsive grid behavior as anime results.
+- [x] Distinguish Manga, Manhwa, Manhua, Light Novel, and One-shot using AniList format plus country of origin across manga catalogue, Genres, details, Favorites, Watchlist, profile cards, and franchise entries.
+
+### Implementation notes
+
+- The Netlify redirect maps `/api/manga-metadata` to a serverless function; Vite exposes the identical route during local development. Supplemental MangaDex outages now fail on the server and return `{ chapterCount: 0 }` instead of surfacing browser connection-reset errors.
+- Existing saved records without country-of-origin data retain their truthful stored `Manga` label. Newly searched or saved records persist the more precise publication label.

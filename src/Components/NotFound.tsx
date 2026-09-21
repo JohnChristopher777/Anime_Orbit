@@ -3,12 +3,13 @@ import { ArrowLeft, Home } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import ProgressiveImage from "./ProgressiveImage";
 import SEO from "./SEO";
+import Footer from "./Footer";
 
 export const NotFound: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <main className="min-h-[75vh] flex items-center justify-center px-5 py-16">
+    <div className="min-h-screen flex flex-col"><main className="min-h-[75vh] flex flex-1 items-center justify-center px-5 py-16">
       <SEO title="Page Not Found" description="This page could not be found on Anime Orbit." />
       <div className="w-full max-w-lg text-center">
         <ProgressiveImage
@@ -30,7 +31,7 @@ export const NotFound: React.FC = () => {
           </Link>
         </div>
       </div>
-    </main>
+    </main><Footer /></div>
   );
 };
 

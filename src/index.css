@@ -305,6 +305,8 @@ img {
 }
 
 .home-rail {
+  position: relative;
+  z-index: 1;
     padding: 24px 0 30px;
     content-visibility: auto;
     contain-intrinsic-size: 390px;
@@ -520,7 +522,7 @@ img {
 
 .profile-insights__header>div:first-child span {
     color: #ffd700;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .08em;
@@ -543,7 +545,7 @@ img {
     border-radius: 999px;
     color: #c7c7cd;
     padding: 7px 10px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 750;
 }
 
@@ -579,7 +581,7 @@ img {
 
 .profile-insights__stats span {
     color: #85858e;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -624,8 +626,8 @@ img {
 }
 
 .profile-completion__ring span {
-    color: #81818a;
-    font-size: 9px;
+    color: #cacad0;
+    font-size: 11px;
     text-transform: uppercase;
 }
 
@@ -640,7 +642,7 @@ img {
 .profile-genres>p {
     margin-top: 6px;
     color: #8d8d96;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.5;
 }
 
@@ -684,8 +686,8 @@ img {
 
 .profile-genres span,
 .profile-genres small {
-    color: #a9a9b1;
-    font-size: 10px;
+    color: #b5b5bc;
+    font-size: 12px;
 }
 
 .profile-genres i {
@@ -712,7 +714,7 @@ img {
 
 .profile-radar>div:first-child>span {
     color: #ffd700;
-    font-size: 8px;
+    font-size: 11px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .08em;
@@ -728,7 +730,7 @@ img {
 .profile-radar p {
     margin-top: 6px;
     color: #7e7e87;
-    font-size: 9px;
+    font-size: 12px;
     line-height: 1.45;
 }
 
@@ -768,7 +770,7 @@ img {
     max-width: 58px;
     overflow: hidden;
     color: #8b8b94;
-    font-size: 7px;
+    font-size: 10px;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
@@ -1075,7 +1077,7 @@ img {
     align-items: center;
     gap: 7px;
     color: #ffd700;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .09em;
@@ -1293,7 +1295,7 @@ img {
     background: rgba(255, 215, 0, .07);
     color: #e5e5e9;
     padding: 9px 12px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 750;
     cursor: pointer;
 }
@@ -1319,7 +1321,7 @@ img {
     border-radius: 999px;
     color: #d2d2d7;
     padding: 9px 12px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 750;
 }
 
@@ -1381,7 +1383,7 @@ img {
     overflow: hidden;
     color: #eeeef1;
     font-family: "Montserrat", sans-serif;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 750;
     line-height: 1.35;
     -webkit-line-clamp: 2;
@@ -1394,7 +1396,7 @@ img {
     gap: 7px;
     margin-top: 7px;
     color: #85858e;
-    font-size: 8px;
+    font-size: 11px;
 }
 
 .franchise-ranking__grid p span {
@@ -1435,7 +1437,7 @@ img {
     align-items: center;
     gap: 6px;
     color: #ffd700;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .09em;
@@ -1524,7 +1526,7 @@ img {
     gap: 7px;
     margin-top: 8px;
     color: #8c8c95;
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .franchise-page__grid p span,
@@ -1541,7 +1543,7 @@ img {
 
 .franchise-page__grid strong {
     margin-top: 13px;
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .franchise-page__loading,
@@ -1563,7 +1565,7 @@ img {
     border-radius: 999px;
     color: #d0d0d5;
     padding: 8px 12px;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
 }
 
@@ -1599,7 +1601,7 @@ img {
     align-items: center;
     gap: 6px;
     color: #ffd700;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .08em;
@@ -1618,7 +1620,7 @@ img {
 .franchise-detail__hero p {
     margin-top: 10px;
     color: #b3b3bb;
-    font-size: 12px;
+    font-size: 14px;
 }
 
 .franchise-detail__stats {
@@ -1648,7 +1650,7 @@ img {
     display: grid;
     gap: 2px;
     color: #777780;
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .franchise-detail__stats strong {
@@ -1671,7 +1673,7 @@ img {
 .franchise-timeline__heading p {
     margin-top: 7px;
     color: #8b8b94;
-    font-size: 11px;
+    font-size: 13px;
 }
 
 .franchise-timeline__list {
@@ -1734,7 +1736,7 @@ img {
     align-items: center;
     gap: 5px;
     color: #ffd700;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
 }
 
@@ -1750,7 +1752,7 @@ img {
     overflow: hidden;
     margin-top: 5px;
     color: #92929a;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.5;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -1762,7 +1764,7 @@ img {
     gap: 9px;
     margin-top: 7px;
     color: #777780;
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .franchise-timeline__copy>div span {
@@ -2312,7 +2314,7 @@ img {
     align-items: center;
     gap: 5px;
     color: #ffd700;
-    font-size: 9px;
+    font-size: 14px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .08em;
@@ -2321,14 +2323,15 @@ img {
 .watchlist-trash__header h2 {
     margin-top: 3px;
     font-family: "Montserrat", sans-serif;
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 800;
 }
 
 .watchlist-trash__header p {
     margin-top: 3px;
     color: #777780;
-    font-size: 10px;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 .watchlist-trash__header>button {
@@ -2376,14 +2379,14 @@ img {
 .watchlist-trash__list strong {
     overflow: hidden;
     color: #e6e6e9;
-    font-size: 10px;
+    font-size: 14px;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
 .watchlist-trash__list span {
     color: #777780;
-    font-size: 9px;
+    font-size: 13px;
 }
 
 .watchlist-trash__list button {
@@ -2394,7 +2397,7 @@ img {
     background: rgba(255, 215, 0, .1);
     color: #ffd700;
     padding: 6px 7px;
-    font-size: 9px;
+    font-size: 13px;
     font-weight: 700;
 }
 
@@ -2407,7 +2410,7 @@ img {
     padding: 22px;
     color: #777780;
     text-align: center;
-    font-size: 11px;
+    font-size: 14px;
 }
 
 .favorite-franchise-board {
@@ -2639,6 +2642,40 @@ img {
     box-shadow: 0 16px 40px rgba(0, 0, 0, .25);
 }
 
+.manga-detail-actions button,
+.manga-detail-actions a,
+.manga-detail-actions .app-dropdown>button {
+    font-size: 14px;
+}
+
+.manga-detail-hero-meta {
+    font-size: 13px !important;
+}
+
+.manga-detail-layout .text-xs {
+    font-size: 14px !important;
+}
+
+.manga-detail-layout [class*="text-[10px]"],
+.manga-detail-layout [class*="text-[11px]"] {
+    font-size: 13px !important;
+}
+
+.manga-detail-facts,
+.manga-detail-facts .grid {
+    font-size: 14px;
+}
+
+.manga-detail-facts .text-neutral-400,
+.manga-detail-facts a {
+    font-size: 13px !important;
+    line-height: 1.45;
+}
+
+.manga-detail-facts h3 {
+    font-size: 15px;
+}
+
 .manga-chapter-guide__header {
     display: flex;
     align-items: center;
@@ -2653,7 +2690,7 @@ img {
     align-items: center;
     gap: 5px;
     color: #ffd700;
-    font-size: 9px;
+    font-size: 14px;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .08em;
@@ -2670,7 +2707,7 @@ img {
     max-width: 580px;
     margin-top: 6px;
     color: #85858e;
-    font-size: 10px;
+    font-size: 14px;
     line-height: 1.5;
 }
 
@@ -2695,6 +2732,36 @@ img {
     background: rgba(255, 255, 255, .06);
 }
 
+.manga-chapter-guide__ranges {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 215, 0, 0.45) transparent;
+}
+
+.manga-chapter-guide__ranges button {
+  flex: 0 0 auto;
+  min-width: 5.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d0d0d0;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.manga-chapter-guide__ranges button:hover,
+.manga-chapter-guide__ranges button.is-active {
+  border-color: #ffd700;
+  background: #ffd700;
+  color: #141414;
+}
+
 .manga-chapter-guide__grid article {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -2714,20 +2781,21 @@ img {
     background: #222228;
     color: #aaaab2;
     padding: 7px 5px;
-    font-size: 10px;
+    font-size: 13px;
     font-weight: 800;
 }
 
 .manga-chapter-guide__grid h3 {
     font-family: "Montserrat", sans-serif;
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 750;
 }
 
 .manga-chapter-guide__grid p {
     margin-top: 2px;
     color: #72727b;
-    font-size: 8px;
+    font-size: 13px;
+    line-height: 1.45;
 }
 
 .manga-chapter-guide__grid article.is-latest {
@@ -2756,7 +2824,7 @@ img {
     border-radius: 8px;
     color: #d0d0d5;
     padding: 6px 8px;
-    font-size: 9px;
+    font-size: 13px;
     font-weight: 700;
 }
 
@@ -2767,7 +2835,7 @@ img {
 .manga-chapter-guide__pager span,
 .manga-chapter-guide__empty {
     color: #7d7d86;
-    font-size: 9px;
+    font-size: 14px;
 }
 
 .manga-chapter-guide__empty {
@@ -4262,18 +4330,6 @@ code {
     background: linear-gradient(110deg, rgba(255, 215, 0, .18), rgba(255, 215, 0, .02) 55%, transparent);
 }
 
-.season-poll__header::after {
-    content: "SELECT ONE TO VOTE";
-    flex: 0 0 auto;
-    border-radius: 7px;
-    background: #ffd700;
-    color: #111;
-    padding: 7px 10px;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: .07em;
-}
-
 .season-poll__header>div:first-child>span {
     color: #ffe44d;
     font-size: 11px;
@@ -4561,21 +4617,22 @@ code {
 
 .favorite-trash header span {
     color: #ffd700;
-    font-size: 9px;
+    font-size: 14px;
     font-weight: 800;
     text-transform: uppercase;
 }
 
 .favorite-trash header h2 {
     margin-top: 3px;
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 800;
 }
 
 .favorite-trash header p {
     margin-top: 3px;
     color: #777780;
-    font-size: 10px;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 .favorite-trash__list {
@@ -4608,14 +4665,14 @@ code {
 
 .favorite-trash__list strong {
     overflow: hidden;
-    font-size: 10px;
+    font-size: 14px;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
 .favorite-trash__list span {
     color: #85858e;
-    font-size: 8px;
+    font-size: 13px;
 }
 
 .favorite-trash__list button {
@@ -4626,7 +4683,7 @@ code {
     background: rgba(255, 215, 0, .1);
     color: #ffd700;
     padding: 6px;
-    font-size: 9px;
+    font-size: 13px;
     font-weight: 700;
 }
 
@@ -4639,7 +4696,7 @@ code {
     padding: 20px;
     color: #777780;
     text-align: center;
-    font-size: 10px;
+    font-size: 14px;
 }
 
 .favorite-manga-grid {
@@ -4649,10 +4706,35 @@ code {
 }
 
 .favorite-manga-grid article {
+    position: relative;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, .1);
     border-radius: 14px;
     background: #18181e;
+}
+
+.favorite-manga-grid .favorite-manga-rank {
+    position: absolute;
+    z-index: 4;
+    top: 8px;
+    left: 8px;
+    display: grid;
+    min-width: 27px;
+    height: 23px;
+    place-items: center;
+    border: 1px solid rgba(255, 215, 0, .7);
+    border-radius: 8px;
+    background: rgba(10, 10, 13, .9);
+    color: #ffd700;
+    font-size: 9px;
+}
+
+.favorite-manga-cover {
+    display: block;
+    width: 100%;
+    aspect-ratio: 2/3;
+    overflow: hidden;
+    background: #24242a;
 }
 
 .favorite-manga-grid img {
@@ -4754,7 +4836,7 @@ code {
     }
 
     .franchise-detail__hero h1 {
-        font-size: clamp(1.35rem, 7vw, 2rem);
+        font-size: clamp(1rem, 7vw, 2rem);
         line-height: 1.04;
     }
 
@@ -4800,7 +4882,7 @@ code {
 .media-progress__heading span {
     font-weight: 800;
     letter-spacing: .05em;
-    text-transform: uppercase;
+    font-size: 12px ;
 }
 
 .media-progress__heading strong {
@@ -5195,172 +5277,2056 @@ code {
 }
 
 /* Correction pass: stable genre banner and exact-title rail artwork. */
-.genre-hero-media { inset: 0; width: 100%; }
-.genre-hero-media > img { object-position: center 34%; }
-.genre-category-rail .progressive-image--fallback > img { object-fit: contain; background: white; }
+.genre-hero-media {
+    inset: 0;
+    width: 100%;
+}
+
+.genre-hero-media>img {
+    object-position: center 34%;
+}
+
+.genre-category-rail .progressive-image--fallback>img {
+    object-fit: contain;
+    background: white;
+}
 
 /* Three-up tracker layout; an editor gets two columns without stretching every card. */
-.tracker-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
-.tracker-card { grid-template-columns: 86px minmax(0,1fr); min-height: 158px; }
-.tracker-card.is-open { grid-column: span 2; grid-template-columns: 96px minmax(0,1fr); }
+.tracker-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.tracker-card {
+    grid-template-columns: 86px minmax(0, 1fr);
+    min-height: 158px;
+}
+
+.tracker-card.is-open {
+    grid-column: span 2;
+    grid-template-columns: 96px minmax(0, 1fr);
+}
 
 /* A quieter two-column homepage guide with wide feature moments between groups. */
-.home-feature-stories { gap: 26px 22px; margin-top: 58px; }
-.home-feature-story,.home-feature-story--reverse,.home-feature-story--banner { grid-column: span 6; grid-template-rows: 210px auto; min-height: 450px; }
-.home-feature-story[data-feature="discovery"],.home-feature-story[data-feature="my-reviews"],.home-feature-story[data-feature="my-comments"] { grid-column: 1 / -1; min-height: 360px; }
-.home-feature-story__art,.home-feature-story--banner .home-feature-story__art { min-height: 210px; }
-.home-feature-story__copy,.home-feature-story--banner .home-feature-story__copy { padding: 28px; }
+.home-feature-stories {
+    gap: 26px 22px;
+    margin-top: 58px;
+}
+
+.home-feature-story,
+.home-feature-story--reverse,
+.home-feature-story--banner {
+    grid-column: span 6;
+    grid-template-rows: 210px auto;
+    min-height: 450px;
+}
+
+.home-feature-story[data-feature="discovery"],
+.home-feature-story[data-feature="my-reviews"],
+.home-feature-story[data-feature="my-comments"] {
+    grid-column: 1 / -1;
+    min-height: 360px;
+}
+
+.home-feature-story__art,
+.home-feature-story--banner .home-feature-story__art {
+    min-height: 210px;
+}
+
+.home-feature-story__copy,
+.home-feature-story--banner .home-feature-story__copy {
+    padding: 28px;
+}
 
 /* Switch control for franchise grouping. */
-.franchise-ranking > header .franchise-merge-toggle { border: 0; border-radius: 10px; background: rgba(255,255,255,.055); padding: 8px 10px; }
-.franchise-merge-toggle > input { position: absolute; width: 1px !important; height: 1px !important; opacity: 0; pointer-events: none; }
-.franchise-merge-toggle__track { position: relative; display: block; width: 34px; height: 19px; flex: 0 0 auto; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; background: #29292f; transition: background 160ms ease,border-color 160ms ease; }
-.franchise-merge-toggle__track > span { position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: #b9b9c0; transition: transform 160ms ease,background 160ms ease; }
-.franchise-merge-toggle > input:checked + .franchise-merge-toggle__track { border-color: #ffd700; background: rgba(255,215,0,.25); }
-.franchise-merge-toggle > input:checked + .franchise-merge-toggle__track > span { transform: translateX(15px); background: #ffd700; }
-.franchise-merge-toggle > input:focus-visible + .franchise-merge-toggle__track { outline: 2px solid #ffd700; outline-offset: 2px; }
+.franchise-ranking>header .franchise-merge-toggle {
+    border: 0;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .055);
+    padding: 8px 10px;
+}
+
+.franchise-merge-toggle>input {
+    position: absolute;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.franchise-merge-toggle__track {
+    position: relative;
+    display: block;
+    width: 34px;
+    height: 19px;
+    flex: 0 0 auto;
+    border: 1px solid rgba(255, 255, 255, .24);
+    border-radius: 999px;
+    background: #29292f;
+    transition: background 160ms ease, border-color 160ms ease;
+}
+
+.franchise-merge-toggle__track>span {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #b9b9c0;
+    transition: transform 160ms ease, background 160ms ease;
+}
+
+.franchise-merge-toggle>input:checked+.franchise-merge-toggle__track {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, .25);
+}
+
+.franchise-merge-toggle>input:checked+.franchise-merge-toggle__track>span {
+    transform: translateX(15px);
+    background: #ffd700;
+}
+
+.franchise-merge-toggle>input:focus-visible+.franchise-merge-toggle__track {
+    outline: 2px solid #ffd700;
+    outline-offset: 2px;
+}
 
 /* Franchise hero fills its artwork surface and anchors content to the left edge. */
-.franchise-detail__hero { min-height: 420px; }
-.franchise-detail__hero > .progressive-image { z-index: 0; }
-.franchise-detail__hero > .progressive-image > img { object-position: center 30%; }
-.franchise-detail__shade { z-index: 1; background: linear-gradient(90deg,rgba(8,8,11,.94) 0%,rgba(8,8,11,.72) 46%,rgba(8,8,11,.14) 100%),linear-gradient(0deg,rgba(8,8,11,.82),transparent 64%); }
-.franchise-detail__hero-body { position: absolute; inset: 0; z-index: 2; display: grid !important; width: 100%; max-width: none; grid-template-columns: 170px minmax(0,650px); align-content: end; align-items: end; justify-content: start !important; gap: 24px; box-sizing: border-box; }
-.franchise-detail__hero-body > div { width: 100%; max-width: 650px; }
+.franchise-detail__hero {
+    min-height: 420px;
+}
+
+.franchise-detail__hero>.progressive-image {
+    z-index: 0;
+}
+
+.franchise-detail__hero>.progressive-image>img {
+    object-position: center 30%;
+}
+
+.franchise-detail__shade {
+    z-index: 1;
+    background: linear-gradient(90deg, rgba(8, 8, 11, .94) 0%, rgba(8, 8, 11, .72) 46%, rgba(8, 8, 11, .14) 100%), linear-gradient(0deg, rgba(8, 8, 11, .82), transparent 64%);
+}
+
+.franchise-detail__hero-body {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid !important;
+    width: 100%;
+    max-width: none;
+    grid-template-columns: 170px minmax(0, 650px);
+    align-content: end;
+    align-items: end;
+    justify-content: start !important;
+    gap: 24px;
+    box-sizing: border-box;
+}
+
+.franchise-detail__hero-body>div {
+    width: 100%;
+    max-width: 650px;
+}
 
 /* Draggable progress control plus exact number stepping. */
-.media-progress__slider { --progress: 0%; width: 100%; height: 22px; margin-top: 6px; appearance: none; -webkit-appearance: none; cursor: pointer; background: transparent; }
-.media-progress__slider::-webkit-slider-runnable-track { height: 7px; border-radius: 999px; background: linear-gradient(90deg,#ffd700 0 var(--progress),#2a2a31 var(--progress) 100%); }
-.media-progress__slider::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -5.5px; appearance: none; -webkit-appearance: none; border: 3px solid #111115; border-radius: 50%; background: #ffd700; box-shadow: 0 0 0 1px rgba(255,215,0,.65),0 3px 10px rgba(0,0,0,.45); }
-.media-progress__slider::-moz-range-track { height: 7px; border-radius: 999px; background: #2a2a31; }
-.media-progress__slider::-moz-range-progress { height: 7px; border-radius: 999px; background: #ffd700; }
-.media-progress__slider::-moz-range-thumb { width: 14px; height: 14px; border: 3px solid #111115; border-radius: 50%; background: #ffd700; }
-.media-progress__slider:focus-visible { outline: 2px solid rgba(255,215,0,.7); outline-offset: 4px; border-radius: 999px; }
-.media-progress__bar.is-unknown { background: repeating-linear-gradient(90deg,#29292f 0 16px,#202026 16px 23px); }
+.media-progress__slider {
+    --progress: 0%;
+    width: 100%;
+    height: 22px;
+    margin-top: 6px;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    background: transparent;
+}
+
+.media-progress__slider::-webkit-slider-runnable-track {
+    height: 7px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ffd700 0 var(--progress), #2a2a31 var(--progress) 100%);
+}
+
+.media-progress__slider::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    margin-top: -5.5px;
+    appearance: none;
+    -webkit-appearance: none;
+    border: 3px solid #111115;
+    border-radius: 50%;
+    background: #ffd700;
+    box-shadow: 0 0 0 1px rgba(255, 215, 0, .65), 0 3px 10px rgba(0, 0, 0, .45);
+}
+
+.media-progress__slider::-moz-range-track {
+    height: 7px;
+    border-radius: 999px;
+    background: #2a2a31;
+}
+
+.media-progress__slider::-moz-range-progress {
+    height: 7px;
+    border-radius: 999px;
+    background: #ffd700;
+}
+
+.media-progress__slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 3px solid #111115;
+    border-radius: 50%;
+    background: #ffd700;
+}
+
+.media-progress__slider:focus-visible {
+    outline: 2px solid rgba(255, 215, 0, .7);
+    outline-offset: 4px;
+    border-radius: 999px;
+}
+
+.media-progress__bar.is-unknown {
+    background: repeating-linear-gradient(90deg, #29292f 0 16px, #202026 16px 23px);
+}
 
 /* Profile identity and a readable multi-ring interest web. */
-.profile-card { isolation: isolate; border-color: rgba(255,215,0,.18) !important; box-shadow: 0 28px 80px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.04); }
-.profile-cover::after { content: "ANIME ORBIT"; position: absolute; right: 24px; bottom: -18px; color: rgba(255,255,255,.06); font-family: "Montserrat",sans-serif; font-size: clamp(2.5rem,7vw,6rem); font-weight: 900; letter-spacing: -.07em; pointer-events: none; }
-.profile-identity-panel { position: relative; }
-.profile-identity-stamp { display: inline-grid; grid-template-columns: auto auto; align-items: center; gap: 2px 9px; margin-top: 5px; border-left: 2px solid #ffd700; background: linear-gradient(90deg,rgba(255,215,0,.1),transparent); padding: 7px 10px; text-align: left; }
-.profile-identity-stamp > span { grid-column: 1 / -1; color: #8f8f98; font-size: 8px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.profile-identity-stamp > strong { color: #ffd700; font-size: 11px; }
-.profile-identity-stamp > small { color: #a0a0a8; font-size: 9px; }
-.profile-radar { grid-template-columns: minmax(0,.65fr) minmax(180px,1.35fr); }
-.profile-radar__chart { min-height: 190px; }
-.profile-radar__chart svg { inset: 16px 22px; width: calc(100% - 44px); height: calc(100% - 32px); }
-.profile-radar__grid { fill: none; stroke: rgba(255,255,255,.17); stroke-width: .7; }
-.profile-radar__axis { stroke: rgba(255,255,255,.11); stroke-width: .6; }
-.profile-radar__area { fill: rgba(255,215,0,.24); stroke-width: 1.8; filter: drop-shadow(0 0 5px rgba(255,215,0,.22)); }
+.profile-card {
+    isolation: isolate;
+    border-color: rgba(255, 215, 0, .18) !important;
+    box-shadow: 0 28px 80px rgba(0, 0, 0, .34), inset 0 1px rgba(255, 255, 255, .04);
+}
 
-.nav-search-results a { touch-action: manipulation; }
-.tracker-fields__progress { display: grid; gap: 2px; margin-top: 2px; }
-.tracker-fields__progress > span { display: flex; align-items: center; justify-content: space-between; color: #8d8d96; font-size: 9px; font-weight: 700; }
-.tracker-fields__progress > span strong { color: #f0f0f3; font-size: 9px; }
+.profile-cover::after {
+    content: "ANIME ORBIT";
+    position: absolute;
+    right: 24px;
+    bottom: -18px;
+    color: rgba(255, 255, 255, .06);
+    font-family: "Montserrat", sans-serif;
+    font-size: clamp(2.5rem, 7vw, 6rem);
+    font-weight: 900;
+    letter-spacing: -.07em;
+    pointer-events: none;
+}
+
+.profile-identity-panel {
+    position: relative;
+}
+
+.profile-identity-stamp {
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    gap: 2px 9px;
+    margin-top: 5px;
+    border-left: 2px solid #ffd700;
+    background: linear-gradient(90deg, rgba(255, 215, 0, .1), transparent);
+    padding: 7px 10px;
+    text-align: left;
+}
+
+.profile-identity-stamp>span {
+    grid-column: 1 / -1;
+    color: #8f8f98;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.profile-identity-stamp>strong {
+    color: #ffd700;
+    font-size: 11px;
+}
+
+.profile-identity-stamp>small {
+    color: #a0a0a8;
+    font-size: 9px;
+}
+
+.profile-radar {
+    grid-template-columns: minmax(0, .65fr) minmax(180px, 1.35fr);
+}
+
+.profile-radar__chart {
+    min-height: 190px;
+}
+
+.profile-radar__chart svg {
+    inset: 16px 22px;
+    width: calc(100% - 44px);
+    height: calc(100% - 32px);
+}
+
+.profile-radar__grid {
+    fill: none;
+    stroke: rgba(255, 255, 255, .17);
+    stroke-width: .7;
+}
+
+.profile-radar__axis {
+    stroke: rgba(255, 255, 255, .11);
+    stroke-width: .6;
+}
+
+.profile-radar__area {
+    fill: rgba(255, 215, 0, .24);
+    stroke-width: 1.8;
+    filter: drop-shadow(0 0 5px rgba(255, 215, 0, .22));
+}
+
+.nav-search-results a {
+    touch-action: manipulation;
+}
+
+.tracker-fields__progress {
+    display: grid;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.tracker-fields__progress>span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #8d8d96;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.tracker-fields__progress>span strong {
+    color: #f0f0f3;
+    font-size: 9px;
+}
 
 @media (max-width: 1279px) {
-    .tracker-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
-    .tracker-card.is-open { grid-column: span 2; }
+    .tracker-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tracker-card.is-open {
+        grid-column: span 2;
+    }
 }
 
 @media (max-width: 900px) {
-    .home-feature-story,.home-feature-story--reverse,.home-feature-story--banner,.home-feature-story[data-feature="discovery"],.home-feature-story[data-feature="my-reviews"],.home-feature-story[data-feature="my-comments"] { grid-column: 1 / -1; grid-template-columns: 1fr; grid-template-rows: 190px auto; min-height: 420px; }
-    .home-feature-story[data-feature="my-reviews"] .home-feature-story__art,.home-feature-story[data-feature="genres"] .home-feature-story__art,.home-feature-story[data-feature="about"] .home-feature-story__art { order: 0; }
+
+    .home-feature-story,
+    .home-feature-story--reverse,
+    .home-feature-story--banner,
+    .home-feature-story[data-feature="discovery"],
+    .home-feature-story[data-feature="my-reviews"],
+    .home-feature-story[data-feature="my-comments"] {
+        grid-column: 1 / -1;
+        grid-template-columns: 1fr;
+        grid-template-rows: 190px auto;
+        min-height: 420px;
+    }
+
+    .home-feature-story[data-feature="my-reviews"] .home-feature-story__art,
+    .home-feature-story[data-feature="genres"] .home-feature-story__art,
+    .home-feature-story[data-feature="about"] .home-feature-story__art {
+        order: 0;
+    }
 }
 
 @media (max-width: 700px) {
-    .tracker-grid { grid-template-columns: minmax(0,1fr); }
-    .tracker-card,.tracker-card.is-open { grid-column: span 1; grid-template-columns: 88px minmax(0,1fr); }
-    .home-feature-stories { gap: 18px; margin-top: 34px; }
-    .home-feature-story__copy,.home-feature-story--banner .home-feature-story__copy { padding: 22px 20px 25px; }
-    .franchise-detail__hero { min-height: 370px; }
-    .franchise-detail__hero > .progressive-image > img { object-position: center; }
-    .franchise-detail__shade { background: linear-gradient(0deg,rgba(8,8,11,.98) 0%,rgba(8,8,11,.68) 62%,rgba(8,8,11,.18) 100%); }
-    .franchise-detail__hero-body { grid-template-columns: 86px minmax(0,1fr); align-content: end; gap: 12px; padding: 18px !important; }
-    .franchise-detail__poster { width: 86px; }
-    .franchise-detail__hero-body h1 { max-width: none; font-size: clamp(1.25rem,6vw,1.7rem); line-height: 1.08; }
-    .franchise-detail__hero-body > div > p { font-size: 10px; }
-    .franchise-timeline__heading { min-width: 0; overflow: visible; padding-right: 4px; }
-    .franchise-timeline__heading h2 { max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; font-size: clamp(1.35rem,7vw,1.8rem); line-height: 1.12; }
-    .profile-identity-stamp { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-    .profile-radar { grid-template-columns: 1fr; }
-    .profile-radar__chart { width: min(100%,270px); min-height: 220px; margin: 0 auto; }
+    .tracker-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tracker-card,
+    .tracker-card.is-open {
+        grid-column: span 1;
+        grid-template-columns: 88px minmax(0, 1fr);
+    }
+
+    .home-feature-stories {
+        gap: 18px;
+        margin-top: 34px;
+    }
+
+    .home-feature-story__copy,
+    .home-feature-story--banner .home-feature-story__copy {
+        padding: 22px 20px 25px;
+    }
+
+    .franchise-detail__hero {
+        min-height: 370px;
+    }
+
+    .franchise-detail__hero>.progressive-image>img {
+        object-position: center;
+    }
+
+    .franchise-detail__shade {
+        background: linear-gradient(0deg, rgba(8, 8, 11, .98) 0%, rgba(8, 8, 11, .68) 62%, rgba(8, 8, 11, .18) 100%);
+    }
+
+    .franchise-detail__hero-body {
+        grid-template-columns: 86px minmax(0, 1fr);
+        align-content: end;
+        gap: 12px;
+        padding: 18px !important;
+    }
+
+    .franchise-detail__poster {
+        width: 86px;
+    }
+
+    .franchise-detail__hero-body h1 {
+        max-width: none;
+        font-size: clamp(1.25rem, 6vw, 1.7rem);
+        line-height: 1.08;
+    }
+
+    .franchise-detail__hero-body>div>p {
+        font-size: 10px;
+    }
+
+    .franchise-timeline__heading {
+        min-width: 0;
+        overflow: visible;
+        padding-right: 4px;
+    }
+
+    .franchise-timeline__heading h2 {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+        font-size: clamp(1.35rem, 7vw, 1.8rem);
+        line-height: 1.12;
+    }
+
+    .profile-identity-stamp {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+    }
+
+    .profile-radar {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-radar__chart {
+        width: min(100%, 270px);
+        min-height: 220px;
+        margin: 0 auto;
+    }
 }
 
 /* Immersive, alternating homepage guide without nested status-chip cards. */
-.home-feature-stories { display: grid; grid-template-columns: 1fr; gap: 0; margin-top: 72px; }
-.home-feature-stories__intro { grid-column: 1; padding: 0 0 26px; border-bottom: 1px solid rgba(255,255,255,.1); }
-.home-feature-stories__intro h2 { font-size: clamp(1.9rem,3.4vw,3rem); }
-.home-feature-stories > .home-feature-story,.home-feature-stories > .home-feature-story--reverse,.home-feature-stories > .home-feature-story--banner,.home-feature-stories > .home-feature-story[data-feature] { display: grid; grid-column: 1; grid-template-columns: minmax(0,1.08fr) minmax(320px,.92fr); grid-template-rows: 1fr; min-height: 410px; gap: clamp(28px,5vw,76px); overflow: visible; align-items: center; padding: 44px 0; border: 0; border-bottom: 1px solid rgba(255,255,255,.09); border-radius: 0; background: transparent; box-shadow: none; }
-.home-feature-stories > .home-feature-story:nth-of-type(even) { grid-template-columns: minmax(320px,.92fr) minmax(0,1.08fr); }
-.home-feature-stories > .home-feature-story:nth-of-type(even) .home-feature-story__art { order: 2; }
-.home-feature-stories .home-feature-story__art { min-height: 330px; border: 1px solid rgba(255,255,255,.11); border-radius: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.3); }
-.home-feature-stories .home-feature-story__art::after,.home-feature-stories .home-feature-story--reverse .home-feature-story__art::after { border-radius: inherit; background: linear-gradient(0deg,rgba(8,8,11,.72),transparent 60%),linear-gradient(90deg,rgba(8,8,11,.18),transparent); }
-.home-feature-stories .home-feature-story__background { opacity: .56; filter: saturate(.85) contrast(1.05); }
-.home-feature-stories .feature-demo { background: rgba(15,15,20,.74); backdrop-filter: blur(10px); }
-.home-feature-stories .home-feature-story__copy,.home-feature-stories .home-feature-story--banner .home-feature-story__copy { min-height: 0; padding: clamp(12px,2vw,28px); }
-.home-feature-stories .home-feature-story__copy h3 { font-size: clamp(1.7rem,3vw,2.7rem); }
-.home-feature-stories .home-feature-story__copy p { max-width: 560px; font-size: 14px; }
-.home-feature-stories .home-feature-story__copy > a { margin-top: 24px; align-self: flex-start; }
+.home-feature-stories {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: 72px;
+}
+
+.home-feature-stories__intro {
+    grid-column: 1;
+    padding: 0 0 26px;
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+
+.home-feature-stories__intro h2 {
+    font-size: clamp(1.9rem, 3.4vw, 3rem);
+}
+
+.home-feature-stories>.home-feature-story,
+.home-feature-stories>.home-feature-story--reverse,
+.home-feature-stories>.home-feature-story--banner,
+.home-feature-stories>.home-feature-story[data-feature] {
+    display: grid;
+    grid-column: 1;
+    grid-template-columns: minmax(0, 1.08fr) minmax(320px, .92fr);
+    grid-template-rows: 1fr;
+    min-height: 410px;
+    gap: clamp(28px, 5vw, 76px);
+    overflow: visible;
+    align-items: center;
+    padding: 44px 0;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .09);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.home-feature-stories>.home-feature-story:nth-of-type(even) {
+    grid-template-columns: minmax(320px, .92fr) minmax(0, 1.08fr);
+}
+
+.home-feature-stories>.home-feature-story:nth-of-type(even) .home-feature-story__art {
+    order: 2;
+}
+
+.home-feature-stories .home-feature-story__art {
+    min-height: 330px;
+    border: 1px solid rgba(255, 255, 255, .11);
+    border-radius: 22px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .3);
+}
+
+.home-feature-stories .home-feature-story__art::after,
+.home-feature-stories .home-feature-story--reverse .home-feature-story__art::after {
+    border-radius: inherit;
+    background: linear-gradient(0deg, rgba(8, 8, 11, .72), transparent 60%), linear-gradient(90deg, rgba(8, 8, 11, .18), transparent);
+}
+
+.home-feature-stories .home-feature-story__background {
+    opacity: .56;
+    filter: saturate(.85) contrast(1.05);
+}
+
+.home-feature-stories .feature-demo {
+    background: rgba(15, 15, 20, .74);
+    backdrop-filter: blur(10px);
+}
+
+.home-feature-stories .home-feature-story__copy,
+.home-feature-stories .home-feature-story--banner .home-feature-story__copy {
+    min-height: 0;
+    padding: clamp(12px, 2vw, 28px);
+}
+
+.home-feature-stories .home-feature-story__copy h3 {
+    font-size: clamp(1.7rem, 3vw, 2.7rem);
+}
+
+.home-feature-stories .home-feature-story__copy p {
+    max-width: 560px;
+    font-size: 14px;
+}
+
+.home-feature-stories .home-feature-story__copy>a {
+    margin-top: 24px;
+    align-self: flex-start;
+}
 
 /* The shared image wrapper must not override the franchise hero's absolute layer. */
-.franchise-detail__hero > .progressive-image { position: absolute !important; inset: 0 !important; width: 100%; height: 100%; z-index: 0; }
-.franchise-detail__hero > .progressive-image > img { width: 100%; height: 100%; object-fit: cover; }
-.franchise-timeline__filters { display: flex; gap: 7px; overflow-x: auto; margin-top: 18px; padding-bottom: 5px; scrollbar-width: none; }
-.franchise-timeline__filters::-webkit-scrollbar { display: none; }
-.franchise-timeline__filters button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; background: #1a1a20; color: #b5b5bd; padding: 8px 10px; font-size: 10px; font-weight: 750; }
-.franchise-timeline__filters button small { display: grid; min-width: 18px; height: 18px; place-items: center; border-radius: 999px; background: rgba(255,255,255,.08); color: #8d8d96; font-size: 8px; }
-.franchise-timeline__filters button.is-active { border-color: #ffd700; background: #ffd700; color: #111; }
-.franchise-timeline__filters button.is-active small { background: rgba(0,0,0,.14); color: #111; }
-.franchise-timeline__filters button:disabled { opacity: .34; cursor: not-allowed; }
-.franchise-timeline__empty { border: 1px dashed rgba(255,255,255,.12); border-radius: 14px; color: #81818a; padding: 34px; text-align: center; font-size: 11px; }
+.franchise-detail__hero>.progressive-image {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
 
-.manga-detail-actions .app-dropdown > button { min-height: 40px; border-radius: 12px; }
+.franchise-detail__hero>.progressive-image>img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.franchise-timeline__filters {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    margin-top: 18px;
+    padding-bottom: 5px;
+    scrollbar-width: none;
+}
+
+.franchise-timeline__filters::-webkit-scrollbar {
+    display: none;
+}
+
+.franchise-timeline__filters button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 999px;
+    background: #1a1a20;
+    color: #b5b5bd;
+    padding: 8px 10px;
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.franchise-timeline__filters button small {
+    display: grid;
+    min-width: 18px;
+    height: 18px;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .08);
+    color: #8d8d96;
+    font-size: 8px;
+}
+
+.franchise-timeline__filters button.is-active {
+    border-color: #ffd700;
+    background: #ffd700;
+    color: #111;
+}
+
+.franchise-timeline__filters button.is-active small {
+    background: rgba(0, 0, 0, .14);
+    color: #111;
+}
+
+.franchise-timeline__filters button:disabled {
+    opacity: .34;
+    cursor: not-allowed;
+}
+
+.franchise-timeline__empty {
+    border: 1px dashed rgba(255, 255, 255, .12);
+    border-radius: 14px;
+    color: #81818a;
+    padding: 34px;
+    text-align: center;
+    font-size: 11px;
+}
+
+.manga-detail-actions .app-dropdown>button {
+    min-height: 40px;
+    border-radius: 12px;
+}
 
 @media (max-width: 900px) {
-    .home-feature-stories { margin-top: 46px; }
-    .home-feature-stories > .home-feature-story,.home-feature-stories > .home-feature-story--reverse,.home-feature-stories > .home-feature-story--banner,.home-feature-stories > .home-feature-story[data-feature],.home-feature-stories > .home-feature-story:nth-of-type(even) { grid-template-columns: 1fr; grid-template-rows: auto auto; min-height: 0; gap: 20px; padding: 30px 0; }
-    .home-feature-stories > .home-feature-story:nth-of-type(even) .home-feature-story__art { order: 0; }
-    .home-feature-stories .home-feature-story__art { min-height: 240px; }
-    .home-feature-stories .home-feature-story__copy,.home-feature-stories .home-feature-story--banner .home-feature-story__copy { padding: 8px 4px 14px; }
+    .home-feature-stories {
+        margin-top: 46px;
+    }
+
+    .home-feature-stories>.home-feature-story,
+    .home-feature-stories>.home-feature-story--reverse,
+    .home-feature-stories>.home-feature-story--banner,
+    .home-feature-stories>.home-feature-story[data-feature],
+    .home-feature-stories>.home-feature-story:nth-of-type(even) {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+        min-height: 0;
+        gap: 20px;
+        padding: 30px 0;
+    }
+
+    .home-feature-stories>.home-feature-story:nth-of-type(even) .home-feature-story__art {
+        order: 0;
+    }
+
+    .home-feature-stories .home-feature-story__art {
+        min-height: 240px;
+    }
+
+    .home-feature-stories .home-feature-story__copy,
+    .home-feature-stories .home-feature-story--banner .home-feature-story__copy {
+        padding: 8px 4px 14px;
+    }
 }
 
 /* Manga favorites keep their own durable tier order, separate from anime ranks. */
-.manga-tier-board { display: grid; gap: 16px; }
-.manga-tier-board > header { display: flex; align-items: end; justify-content: space-between; gap: 18px; padding: 4px 2px 18px; border-bottom: 1px solid rgba(255,255,255,.1); }
-.manga-tier-board > header span { color: #ffd700; font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.manga-tier-board > header h2 { margin-top: 3px; color: #fff; font-size: clamp(1.35rem,2.5vw,2rem); font-weight: 800; }
-.manga-tier-board > header p { margin-top: 5px; color: #9898a1; font-size: 11px; }
-.manga-tier-board > header button,.manga-tier-selection button { flex: 0 0 auto; border: 1px solid rgba(255,255,255,.14); border-radius: 999px; background: rgba(255,255,255,.055); color: #c9c9cf; padding: 8px 12px; font-size: 10px; font-weight: 700; }
-.manga-tier-board > header button:hover,.manga-tier-selection button:hover { border-color: rgba(255,215,0,.5); color: #ffd700; }
-.manga-tier-selection { display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,215,0,.35); border-radius: 12px; background: rgba(255,215,0,.07); padding: 9px 12px; }
-.manga-tier-selection > span { min-width: 0; flex: 1; overflow: hidden; color: #f4f4f5; font-size: 11px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
-.manga-tier-rows { display: grid; gap: 8px; }
-.manga-tier-rows > section { display: grid; grid-template-columns: 82px minmax(0,1fr); min-height: 128px; overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(20,20,26,.82); transition: border-color 160ms ease,background 160ms ease; }
-.manga-tier-rows > section.is-target { cursor: pointer; }
-.manga-tier-rows > section.is-target:hover { border-color: #ffd700; background: rgba(255,215,0,.045); }
-.manga-tier-label { display: grid; place-items: center; min-height: 100%; font-family: "Montserrat",sans-serif; font-size: 1.65rem; font-weight: 850; }
-.manga-tier-items { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; padding: 11px; }
-.manga-tier-items > small,.manga-tier-waiting > div:last-child > small { color: #73737d; font-size: 10px; font-style: italic; }
-.manga-tier-card { position: relative; width: 72px; aspect-ratio: 2/3; flex: 0 0 auto; overflow: hidden; border: 1px solid rgba(255,255,255,.15); border-radius: 9px; background: #24242b; color: #fff; box-shadow: 0 8px 18px rgba(0,0,0,.28); transition: transform 150ms ease,border-color 150ms ease,box-shadow 150ms ease; }
-.manga-tier-card:hover { z-index: 2; transform: translateY(-3px); border-color: rgba(255,215,0,.7); }
-.manga-tier-card.is-selected { z-index: 3; border-color: #ffd700; box-shadow: 0 0 0 2px #ffd700,0 10px 24px rgba(0,0,0,.38); }
-.manga-tier-card img { width: 100%; height: 100%; object-fit: cover; }
-.manga-tier-card > span { position: absolute; z-index: 2; top: 5px; left: 5px; display: grid; min-width: 20px; height: 20px; place-items: center; border-radius: 7px; background: #ffd700; color: #111; padding: 0 4px; font-size: 8px; font-weight: 850; box-shadow: 0 3px 8px rgba(0,0,0,.35); }
-.manga-tier-card strong { position: absolute; z-index: 1; right: 0; bottom: 0; left: 0; display: -webkit-box; overflow: hidden; background: linear-gradient(transparent,rgba(0,0,0,.94)); color: #fff; padding: 22px 6px 6px; font-size: 8px; font-weight: 750; line-height: 1.25; text-align: left; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.manga-tier-waiting { display: grid; grid-template-columns: 82px minmax(0,1fr); min-height: 125px; overflow: hidden; border: 1px dashed rgba(255,255,255,.16); border-radius: 14px; background: rgba(10,10,14,.58); }
-.manga-tier-waiting > div:first-child { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; border-right: 1px dashed rgba(255,255,255,.13); color: #a0a0a8; padding: 10px; text-align: center; }
-.manga-tier-waiting > div:first-child span { font-size: 9px; font-weight: 800; text-transform: uppercase; }
-.manga-tier-waiting > div:first-child strong { color: #ffd700; font-size: 1.2rem; }
-.manga-tier-waiting > div:last-child { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; padding: 11px; }
+.manga-tier-board {
+    display: grid;
+    gap: 16px;
+}
+
+.manga-tier-board>header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 4px 2px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+
+.manga-tier-board>header span {
+    color: #ffd700;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.manga-tier-board>header h2 {
+    margin-top: 3px;
+    color: #fff;
+    font-size: clamp(1.35rem, 2.5vw, 2rem);
+    font-weight: 800;
+}
+
+.manga-tier-board>header p {
+    margin-top: 5px;
+    color: #9898a1;
+    font-size: 11px;
+}
+
+.manga-tier-board>header button,
+.manga-tier-selection button {
+    flex: 0 0 auto;
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .055);
+    color: #c9c9cf;
+    padding: 8px 12px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.manga-tier-board>header button:hover,
+.manga-tier-selection button:hover {
+    border-color: rgba(255, 215, 0, .5);
+    color: #ffd700;
+}
+
+.manga-tier-selection {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 215, 0, .35);
+    border-radius: 12px;
+    background: rgba(255, 215, 0, .07);
+    padding: 9px 12px;
+}
+
+.manga-tier-selection>span {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    color: #f4f4f5;
+    font-size: 11px;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.manga-tier-rows {
+    display: grid;
+    gap: 8px;
+}
+
+.manga-tier-rows>section {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr) 34px;
+    min-height: 128px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 14px;
+    background: rgba(20, 20, 26, .82);
+    transition: border-color 160ms ease, background 160ms ease;
+}
+
+.manga-tier-row-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    border-left: 1px solid rgba(255, 255, 255, .08);
+    padding: 4px;
+}
+
+.manga-tier-row-actions button,
+.manga-tier-waiting>div:first-child button {
+    display: grid;
+    width: 25px;
+    height: 25px;
+    place-items: center;
+    border-radius: 7px;
+    color: #aaaab2;
+}
+
+.manga-tier-row-actions button:hover,
+.manga-tier-waiting>div:first-child button:hover {
+    background: rgba(255, 255, 255, .08);
+    color: #ffd700;
+}
+
+.manga-tier-row-actions button:disabled {
+    opacity: .25;
+}
+
+.manga-tier-rows>section.is-target {
+    cursor: pointer;
+}
+
+.manga-tier-rows>section.is-target:hover {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, .045);
+}
+
+.manga-tier-label {
+    display: grid;
+    place-items: center;
+    min-height: 100%;
+    font-family: "Montserrat", sans-serif;
+    font-size: 1.65rem;
+    font-weight: 850;
+}
+
+.manga-tier-items {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px;
+    padding: 11px;
+}
+
+.manga-tier-items>small,
+.manga-tier-waiting>div:last-child>small {
+    color: #73737d;
+    font-size: 10px;
+    font-style: italic;
+}
+
+.manga-tier-card {
+    position: relative;
+    width: 72px;
+    aspect-ratio: 2/3;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 9px;
+    background: #24242b;
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, .28);
+    transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.manga-tier-card:hover {
+    z-index: 2;
+    transform: translateY(-3px);
+    border-color: rgba(255, 215, 0, .7);
+}
+
+.manga-tier-card.is-selected {
+    z-index: 3;
+    border-color: #ffd700;
+    box-shadow: 0 0 0 2px #ffd700, 0 10px 24px rgba(0, 0, 0, .38);
+}
+
+.manga-tier-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.manga-tier-card>span {
+    position: absolute;
+    z-index: 2;
+    top: 5px;
+    left: 5px;
+    display: grid;
+    min-width: 20px;
+    height: 20px;
+    place-items: center;
+    border-radius: 7px;
+    background: #ffd700;
+    color: #111;
+    padding: 0 4px;
+    font-size: 8px;
+    font-weight: 850;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, .35);
+}
+
+.manga-tier-card strong {
+    position: absolute;
+    z-index: 1;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: -webkit-box;
+    overflow: hidden;
+    background: linear-gradient(transparent, rgba(0, 0, 0, .94));
+    color: #fff;
+    padding: 22px 6px 6px;
+    font-size: 8px;
+    font-weight: 750;
+    line-height: 1.25;
+    text-align: left;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.manga-tier-waiting {
+    display: grid;
+    grid-template-columns: 82px minmax(0, 1fr);
+    min-height: 125px;
+    overflow: hidden;
+    border: 1px dashed rgba(255, 255, 255, .16);
+    border-radius: 14px;
+    background: rgba(10, 10, 14, .58);
+}
+
+.manga-tier-waiting>div:first-child {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+    border-right: 1px dashed rgba(255, 255, 255, .13);
+    color: #a0a0a8;
+    padding: 10px;
+    text-align: center;
+}
+
+.manga-tier-waiting>div:first-child span {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.manga-tier-waiting>div:first-child strong {
+    color: #ffd700;
+    font-size: 1.2rem;
+}
+
+.manga-tier-waiting>div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px;
+    padding: 11px;
+}
 
 @media (max-width: 640px) {
-    .manga-tier-board > header { align-items: flex-start; flex-direction: column; }
-    .manga-tier-selection { align-items: stretch; flex-wrap: wrap; }
-    .manga-tier-selection > span { flex-basis: 100%; }
-    .manga-tier-rows > section,.manga-tier-waiting { grid-template-columns: 54px minmax(0,1fr); min-height: 108px; }
-    .manga-tier-label { font-size: 1.25rem; }
-    .manga-tier-card { width: 59px; }
-    .manga-tier-items,.manga-tier-waiting > div:last-child { gap: 7px; padding: 8px; }
-    .manga-tier-waiting > div:first-child span { writing-mode: vertical-rl; transform: rotate(180deg); }
+    .manga-tier-board>header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .manga-tier-selection {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .manga-tier-selection>span {
+        flex-basis: 100%;
+    }
+
+    .manga-tier-rows>section,
+    .manga-tier-waiting {
+        grid-template-columns: 54px minmax(0, 1fr) 32px;
+        min-height: 108px;
+    }
+
+    .manga-tier-waiting {
+        grid-template-columns: 54px minmax(0, 1fr);
+    }
+
+    .manga-tier-label {
+        font-size: 1.25rem;
+    }
+
+    .manga-tier-card {
+        width: 59px;
+    }
+
+    .manga-tier-items,
+    .manga-tier-waiting>div:last-child {
+        gap: 7px;
+        padding: 8px;
+    }
+
+    .manga-tier-waiting>div:first-child span {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+    }
+}
+
+/* Shared catalogue filters for home rails and full collection pages. */
+.catalog-genre-filter {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #ffd700;
+}
+
+.catalog-genre-filter .app-dropdown {
+    min-width: 150px;
+    color: #d7d7dd;
+}
+
+.catalog-genre-filter.is-compact .app-dropdown {
+    min-width: 124px;
+}
+
+.catalog-genre-filter.is-compact .app-dropdown>button {
+    min-height: 31px;
+    padding: 6px 9px;
+    font-size: 9px;
+}
+
+.catalog-page-tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.catalog-count {
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .045);
+    color: #93939c;
+    padding: 6px 10px;
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.catalog-filter-empty,
+.catalog-row__empty {
+    color: #898992;
+    font-size: 11px;
+    text-align: center;
+}
+
+.catalog-filter-empty {
+    grid-column: 1 / -1;
+    border: 1px dashed rgba(255, 255, 255, .12);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.catalog-row__empty {
+    width: min(420px, 80vw);
+    padding: 42px 16px;
+}
+
+.home-rail__actions {
+    overflow: visible;
+}
+
+/* Franchise catalogue header follows the same library pattern as Manga. */
+.franchise-page__catalog-head {
+    display: flex;
+    max-width: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 28px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 18px;
+    background: rgba(18, 18, 26, .92);
+    padding: 22px 24px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, .24);
+}
+
+.franchise-page__title-block {
+    min-width: 0;
+}
+
+.franchise-page__title-block>span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #ffd700;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.franchise-page__catalog-tools {
+    display: flex;
+    max-width: 620px;
+    flex: 1;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+.franchise-page__catalog-tools .franchise-page__search {
+    flex: 1 1 260px;
+}
+
+/* Favorites controls live with the tier rows they affect. */
+.favorite-tier-footer {
+    display: flex;
+    align-items: end;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid rgba(255, 255, 255, .09);
+    padding-top: 12px;
+}
+
+.favorite-tier-footer label {
+    display: grid;
+    gap: 4px;
+    margin-right: auto;
+}
+
+.favorite-tier-footer label>span {
+    color: #85858e;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.favorite-tier-footer input {
+    width: 160px;
+    border: 1px solid rgba(255, 255, 255, .13);
+    border-radius: 9px;
+    background: #101014;
+    color: #fff;
+    padding: 8px 9px;
+    font-size: 10px;
+    outline: 0;
+}
+
+.favorite-tier-footer input:focus {
+    border-color: #ffd700;
+}
+
+.favorite-tier-footer button {
+    display: inline-flex;
+    min-height: 33px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid rgba(255, 215, 0, .38);
+    border-radius: 9px;
+    background: rgba(255, 215, 0, .1);
+    color: #ffd700;
+    padding: 7px 10px;
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.favorite-tier-footer button.is-muted {
+    border-color: rgba(255, 255, 255, .13);
+    background: rgba(255, 255, 255, .045);
+    color: #aaaab2;
+}
+
+.favorite-tier-footer button:disabled {
+    cursor: not-allowed;
+    opacity: .35;
+}
+
+.favorite-grid-view {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.favorite-grid-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 14px;
+    background: #17171d;
+}
+
+.favorite-grid-card>a {
+    display: grid;
+    height: 100%;
+    grid-template-columns: 92px minmax(0, 1fr);
+    align-items: center;
+    gap: 13px;
+    padding: 9px 38px 9px 9px;
+}
+
+.favorite-grid-card__cover {
+    width: 92px;
+    aspect-ratio: 2/3;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.favorite-grid-card__rank {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    z-index: 3;
+    border: 1px solid rgba(255, 215, 0, .55);
+    border-radius: 7px;
+    background: rgba(10, 10, 12, .9);
+    color: #ffd700;
+    padding: 3px 6px;
+    font-size: 9px;
+    font-weight: 850;
+}
+
+.favorite-grid-card small {
+    color: #ffd700;
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.favorite-grid-card h2 {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: 5px;
+    color: #f4f4f5;
+    font-family: "Montserrat", sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.favorite-grid-card p {
+    margin-top: 8px;
+    color: #85858e;
+    font-size: 9px;
+}
+
+.favorite-grid-card>button {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 1px solid rgba(248, 113, 113, .25);
+    border-radius: 8px;
+    background: #27171b;
+    color: #fca5a5;
+}
+
+.favorite-trash__cover {
+    width: 42px;
+    height: 55px;
+    overflow: hidden;
+    border-radius: 7px;
+}
+
+/* Franchise grouping uses a clean row heading with a regular responsive card grid. */
+.favorite-franchise-row {
+    display: block;
+    overflow: hidden;
+}
+
+.favorite-franchise-tier {
+    min-height: 0;
+    justify-items: start;
+    padding: 10px 14px;
+    font-size: 12px;
+}
+
+.favorite-franchise-groups {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+}
+
+.favorite-franchise-card {
+    grid-template-columns: 68px minmax(0, 1fr);
+    min-height: 132px;
+}
+
+.favorite-franchise-card__cover {
+    width: 68px;
+    height: 102px;
+    overflow: hidden;
+    border-radius: 9px;
+    background: #24242a;
+}
+
+/* Watchlist status is restrained: color identifies only the edge and progress chip. */
+.tracker-filters>button {
+    border-color: rgba(255, 255, 255, .13);
+    background: #1b1b20;
+    color: #b9b9c0;
+}
+
+.tracker-filters>button.is-active {
+    border-color: rgba(255, 215, 0, .55);
+    background: rgba(255, 215, 0, .13);
+    color: #ffd700;
+}
+
+.tracker-card__summary>span {
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, .055);
+    color: #c9c9cf;
+}
+
+.tracker-card__summary small {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.tracker-card__progress-tag {
+    display: inline-flex;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--status-color) 14%, #19191e);
+    color: var(--status-color);
+    padding: 4px 7px;
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.tracker-card__note,
+.tracker-card__actions button,
+.tracker-card__actions a {
+    border-color: rgba(255, 255, 255, .13);
+    background: rgba(255, 255, 255, .045);
+    color: #dedee2;
+}
+
+.tracker-card__note[aria-expanded="true"] {
+    border-color: rgba(255, 215, 0, .5);
+    background: rgba(255, 215, 0, .13);
+    color: #ffd700;
+}
+
+.tracker-card .app-dropdown__menu>button[data-value] {
+    color: #d7d7dc;
+}
+
+.tracker-fields__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    padding-top: 10px;
+}
+
+.tracker-fields__footer>button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, .13);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, .05);
+    color: #c8c8ce;
+    padding: 7px 11px;
+    font-size: 10px;
+    font-weight: 750;
+}
+
+.tracker-fields__footer>button.is-primary {
+    border-color: #ffd700;
+    background: #ffd700;
+    color: #111;
+}
+
+/* Clear hierarchy between profile identity, headline numbers, and deeper insights. */
+.profile-insights {
+    margin-top: 30px;
+    border-top: 0;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, .055), rgba(255, 255, 255, .018) 44%, transparent);
+    padding: 20px;
+    box-shadow: inset 3px 0 #ffd700;
+}
+
+.profile-insights__header {
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+
+.profile-insights__header h2 {
+    font-size: 21px;
+}
+
+.profile-insights__stats {
+    gap: 7px;
+    border: 0;
+    background: transparent;
+}
+
+.profile-insights__stats>div {
+    min-height: 76px;
+    align-content: center;
+    border: 1px solid rgba(255, 255, 255, .09) !important;
+    border-radius: 11px;
+    background: #111115;
+    padding: 11px 12px;
+}
+
+.profile-insights__stats>div:nth-last-child(-n+2) {
+    border-color: rgba(255, 215, 0, .22) !important;
+    background: linear-gradient(145deg, rgba(255, 215, 0, .08), #111115 66%);
+}
+
+.profile-completion,
+.profile-genres,
+.profile-radar {
+    position: relative;
+    padding-top: 38px;
+}
+
+.profile-completion::before,
+.profile-genres::before,
+.profile-radar::before {
+    position: absolute;
+    top: 13px;
+    left: 17px;
+    color: #ffd700;
+    font-size: 8px;
+    font-weight: 850;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.profile-completion::before {
+    content: "Progress";
+}
+
+.profile-genres::before {
+    content: "Taste";
+}
+
+.profile-radar::before {
+    content: "Interest web";
+}
+
+/* Readable profile labels without the decorative side rule. */
+.profile-insights {
+    box-shadow: none;
+}
+
+.profile-insights__stats span,
+.profile-completion p,
+.profile-radar p,
+.profile-genres span,
+.profile-genres small {
+    color: #bdbdc5;
+    font-size: 11px;
+}
+
+.profile-completion__ring span {
+    color: #dedee3;
+    font-size: 10px;
+}
+
+.profile-radar__chart>span {
+    max-width: 72px;
+    overflow: visible;
+    color: #c7c7ce;
+    font-size: 8.5px;
+}
+
+/* Tracker state colour belongs to the status tab only. */
+.tracker-card {
+    border-left-color: rgba(255, 255, 255, .12);
+}
+
+.tracker-card__summary>span {
+    border-color: color-mix(in srgb, var(--status-color) 36%, transparent);
+    background: color-mix(in srgb, var(--status-color) 14%, #19191e);
+    color: var(--status-color);
+}
+
+.tracker-card__progress-tag,
+.tracker-card__note,
+.tracker-card__note[aria-expanded="true"] {
+    border-color: rgba(255, 255, 255, .13);
+    background: #202026;
+    color: #d7d7dc;
+}
+
+/* All tracker/list choices are neutral; only destructive actions stay red. */
+.app-dropdown__menu>button[data-value] {
+    color: #d7d7dc;
+}
+
+.app-dropdown__menu>button[data-tone="danger"] {
+    color: #fca5a5;
+}
+
+.watchlist-trash-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .05);
+    color: #c9c9cf;
+    padding: 7px 10px;
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.watchlist-trash-toggle.is-active {
+    border-color: rgba(255, 215, 0, .58);
+    background: rgba(255, 215, 0, .12);
+    color: #ffd700;
+}
+
+.watchlist-trash-toggle__count {
+    display: grid;
+    min-width: 19px;
+    height: 19px;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .11);
+    color: currentColor;
+    font-size: 9px;
+}
+
+/* One homepage genre choice controls every catalogue row. */
+.home-catalog__filter {
+  position: relative;
+  z-index: 200;
+  overflow: visible;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    max-width: 1400px;
+    margin: 34px auto 2px;
+    border: 1px solid rgba(255, 215, 0, .24);
+    border-radius: 15px;
+    background: linear-gradient(120deg, rgba(255, 215, 0, .07), rgba(20, 20, 25, .72));
+    padding: 11px 14px;
+    backdrop-filter: blur(12px);
+}
+
+.home-catalog__filter .app-dropdown__menu {
+  z-index: 300;
+}
+
+.anime-detail-footer {
+  width: 100%;
+  margin-top: clamp(3rem, 6vw, 5rem);
+}
+
+.anime-detail-footer footer {
+  margin-top: 0;
+}
+
+.genre-media-switch {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, .13);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .045);
+    padding: 3px;
+}
+
+.genre-media-switch button {
+    border-radius: 999px;
+    color: #b8b8c0;
+    padding: 7px 13px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.genre-media-switch button.is-active {
+    background: #ffd700;
+    color: #111;
+}
+
+.genre-manga-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    color: inherit;
+}
+
+.genre-manga-card__cover {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 10px;
+    background: #19191f;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, .28);
+}
+
+.genre-manga-card__cover>.progressive-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.genre-manga-card__cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    transition: transform 300ms ease;
+}
+
+.genre-manga-card__cover>.progressive-image--fallback>img {
+    padding: 0;
+    object-fit: cover !important;
+}
+
+.genre-manga-card:hover .genre-manga-card__cover {
+    border-color: rgba(255, 215, 0, .55);
+}
+
+.genre-manga-card:hover .genre-manga-card__cover img {
+    transform: scale(1.045);
+}
+
+.genre-manga-card__cover>span {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid rgba(255, 215, 0, .7);
+    border-radius: 8px;
+    background: rgba(14, 14, 18, .9);
+    color: #ffd700;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.genre-manga-card h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    height: 40px;
+    margin-top: 10px;
+    color: white;
+    font-family: "Montserrat", sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.4;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.genre-manga-card:hover h3 {
+    color: #ffd700;
+}
+
+.genre-manga-card>div:last-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, .06);
+    color: #9999a2;
+    padding-top: 8px;
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.favorite-selection-trash {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(248, 113, 113, 0.82);
+  border-radius: 0.55rem;
+  background: rgba(127, 29, 29, 0.72);
+  color: #fecaca;
+  padding: 0.38rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.42);
+  transition: background 180ms ease, color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.favorite-selection-trash:hover {
+  background: #dc2626;
+  color: white;
+  box-shadow: 0 0 26px rgba(239, 68, 68, 0.68);
+  transform: translateY(-1px);
+}
+
+.home-catalog__filter>div:first-child {
+    display: grid;
+    gap: 2px;
+}
+
+.home-catalog__filter>div:first-child span {
+    color: #8f8f98;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.home-catalog__filter>div:first-child strong {
+    color: #f5f5f6;
+    font-family: "Montserrat", sans-serif;
+    font-size: 13px;
+}
+
+/* Watchlist cards use the site's yellow accent while state stays on the status chip. */
+.tracker-card {
+    border-color: rgba(255, 215, 0, .24);
+    border-left-color: rgba(255, 215, 0, .44);
+    box-shadow: inset 0 1px rgba(255, 215, 0, .06), 0 12px 30px rgba(0, 0, 0, .18);
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.tracker-card:hover,
+.tracker-card:focus-within {
+    border-color: rgba(255, 215, 0, .5);
+    box-shadow: inset 0 1px rgba(255, 215, 0, .11), 0 16px 34px rgba(0, 0, 0, .25);
+}
+
+.tracker-card__content {
+    border-left-color: rgba(255, 215, 0, .16);
+}
+
+.tracker-card__rank {
+    border-color: rgba(255, 215, 0, .34);
+    background: rgba(255, 215, 0, .09);
+    color: #ffe052;
+}
+
+.tracker-card__note,
+.tracker-card__note[aria-expanded="true"] {
+    border-color: rgba(255, 215, 0, .42);
+    background: rgba(255, 215, 0, .09);
+    color: #ffd700;
+}
+
+.tracker-card__actions button:not(.is-remove),
+.tracker-card__actions a {
+    border-color: rgba(255, 215, 0, .32);
+    background: rgba(255, 215, 0, .08);
+    color: #ffe052;
+}
+
+.tracker-card__actions button:not(.is-remove):hover,
+.tracker-card__actions a:hover {
+    border-color: #ffd700;
+    background: #ffd700;
+    color: #111;
+}
+
+/* Manga and anime Favorites now share the same two-column tier workspace. */
+.favorite-tier-guide {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    border: 1px solid rgba(255, 215, 0, .3);
+    border-radius: 14px;
+    background: linear-gradient(90deg, rgba(255, 215, 0, .09), rgba(255, 215, 0, .02));
+    padding: 12px 14px;
+}
+
+.favorite-tier-guide>span {
+    display: grid;
+    width: 31px;
+    height: 31px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid rgba(255, 215, 0, .4);
+    border-radius: 999px;
+    background: rgba(255, 215, 0, .12);
+    color: #ffd700;
+}
+
+.favorite-tier-guide strong {
+    color: #f5f5f6;
+    font-family: "Montserrat", sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.favorite-tier-guide p {
+    margin-top: 2px;
+    color: #a7a7af;
+    font-size: 10px;
+}
+
+.manga-tier-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(230px, 1fr);
+    align-items: start;
+    gap: 18px;
+}
+
+.manga-tier-main {
+    display: grid;
+    gap: 12px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: 16px;
+    background: rgba(0, 0, 0, .45);
+    padding: 12px;
+    backdrop-filter: blur(10px);
+}
+
+.manga-tier-workspace .manga-tier-waiting {
+    position: sticky;
+    top: 96px;
+    display: block;
+    min-height: 220px;
+    border-style: solid;
+    background: rgba(20, 20, 25, .84);
+    padding: 13px;
+}
+
+.manga-tier-workspace .manga-tier-waiting>div:first-child {
+    flex-direction: row;
+    justify-content: flex-start;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+    padding: 2px 0 10px;
+}
+
+.manga-tier-workspace .manga-tier-waiting>div:first-child strong {
+    margin-left: auto;
+    font-size: 12px;
+}
+
+.manga-tier-workspace .manga-tier-waiting>div:last-child {
+    align-content: flex-start;
+    min-height: 150px;
+    max-height: 480px;
+    overflow-y: auto;
+    padding: 12px 0 0;
+}
+
+/* AnimeItem tracker control follows the same pill actions and frosted surface. */
+.anime-tracker-dropdown {
+    width: auto;
+    min-width: 176px;
+}
+
+.anime-tracker-dropdown>button {
+    min-height: 42px;
+    border-color: rgba(255, 255, 255, .2);
+    border-radius: 25px;
+    background: rgba(255, 255, 255, .08);
+    padding: .6rem 1.15rem;
+    color: white;
+    font-family: "Montserrat", sans-serif;
+    font-size: .85rem;
+    font-weight: 700;
+}
+
+.anime-tracker-dropdown>button:hover,
+.anime-tracker-dropdown>button[aria-expanded="true"] {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, .16);
+    color: #ffd700;
+}
+
+.anime-detail-progress {
+    position: relative;
+    width: 100%;
+    overflow: visible;
+    border-color: rgba(255, 255, 255, .18);
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, .105), rgba(20, 20, 26, .48));
+    box-shadow: inset 0 1px rgba(255, 255, 255, .11), 0 18px 44px rgba(0, 0, 0, .24);
+    backdrop-filter: blur(20px) saturate(135%);
+}
+
+.anime-detail-progress .media-progress__heading span {
+    color: rgba(255, 255, 255, .72);
+    text-transform: none;
+}
+
+.anime-detail-progress .media-progress__slider::-webkit-slider-runnable-track {
+    height: 9px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    background: linear-gradient(90deg, #ffd700 0 var(--progress), rgba(255, 255, 255, .12) var(--progress) 100%);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .35);
+}
+
+.anime-detail-progress .media-progress__slider::-webkit-slider-thumb {
+    width: 19px;
+    height: 19px;
+    margin-top: -6px;
+    border: 3px solid rgba(15, 15, 19, .92);
+    box-shadow: 0 0 0 1px #ffd700, 0 4px 12px rgba(0, 0, 0, .42);
+}
+
+.anime-detail-progress .media-progress__controls button,
+.anime-detail-progress .media-progress__controls input {
+    border-color: rgba(255, 255, 255, .17);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .075);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .08);
+    backdrop-filter: blur(12px);
+}
+
+.anime-detail-progress .media-progress__controls button:hover:not(:disabled),
+.anime-detail-progress .media-progress__controls input:focus {
+    border-color: rgba(255, 215, 0, .72);
+    background: rgba(255, 215, 0, .13);
+    color: #ffd700;
+}
+
+@media (max-width: 900px) {
+    .manga-tier-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .manga-tier-workspace .manga-tier-waiting {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .home-catalog__filter {
+        align-items: stretch;
+        flex-direction: column;
+        margin: 20px 12px 0;
+    }
+
+    .home-catalog__filter .catalog-genre-filter,
+    .home-catalog__filter .app-dropdown {
+        width: 100%;
+    }
+
+    .anime-tracker-dropdown {
+        min-width: 150px;
+    }
+
+    .anime-detail-progress {
+        text-align: left;
+    }
+}
+
+/* Gemini result explanation stays separate from the catalogue cards. */
+.finder-ai-answer {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    margin-top: 16px;
+    border: 1px solid rgba(255, 215, 0, .25);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, .08), rgba(255, 255, 255, .025));
+    color: #ffd700;
+    padding: 13px 14px;
+}
+
+.finder-ai-answer>div {
+    min-width: 0;
+}
+
+.finder-ai-answer strong {
+    color: #f5f5f6;
+    font-size: 11px;
+}
+
+.finder-ai-answer p {
+    margin-top: 4px;
+    color: #a3a3ab;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.finder-ai-answer span {
+    display: block;
+    margin-top: 7px;
+    color: #ffd700;
+    font-size: 9px;
+    font-weight: 750;
+}
+
+.finder-result-label {
+    margin: 20px 0 10px;
+    color: #ffd700;
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.finder-dialogue-results small {
+    display: block;
+    margin-top: 5px;
+    color: #85858e;
+    font-size: 9px;
+    line-height: 1.4;
+}
+
+/* Interactive controls move quickly and settle within half a second. */
+button,
+a,
+.app-dropdown__menu,
+.franchise-merge-toggle__track,
+.franchise-merge-toggle__track>span {
+    transition-duration: 220ms !important;
+}
+
+@media (max-width: 1100px) {
+    .favorite-grid-view {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .favorite-franchise-groups {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .franchise-page__catalog-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .franchise-page__catalog-tools {
+        max-width: none;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 700px) {
+    .home-rail__header {
+        align-items: flex-start;
+    }
+
+    .home-rail__actions {
+        max-width: 68%;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .home-rail__actions .catalog-genre-filter {
+        order: 2;
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .catalog-page-tools {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .catalog-page-tools .catalog-genre-filter {
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    .franchise-page__catalog-head {
+        padding: 17px;
+    }
+
+    .franchise-page__catalog-tools {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .franchise-page__catalog-tools .franchise-page__search {
+        flex-basis: auto;
+    }
+
+    .favorite-tier-footer {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .favorite-tier-footer label {
+        width: 100%;
+    }
+
+    .favorite-tier-footer input {
+        width: 100%;
+    }
+
+    .favorite-grid-view {
+        grid-template-columns: 1fr;
+    }
+
+    .favorite-franchise-groups {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-insights {
+        margin-right: -10px;
+        margin-left: -10px;
+        padding: 14px 10px;
+    }
 }

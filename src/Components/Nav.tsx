@@ -15,10 +15,9 @@ import {
   Menu,
   Search,
   TrendingUp,
-  List,
+  ListTodo,
   Star,
   ChevronDown,
-  Calendar,
   MessageCircle,
   MessageSquare,
   Compass,
@@ -172,6 +171,10 @@ export const Nav: React.FC = () => {
   };
 
   const isScrolled = scrolled || location.pathname !== "/" || mobileSearchOpen;
+  const profileLabel = (currentUser?.displayName || currentUser?.email?.split("@")[0] || "User")
+    .trim()
+    .split(/\s+/)[0]
+    .slice(0, 5);
 
   return (
     <>
@@ -210,6 +213,18 @@ export const Nav: React.FC = () => {
           {/* Center / Navigation Links (Visible on Large Screens) */}
           <div className="hidden xl:flex items-center gap-2 flex-shrink-0">
             <Link
+              to="/popular"
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
+                location.pathname === "/popular"
+                  ? "bg-[#ffd700]/15 border-[#ffd700]/40 text-[#ffd700] shadow-[0_0_12px_rgba(255,215,0,0.2)]"
+                  : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
+              }`}
+            >
+              <Star size={16} />
+              <span>Popular</span>
+            </Link>
+
+            <Link
               to="/airing"
               className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
                 location.pathname === "/airing"
@@ -219,18 +234,6 @@ export const Nav: React.FC = () => {
             >
               <TrendingUp size={16} />
               <span>Airing</span>
-            </Link>
-
-            <Link
-              to="/upcoming"
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full font-montserrat font-semibold text-sm transition-all duration-200 border ${
-                location.pathname === "/upcoming"
-                  ? "bg-[#ffd700]/15 border-[#ffd700]/40 text-[#ffd700] shadow-[0_0_12px_rgba(255,215,0,0.2)]"
-                  : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
-              }`}
-            >
-              <Calendar size={16} />
-              <span>Upcoming</span>
             </Link>
 
             <Link
@@ -265,7 +268,7 @@ export const Nav: React.FC = () => {
                   : "border-transparent text-white/80 hover:text-[#ffd700] hover:bg-[#ffd700]/10"
               }`}
             >
-              <List size={16} />
+              <ListTodo size={16} />
               <span>Watchlist</span>
             </Link>
           </div>
@@ -390,9 +393,7 @@ export const Nav: React.FC = () => {
                     )}
                   </div>
                   <span className="text-white font-bold tracking-tight text-xs sm:text-sm">
-                    {(currentUser.displayName ||
-                      currentUser.email?.split("@")[0] ||
-                      "User").slice(0, 7)}
+                    {profileLabel}
                   </span>
                   <ChevronDown
                     size={12}
@@ -425,7 +426,7 @@ export const Nav: React.FC = () => {
                       onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-200 hover:text-[#ffd700] hover:bg-[#ffd700]/10 rounded-xl transition-colors"
                     >
-                      <List size={16} />
+                      <ListTodo size={16} />
                       <span>My Watchlist</span>
                     </Link>
                     <Link

@@ -6,8 +6,10 @@ import Footer from "./Footer";
 import { RefreshCw } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import CatalogGenreFilter, { filterCatalogByGenre } from "./CatalogGenreFilter";
 
 export const Upcoming: React.FC = () => {
+  const [genre, setGenre] = React.useState("ALL");
   const {
     upcomingAnime,
     upcomingPage,
@@ -15,6 +17,7 @@ export const Upcoming: React.FC = () => {
     getUpcomingAnime,
     loading,
   } = useGlobalContext();
+  const visibleAnime = React.useMemo(() => filterCatalogByGenre(upcomingAnime, genre), [genre, upcomingAnime]);
 
   useEffect(() => {
     if (upcomingAnime.length === 0) {
@@ -42,9 +45,7 @@ export const Upcoming: React.FC = () => {
           <h1 className="font-staatliches font-bold text-2xl sm:text-3xl text-[#ffd700] tracking-wider drop-shadow">
             Upcoming Anime
           </h1>
-          <span className="font-montserrat text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
-            {upcomingAnime.length} Titles Loaded
-          </span>
+          <div className="catalog-page-tools"><span className="catalog-count">{upcomingAnime.length} Titles Loaded</span><CatalogGenreFilter items={upcomingAnime} value={genre} onChange={setGenre} /></div>
         </div>
 
         {/* Grid */}
@@ -74,10 +75,11 @@ export const Upcoming: React.FC = () => {
         ) : upcomingAnime.length > 0 ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-6">
-              {upcomingAnime.map((anime: any, idx: number) => (
+              {visibleAnime.map((anime: any, idx: number) => (
                 <AnimeCard key={`upcoming-${anime.mal_id}-${idx}`} anime={anime} />
               ))}
             </div>
+            {!visibleAnime.length && <div className="catalog-filter-empty">No {genre} titles are loaded yet. Choose another genre.</div>}
 
             {hasMoreUpcoming && (
               <div className="flex flex-col items-center justify-center py-8 gap-3">

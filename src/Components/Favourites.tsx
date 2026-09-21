@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useFavourites } from "../context/FavouritesContext";
 import { useAuth } from "../context/AuthContext";
 import { useGlobalContext } from "../context/global";
-import AnimeCard from "./AnimeCard";
 import AuthModal from "./AuthModal";
 import SEO from "./SEO";
 import Footer from "./Footer";
-import { getFranchiseGroups } from "../services/anilist";
+import ProgressiveImage from "./ProgressiveImage";
+import { getFranchiseGroups, getPopularManga, searchAnime, searchManga } from "../services/anilist";
 import {
   Heart,
   LogIn,
@@ -64,32 +65,36 @@ const PRESET_COLORS = [
   "#00d2d3",
 ];
 
-const freshMangaTiers = (): Tier[] => DEFAULT_TIERS.map((tier) => ({ ...tier, animeIds: [] }));
+const freshMediaTiers = (): Tier[] => DEFAULT_TIERS.map((tier) => ({ ...tier, animeIds: [] }));
 
-const MangaTierBoard: React.FC<{ items: any[] }> = ({ items }) => {
-  const [mangaTiers, setMangaTiers] = useState<Tier[]>(() => {
+const FavouriteTierBoard: React.FC<{ items: any[]; mediaType: "anime" | "manga"; onAdd: () => void; onTiersChange?: (tiers: Tier[]) => void }> = ({ items, mediaType, onAdd, onTiersChange }) => {
+  const storageKey = mediaType === "manga" ? "anime_orbit_manga_tierlist" : "anime_orbit_tierlist";
+  const mediaLabel = mediaType === "manga" ? "manga" : "anime";
+  const [mediaTiers, setMediaTiers] = useState<Tier[]>(() => {
     try {
-      const saved = localStorage.getItem("anime_orbit_manga_tierlist");
-      return saved ? JSON.parse(saved) : freshMangaTiers();
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : freshMediaTiers();
     } catch {
-      return freshMangaTiers();
+      return freshMediaTiers();
     }
   });
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [newTierName, setNewTierName] = useState("");
   const itemMap = new Map(items.map((item) => [item.mal_id, item]));
-  const assigned = new Set(mangaTiers.flatMap((tier) => tier.animeIds));
+  const assigned = new Set(mediaTiers.flatMap((tier) => tier.animeIds));
   const waiting = items.filter((item) => !assigned.has(item.mal_id));
   const ranks = new Map<number, number>();
   let nextRank = 1;
-  mangaTiers.forEach((tier) => tier.animeIds.forEach((mediaId) => { if (itemMap.has(mediaId)) ranks.set(mediaId, nextRank++); }));
+  mediaTiers.forEach((tier) => tier.animeIds.forEach((mediaId) => { if (itemMap.has(mediaId)) ranks.set(mediaId, nextRank++); }));
 
   useEffect(() => {
-    localStorage.setItem("anime_orbit_manga_tierlist", JSON.stringify(mangaTiers));
-  }, [mangaTiers]);
+    localStorage.setItem(storageKey, JSON.stringify(mediaTiers));
+    onTiersChange?.(mediaTiers);
+  }, [mediaTiers, storageKey, onTiersChange]);
 
   const placeInTier = (tierId: string, mediaId = selectedId) => {
     if (mediaId === null) return;
-    setMangaTiers((current) => current.map((tier) => {
+    setMediaTiers((current) => current.map((tier) => {
       const without = tier.animeIds.filter((id) => id !== mediaId);
       return tier.id === tierId ? { ...tier, animeIds: [...without, mediaId] } : { ...tier, animeIds: without };
     }));
@@ -97,34 +102,70 @@ const MangaTierBoard: React.FC<{ items: any[] }> = ({ items }) => {
   };
 
   const returnToWaiting = (mediaId: number) => {
-    setMangaTiers((current) => current.map((tier) => ({ ...tier, animeIds: tier.animeIds.filter((id) => id !== mediaId) })));
+    setMediaTiers((current) => current.map((tier) => ({ ...tier, animeIds: tier.animeIds.filter((id) => id !== mediaId) })));
     setSelectedId(null);
   };
 
   const renderCard = (item: any) => {
     const selected = selectedId === item.mal_id;
-    return <button key={item.mal_id} type="button" draggable onDragStart={(event) => event.dataTransfer.setData("text/manga-id", String(item.mal_id))} onClick={(event) => { event.stopPropagation(); setSelectedId((current) => current === item.mal_id ? null : item.mal_id); }} className={`manga-tier-card ${selected ? "is-selected" : ""}`} aria-pressed={selected} title={`${item.title} — select to move`}>
+    return <button key={item.mal_id} type="button" draggable onDragStart={(event) => event.dataTransfer.setData("text/favorite-id", String(item.mal_id))} onClick={(event) => { event.stopPropagation(); setSelectedId((current) => current === item.mal_id ? null : item.mal_id); }} className={`manga-tier-card ${selected ? "is-selected" : ""}`} aria-pressed={selected} title={`${item.title} — select to move`}>
       {ranks.has(item.mal_id) && <span>#{ranks.get(item.mal_id)}</span>}
-      <img src={item.image || "/lost.jpg"} alt="" loading="lazy" />
+      <ProgressiveImage src={item.image || item.images?.jpg?.large_image_url || item.images?.jpg?.image_url} fallbackSrc="/lost.jpg" alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover" />
       <strong>{item.title}</strong>
     </button>;
   };
 
-  return <div className="manga-tier-board">
-    <header><div><span>Manga tier list</span><h2>Rank your favorite reads</h2><p>Select a cover, then choose a row. Drag and drop also works on desktop.</p></div><button type="button" onClick={() => { setMangaTiers(freshMangaTiers()); setSelectedId(null); }}>Reset tiers</button></header>
-    {selectedId !== null && <div className="manga-tier-selection"><span>{itemMap.get(selectedId)?.title || "Manga"} selected</span><button type="button" onClick={() => returnToWaiting(selectedId)}>Move to waiting</button><button type="button" onClick={() => setSelectedId(null)}>Cancel</button></div>}
-    <div className="manga-tier-rows">
-      {mangaTiers.map((tier) => <section key={tier.id} onClick={() => placeInTier(tier.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const mediaId = Number(event.dataTransfer.getData("text/manga-id")); if (mediaId) placeInTier(tier.id, mediaId); }} className={selectedId !== null ? "is-target" : ""}>
-        <div className="manga-tier-label" style={{ background: tier.color, color: tier.textColor }}>{tier.name}</div>
-        <div className="manga-tier-items">{tier.animeIds.map((mediaId) => itemMap.get(mediaId)).filter(Boolean).map(renderCard)}{!tier.animeIds.some((mediaId) => itemMap.has(mediaId)) && <small>{selectedId !== null ? `Place in ${tier.name}` : "No manga ranked here"}</small>}</div>
-      </section>)}
+  const resetTiers = () => {
+    if (!window.confirm(`Reset every ${mediaLabel} tier and return all titles to Waiting?`)) return;
+    setMediaTiers(freshMediaTiers());
+    setSelectedId(null);
+  };
+  const addTier = () => {
+    const name = newTierName.trim();
+    if (!name) return;
+    const colors = ["#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
+    setMediaTiers((current) => [...current, { id: `${mediaType}-tier-${Date.now()}`, name: name.toUpperCase(), color: colors[current.length % colors.length], textColor: "#fff", animeIds: [] }]);
+    setNewTierName("");
+  };
+  const moveTier = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= mediaTiers.length) return;
+    setMediaTiers((current) => {
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+  const renameTier = (tier: Tier) => {
+    const name = window.prompt(`Rename this ${mediaLabel} tier`, tier.name)?.trim();
+    if (name) setMediaTiers((current) => current.map((item) => item.id === tier.id ? { ...item, name: name.toUpperCase() } : item));
+  };
+  const deleteTier = (tier: Tier) => {
+    if (!window.confirm(`Delete the ${tier.name} row? Its ${mediaLabel} will return to Waiting.`)) return;
+    setMediaTiers((current) => current.filter((item) => item.id !== tier.id));
+  };
+
+  return <div className="manga-tier-board space-y-4">
+    <div className="favorite-tier-guide"><span><Sparkles size={16} /></span><div><strong>Touch & click active</strong><p>Select a {mediaLabel}, then choose a tier row. Anime and manga rankings stay independent.</p></div></div>
+    {selectedId !== null && <div className="manga-tier-selection"><span>{itemMap.get(selectedId)?.title || (mediaType === "manga" ? "Manga" : "Anime")} selected</span><button type="button" onClick={() => returnToWaiting(selectedId)}>Move to waiting</button><button type="button" onClick={() => setSelectedId(null)}>Cancel</button></div>}
+    <div className="manga-tier-workspace">
+      <div className="manga-tier-main">
+        <div className="manga-tier-rows">
+          {mediaTiers.map((tier, index) => <section key={tier.id} onClick={() => placeInTier(tier.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const mediaId = Number(event.dataTransfer.getData("text/favorite-id")); if (mediaId) placeInTier(tier.id, mediaId); }} className={selectedId !== null ? "is-target" : ""}>
+            <div className="manga-tier-label" style={{ background: tier.color, color: tier.textColor }}>{tier.name}</div>
+            <div className="manga-tier-items">{tier.animeIds.map((mediaId) => itemMap.get(mediaId)).filter(Boolean).map(renderCard)}{!tier.animeIds.some((mediaId) => itemMap.has(mediaId)) && <small>{selectedId !== null ? `Place in ${tier.name}` : `No ${mediaLabel} ranked here`}</small>}</div>
+            <div className="manga-tier-row-actions" onClick={(event) => event.stopPropagation()}><button type="button" disabled={index === 0} onClick={() => moveTier(index, -1)} aria-label={`Move ${tier.name} up`}><ChevronUp size={13} /></button><button type="button" disabled={index === mediaTiers.length - 1} onClick={() => moveTier(index, 1)} aria-label={`Move ${tier.name} down`}><ChevronDown size={13} /></button><button type="button" onClick={() => renameTier(tier)} aria-label={`Rename ${tier.name}`}><Edit3 size={13} /></button><button type="button" onClick={() => deleteTier(tier)} aria-label={`Delete ${tier.name}`}><Trash2 size={13} /></button></div>
+          </section>)}
+        </div>
+        <div className="favorite-tier-footer"><label><span>New {mediaLabel} row</span><input value={newTierName} maxLength={18} onChange={(event) => setNewTierName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addTier(); }} placeholder="Row name" /></label><button type="button" onClick={addTier} disabled={!newTierName.trim()}><Plus size={14} />Add row</button><button type="button" className="is-muted" onClick={resetTiers}><RotateCcw size={14} />Reset tiers</button></div>
+      </div>
+      <section className="manga-tier-waiting" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const mediaId = Number(event.dataTransfer.getData("text/favorite-id")); if (mediaId) returnToWaiting(mediaId); }}><div><span>Waiting list</span><strong>{waiting.length}</strong><button type="button" onClick={onAdd} aria-label={`Add ${mediaLabel}`}><Plus size={13} /></button></div><div>{waiting.map(renderCard)}{waiting.length === 0 && <small>Every favorite {mediaLabel} has a tier.</small>}</div></section>
     </div>
-    <section className="manga-tier-waiting" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const mediaId = Number(event.dataTransfer.getData("text/manga-id")); if (mediaId) returnToWaiting(mediaId); }}><div><span>Waiting to rank</span><strong>{waiting.length}</strong></div><div>{waiting.map(renderCard)}{waiting.length === 0 && <small>Every favorite manga has a tier.</small>}</div></section>
   </div>;
 };
 
 export const Favourites: React.FC = () => {
-  const { favourites, mangaFavourites, deletedFavourites, addToFavourites, removeFromFavourites, removeMangaFromFavourites, restoreFavourite, permanentlyDeleteFavourite, loading } = useFavourites();
+  const { favourites, mangaFavourites, deletedFavourites, addToFavourites, addMangaToFavourites, removeFromFavourites, removeMangaFromFavourites, restoreFavourite, permanentlyDeleteFavourite, loading } = useFavourites();
   const { currentUser } = useAuth();
   const { popularAnime, topAiringAnime } = useGlobalContext();
 
@@ -140,6 +181,14 @@ export const Favourites: React.FC = () => {
     }
     return DEFAULT_TIERS;
   });
+  const [mangaTiers, setMangaTiers] = useState<Tier[]>(() => {
+    try {
+      const saved = localStorage.getItem("anime_orbit_manga_tierlist");
+      return saved ? JSON.parse(saved) : freshMediaTiers();
+    } catch {
+      return freshMediaTiers();
+    }
+  });
 
   // Custom user notes and nicknames for ranked anime
   const [customNotes, setCustomNotes] = useState<Record<number, string>>(() => {
@@ -152,6 +201,13 @@ export const Favourites: React.FC = () => {
       }
     }
     return {};
+  });
+  const [mangaCustomNotes, setMangaCustomNotes] = useState<Record<number, string>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("anime_orbit_manga_tier_notes") || "{}");
+    } catch {
+      return {};
+    }
   });
 
   const [draggedAnimeId, setDraggedAnimeId] = useState<number | null>(null);
@@ -167,13 +223,20 @@ export const Favourites: React.FC = () => {
   const [newTierColor, setNewTierColor] = useState(PRESET_COLORS[5]);
   const [showAddTierModal, setShowAddTierModal] = useState(false);
   const [showAddAnimeModal, setShowAddAnimeModal] = useState(false);
+  const [showAddMangaModal, setShowAddMangaModal] = useState(false);
   const [animeSearchQuery, setAnimeSearchQuery] = useState("");
+  const [animeCandidates, setAnimeCandidates] = useState<any[]>([]);
+  const [animeCandidatesLoading, setAnimeCandidatesLoading] = useState(false);
+  const [mangaSearchQuery, setMangaSearchQuery] = useState("");
+  const [mangaCandidates, setMangaCandidates] = useState<any[]>([]);
+  const [mangaCandidatesLoading, setMangaCandidatesLoading] = useState(false);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [favoriteMedia, setFavoriteMedia] = useState<"anime" | "manga">("anime");
   const [trashOpen, setTrashOpen] = useState(false);
+  const visibleDeletedFavourites = deletedFavourites.filter((item) => favoriteMedia === "manga" ? item.mediaType === "MANGA" : item.mediaType !== "MANGA");
   const [mergeFranchises, setMergeFranchises] = useState(false);
   const [franchiseGroups, setFranchiseGroups] = useState<any[]>([]);
   const [franchiseLoading, setFranchiseLoading] = useState(false);
@@ -185,8 +248,16 @@ export const Favourites: React.FC = () => {
   }, [tiers]);
 
   useEffect(() => {
+    localStorage.setItem("anime_orbit_manga_tierlist", JSON.stringify(mangaTiers));
+  }, [mangaTiers]);
+
+  useEffect(() => {
     localStorage.setItem("anime_orbit_tier_notes", JSON.stringify(customNotes));
   }, [customNotes]);
+
+  useEffect(() => {
+    localStorage.setItem("anime_orbit_manga_tier_notes", JSON.stringify(mangaCustomNotes));
+  }, [mangaCustomNotes]);
 
   useEffect(() => {
     if (!mergeFranchises || favourites.length === 0) {
@@ -222,7 +293,7 @@ export const Favourites: React.FC = () => {
 
   // Lock body scroll when modals/dialogs are open
   useEffect(() => {
-    if (showAddTierModal || showAddAnimeModal || editingAnimeId !== null || editingTier !== null || shareModalOpen || authModalOpen) {
+    if (showAddTierModal || showAddAnimeModal || showAddMangaModal || editingAnimeId !== null || editingTier !== null || shareModalOpen || authModalOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -230,7 +301,47 @@ export const Favourites: React.FC = () => {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showAddTierModal, showAddAnimeModal, editingAnimeId, editingTier, shareModalOpen, authModalOpen]);
+  }, [showAddTierModal, showAddAnimeModal, showAddMangaModal, editingAnimeId, editingTier, shareModalOpen, authModalOpen]);
+
+  useEffect(() => {
+    if (!showAddAnimeModal) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setAnimeCandidatesLoading(true);
+      try {
+        const result = animeSearchQuery.trim().length >= 1
+          ? await searchAnime(animeSearchQuery.trim(), 18)
+          : [...(popularAnime || []), ...(topAiringAnime || [])].slice(0, 18);
+        const list = Array.isArray(result) ? result : result?.media || [];
+        if (active) setAnimeCandidates(list.filter((item: any, index: number, all: any[]) => all.findIndex((entry) => entry.mal_id === item.mal_id) === index));
+      } catch {
+        if (active) setAnimeCandidates([]);
+      } finally {
+        if (active) setAnimeCandidatesLoading(false);
+      }
+    }, animeSearchQuery.trim() ? 250 : 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [showAddAnimeModal, animeSearchQuery, popularAnime, topAiringAnime]);
+
+  useEffect(() => {
+    if (!showAddMangaModal) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setMangaCandidatesLoading(true);
+      try {
+        const result = mangaSearchQuery.trim().length >= 1
+          ? await searchManga(mangaSearchQuery.trim(), 18)
+          : await getPopularManga(1, 18, "POPULARITY_DESC");
+        const list = Array.isArray(result) ? result : result?.media || [];
+        if (active) setMangaCandidates(list);
+      } catch {
+        if (active) setMangaCandidates([]);
+      } finally {
+        if (active) setMangaCandidatesLoading(false);
+      }
+    }, mangaSearchQuery.trim() ? 300 : 0);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [showAddMangaModal, mangaSearchQuery]);
 
   if (!currentUser) {
     return (
@@ -269,9 +380,31 @@ export const Favourites: React.FC = () => {
   // Determine unassigned pool
   const assignedIds = new Set(tiers.flatMap((t) => t.animeIds));
   const unassignedAnime = favourites.filter((item) => !assignedIds.has(item.mal_id));
+  const gridItems = [...favourites].sort((a, b) => (linearRankMap.get(a.mal_id) || Number.MAX_SAFE_INTEGER) - (linearRankMap.get(b.mal_id) || Number.MAX_SAFE_INTEGER));
+  const gridRankMap = new Map(gridItems.map((item, index) => [item.mal_id, index + 1]));
+  const savedMangaTierOrder = mangaTiers.flatMap((tier) => tier.animeIds || []);
+  const mangaOrder = new Map(savedMangaTierOrder.map((mediaId, index) => [mediaId, index]));
+  const mangaGridItems = [...mangaFavourites].sort((a, b) => (mangaOrder.get(a.mal_id) ?? Number.MAX_SAFE_INTEGER) - (mangaOrder.get(b.mal_id) ?? Number.MAX_SAFE_INTEGER));
+  const activeGridItems = favoriteMedia === "manga" ? mangaGridItems : gridItems;
+  const activeGridRanks = new Map(activeGridItems.map((item, index) => [item.mal_id, index + 1]));
 
   // Map of all available favorites for quick lookup
   const favMap = new Map(favourites.map((f) => [f.mal_id, f]));
+  const activeFavourites = favoriteMedia === "manga" ? mangaFavourites : favourites;
+  const activeTiers = favoriteMedia === "manga" ? mangaTiers : tiers;
+  const activeNotes = favoriteMedia === "manga" ? mangaCustomNotes : customNotes;
+  const activeFavMap = new Map(activeFavourites.map((item) => [item.mal_id, item]));
+  const activeRankMap = new Map<number, number>();
+  let activeRank = 1;
+  activeTiers.forEach((tier) => tier.animeIds.forEach((mediaId) => {
+    if (activeFavMap.has(mediaId)) activeRankMap.set(mediaId, activeRank++);
+  }));
+  const activeAssignedIds = new Set(activeTiers.flatMap((tier) => tier.animeIds));
+  const activeUnassigned = activeFavourites.filter((item) => !activeAssignedIds.has(item.mal_id));
+  const updateActiveTiers = (updater: React.SetStateAction<Tier[]>) => {
+    if (favoriteMedia === "manga") setMangaTiers(updater);
+    else setTiers(updater);
+  };
 
   // This is a derived view only: it never rewrites the user's saved favorites or tier rows.
   const franchiseTierRows = (() => {
@@ -361,7 +494,7 @@ export const Favourites: React.FC = () => {
     const idToMove = !isNaN(transferId) ? transferId : (draggedAnimeId !== null ? draggedAnimeId : selectedAnimeId);
     if (idToMove === null || isNaN(idToMove)) return;
 
-    setTiers((prev) =>
+    updateActiveTiers((prev) =>
       prev.map((tier) => {
         const filtered = tier.animeIds.filter((id) => id !== idToMove);
         if (tier.id === tierId) {
@@ -383,7 +516,7 @@ export const Favourites: React.FC = () => {
     const idToMove = !isNaN(transferId) ? transferId : (draggedAnimeId !== null ? draggedAnimeId : selectedAnimeId);
     if (idToMove === null || isNaN(idToMove)) return;
 
-    setTiers((prev) =>
+    updateActiveTiers((prev) =>
       prev.map((tier) => ({
         ...tier,
         animeIds: tier.animeIds.filter((id) => id !== idToMove),
@@ -413,7 +546,7 @@ export const Favourites: React.FC = () => {
     const sourceId = selectedAnimeId;
     const targetId = clickedAnimeId;
 
-    setTiers((prev) => {
+    updateActiveTiers((prev) => {
       const updated = prev.map((tier) => ({
         ...tier,
         animeIds: [...tier.animeIds],
@@ -465,7 +598,7 @@ export const Favourites: React.FC = () => {
   };
 
   const handleMoveToTier = (animeId: number, targetTierId: string) => {
-    setTiers((prev) =>
+    updateActiveTiers((prev) =>
       prev.map((tier) => {
         const filtered = tier.animeIds.filter((id) => id !== animeId);
         if (tier.id === targetTierId) {
@@ -481,20 +614,20 @@ export const Favourites: React.FC = () => {
   const handleAddTier = () => {
     if (!newTierName.trim()) return;
     const newTier: Tier = {
-      id: `tier-${Date.now()}`,
+      id: `${favoriteMedia}-tier-${Date.now()}`,
       name: newTierName.trim().toUpperCase(),
       color: newTierColor,
       textColor: "#ffffff",
       animeIds: [],
     };
-    setTiers([...tiers, newTier]);
+    updateActiveTiers([...activeTiers, newTier]);
     setNewTierName("");
     setShowAddTierModal(false);
   };
 
   const handleMoveTierUp = (index: number) => {
     if (index <= 0) return;
-    setTiers((prev) => {
+    updateActiveTiers((prev) => {
       const updated = [...prev];
       const temp = updated[index];
       updated[index] = updated[index - 1];
@@ -504,8 +637,8 @@ export const Favourites: React.FC = () => {
   };
 
   const handleMoveTierDown = (index: number) => {
-    if (index >= tiers.length - 1) return;
-    setTiers((prev) => {
+    if (index >= activeTiers.length - 1) return;
+    updateActiveTiers((prev) => {
       const updated = [...prev];
       const temp = updated[index];
       updated[index] = updated[index + 1];
@@ -516,7 +649,7 @@ export const Favourites: React.FC = () => {
 
   const handleSaveEditedTier = () => {
     if (!editingTier || !editTierName.trim()) return;
-    setTiers((prev) =>
+    updateActiveTiers((prev) =>
       prev.map((t) =>
         t.id === editingTier.id
           ? { ...t, name: editTierName.trim().toUpperCase(), color: editTierColor }
@@ -527,15 +660,18 @@ export const Favourites: React.FC = () => {
   };
 
   const handleDeleteTier = (tierId: string) => {
-    setTiers((prev) => prev.filter((t) => t.id !== tierId));
+    updateActiveTiers((prev) => prev.filter((t) => t.id !== tierId));
   };
 
   const handleResetTiers = () => {
-    setTiers(DEFAULT_TIERS);
+    if (!window.confirm(`Reset every ${favoriteMedia} tier and return all favorites to the Waiting List?`)) return;
+    updateActiveTiers(freshMediaTiers());
+    setSelectedAnimeId(null);
   };
 
   const handleSaveNote = (animeId: number) => {
-    setCustomNotes((prev) => ({ ...prev, [animeId]: editingNoteText.trim() }));
+    if (favoriteMedia === "manga") setMangaCustomNotes((prev) => ({ ...prev, [animeId]: editingNoteText.trim() }));
+    else setCustomNotes((prev) => ({ ...prev, [animeId]: editingNoteText.trim() }));
     setEditingAnimeId(null);
     toast.success("Note saved!");
   };
@@ -589,19 +725,20 @@ export const Favourites: React.FC = () => {
   const generateTierListHtml = () => {
     const userTitle = currentUser?.displayName || "Anime Fan";
     const userAvatar = currentUser?.photoURL || "";
+    const mediaLabel = favoriteMedia === "manga" ? "Manga" : "Anime";
     const escapeHtml = (str: string = "") =>
       str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-    const tiersHtml = tiers
+    const tiersHtml = activeTiers
       .map((tier) => {
         const rowCards = tier.animeIds
           .map((id) => {
-            const anime = favMap.get(id);
+            const anime = activeFavMap.get(id);
             if (!anime) return "";
             const title = escapeHtml(anime.title || anime.title_english || "Anime");
             const img = (anime as any).images?.jpg?.large_image_url || (anime as any).image || "";
-            const r = linearRankMap.get(id) || 0;
-            const note = customNotes[id] ? `<span class="note">${escapeHtml(customNotes[id])}</span>` : "";
+            const r = activeRankMap.get(id) || 0;
+            const note = activeNotes[id] ? `<span class="note">${escapeHtml(activeNotes[id])}</span>` : "";
             return `
             <div class="tier-card" title="${title}">
               <span class="rank-tag">#${r}</span>
@@ -617,7 +754,7 @@ export const Favourites: React.FC = () => {
             ${escapeHtml(tier.name)}
           </div>
           <div class="tier-items">
-            ${rowCards || '<span class="empty-tier">No anime placed in this tier yet</span>'}
+            ${rowCards || `<span class="empty-tier">No ${mediaLabel.toLowerCase()} placed in this tier yet</span>`}
           </div>
         </div>`;
       })
@@ -628,7 +765,7 @@ export const Favourites: React.FC = () => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(userTitle)}'s Anime Tier List - Anime Orbit</title>
+  <title>${escapeHtml(userTitle)}'s ${mediaLabel} Tier List - Anime Orbit</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0c0c10; color: #fff; padding: 2rem 1rem; min-height: 100vh; }
@@ -662,7 +799,7 @@ export const Favourites: React.FC = () => {
           <div style="font-size: 0.75rem; color: #a0a0a0;">Shared favorites list</div>
         </div>
       </div>
-      <h1>${escapeHtml(userTitle)}'s Anime Tier List</h1>
+      <h1>${escapeHtml(userTitle)}'s ${mediaLabel} Tier List</h1>
     </header>
     <div class="tier-board">
       ${tiersHtml}
@@ -688,7 +825,7 @@ export const Favourites: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${currentUser?.displayName || "anime"}-tier-list.html`;
+    a.download = `${currentUser?.displayName || favoriteMedia}-${favoriteMedia}-tier-list.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -697,13 +834,14 @@ export const Favourites: React.FC = () => {
   };
 
   const handleCopySummary = () => {
-    const text = tiers
+    const mediaLabel = favoriteMedia === "manga" ? "Manga" : "Anime";
+    const text = activeTiers
       .map((t) => {
         const titles = t.animeIds
           .map((id) => {
-            const a = favMap.get(id);
-            const r = linearRankMap.get(id) || 0;
-            return `#${r} ${a?.title || a?.title_english || "Anime"}`;
+            const a = activeFavMap.get(id);
+            const r = activeRankMap.get(id) || 0;
+            return `#${r} ${a?.title || a?.title_english || mediaLabel}`;
           })
           .filter(Boolean)
           .join(", ");
@@ -711,20 +849,14 @@ export const Favourites: React.FC = () => {
       })
       .join("\n");
 
-    navigator.clipboard.writeText(`🏆 My Anime Tier List:\n\n${text}`);
+    navigator.clipboard.writeText(`My ${mediaLabel} Tier List:\n\n${text}`);
     setCopied(true);
     toast.success("Tier list summary copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);
   };
 
   // Filter pool candidates for Add Anime to Pool modal
-  const poolCandidates = [...(popularAnime || []), ...(topAiringAnime || [])].filter((anime, idx, arr) => {
-    return arr.findIndex((a) => a.mal_id === anime.mal_id) === idx;
-  }).filter((a) => {
-    if (!animeSearchQuery.trim()) return true;
-    const t = (a.title || a.title_english || "").toLowerCase();
-    return t.includes(animeSearchQuery.toLowerCase());
-  });
+  const poolCandidates = animeCandidates;
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
@@ -750,8 +882,8 @@ export const Favourites: React.FC = () => {
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="flex rounded-full border border-white/10 bg-white/5 p-1 text-xs font-bold">
-              <button type="button" onClick={() => setFavoriteMedia("anime")} className={`rounded-full px-4 py-1.5 ${favoriteMedia === "anime" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Anime</button>
-              <button type="button" onClick={() => { setFavoriteMedia("manga"); setMergeFranchises(false); }} className={`rounded-full px-4 py-1.5 ${favoriteMedia === "manga" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Manga</button>
+              <button type="button" onClick={() => { setSelectedAnimeId(null); setFavoriteMedia("anime"); }} className={`rounded-full px-4 py-1.5 ${favoriteMedia === "anime" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Anime</button>
+              <button type="button" onClick={() => { setSelectedAnimeId(null); setFavoriteMedia("manga"); setMergeFranchises(false); }} className={`rounded-full px-4 py-1.5 ${favoriteMedia === "manga" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Manga</button>
             </div>
             {/* Add Anime to Pool Button */}
             {favoriteMedia === "anime" ? <button
@@ -760,7 +892,7 @@ export const Favourites: React.FC = () => {
             >
               <Plus size={14} />
               <span>Add Anime</span>
-            </button> : <Link to="/manga" className="inline-flex items-center gap-1.5 rounded-full bg-[#ffd700] px-3.5 py-2 text-xs font-bold text-black"><BookOpen size={14} />Browse manga</Link>}
+            </button> : <button type="button" onClick={() => { setMangaSearchQuery(""); setShowAddMangaModal(true); }} className="inline-flex items-center gap-1.5 rounded-full bg-[#ffd700] px-3.5 py-2 text-xs font-bold text-black"><Plus size={14} />Add Manga</button>}
 
             {/* View Toggle */}
             <div className="bg-white/5 p-1 rounded-full border border-white/10 flex items-center">
@@ -803,66 +935,62 @@ export const Favourites: React.FC = () => {
             </button>}
 
             {/* Share Button */}
-            {favoriteMedia === "anime" && <button
+            <button
               onClick={() => setShareModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-[#ffd700] border border-white/15 hover:border-[#ffd700] text-white hover:text-black font-montserrat font-bold text-xs transition-all cursor-pointer"
             >
               <Share2 size={14} />
-              <span>Export Tier List</span>
-            </button>}
+              <span>Share Tier List</span>
+            </button>
 
-            <button type="button" onClick={() => setTrashOpen((value) => !value)} className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-bold text-neutral-300 hover:text-white"><Trash2 size={14} />Trash{deletedFavourites.length > 0 && <span className="rounded-full bg-white/10 px-1.5">{deletedFavourites.length}</span>}</button>
+            <button type="button" aria-pressed={trashOpen} onClick={() => setTrashOpen((value) => !value)} className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition-colors ${trashOpen ? "border-[#ffd700]/60 bg-[#ffd700]/10 text-[#ffd700]" : "border-white/15 bg-white/5 text-neutral-300 hover:text-white"}`}><Trash2 size={14} />Trash{visibleDeletedFavourites.length > 0 && <span className="rounded-full bg-white/10 px-1.5">{visibleDeletedFavourites.length}</span>}</button>
 
-            {favoriteMedia === "anime" && viewMode === "tier" && !mergeFranchises && (
-              <>
-                <button
-                  onClick={() => setShowAddTierModal(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white font-montserrat font-bold text-xs transition-all cursor-pointer"
-                >
-                  <Plus size={14} />
-                  <span>Add Row</span>
-                </button>
-                <button
-                  onClick={handleResetTiers}
-                  className="text-xs text-neutral-400 hover:text-neutral-200 px-2 py-1 transition-colors cursor-pointer"
-                  title="Reset Tiers"
-                >
-                  Reset
-                </button>
-              </>
-            )}
           </div>
         </div>
 
         {trashOpen && (
           <section className="favorite-trash">
             <header><div><span>Recovery</span><h2>Recently removed favorites</h2><p>Restore a title within five days, or delete it permanently.</p></div></header>
-            {deletedFavourites.length > 0 ? <div className="favorite-trash__list">{deletedFavourites.map((item) => (
+            {visibleDeletedFavourites.length > 0 ? <div className="favorite-trash__list">{visibleDeletedFavourites.map((item) => (
               <article key={item.originalKey}>
-                <img src={item.image || "/lost.jpg"} alt="" loading="lazy" />
-                <div><strong>{item.title}</strong><span>{item.mediaType === "MANGA" ? "Manga" : "Anime"}</span></div>
+                <ProgressiveImage src={item.image} alt="" wrapperClassName="favorite-trash__cover" className="h-full w-full object-cover" />
+                <div><strong>{item.title}</strong><span>{item.mediaType === "MANGA" ? (item.format || "Manga") : "Anime"}</span></div>
                 <button type="button" onClick={() => restoreFavourite(item.originalKey)}><RotateCcw size={13} />Restore</button>
-                <button type="button" className="is-danger" aria-label={`Permanently delete ${item.title}`} onClick={() => permanentlyDeleteFavourite(item.originalKey)}><Trash2 size={13} /></button>
+                <button type="button" className="is-danger" aria-label={`Permanently delete ${item.title}`} onClick={() => { if (window.confirm(`Permanently delete ${item.title}?`)) void permanentlyDeleteFavourite(item.originalKey); }}><Trash2 size={13} /></button>
               </article>
             ))}</div> : <p className="favorite-trash__empty">Trash is empty.</p>}
           </section>
         )}
 
         {/* Selected Item Notification Banner */}
-        {favoriteMedia === "anime" && selectedAnimeId !== null && (
+        {selectedAnimeId !== null && (
           <div className="bg-emerald-950/80 border-2 border-emerald-400 rounded-xl p-3 flex items-center justify-between shadow-[0_0_20px_rgba(52,211,153,0.3)] animate-pulse">
             <div className="flex items-center gap-2 text-emerald-300 text-xs sm:text-sm font-bold">
               <Sparkles size={16} />
               <span>
-                "{favMap.get(selectedAnimeId)?.title || "Anime"}" selected! Tap any Tier row below to place it there.
+                "{activeFavMap.get(selectedAnimeId)?.title || (favoriteMedia === "manga" ? "Manga" : "Anime")}" selected! Tap any Tier row below to place it there.
               </span>
             </div>
-            <button
-              onClick={() => setSelectedAnimeId(null)}
-              className="text-emerald-400 hover:text-white text-xs px-2 py-1 bg-emerald-900/60 rounded-lg"
-            >
-              Cancel
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const selectedId = selectedAnimeId;
+                  setSelectedAnimeId(null);
+                  if (favoriteMedia === "manga") void removeMangaFromFavourites(selectedId);
+                  else void removeFromFavourites(selectedId);
+                }}
+                className="favorite-selection-trash"
+              >
+                <Trash2 size={14} /> Trash
+              </button>
+              <button
+                onClick={() => setSelectedAnimeId(null)}
+                className="text-emerald-400 hover:text-white text-xs px-2 py-1 bg-emerald-900/60 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
@@ -871,19 +999,30 @@ export const Favourites: React.FC = () => {
             <div className="w-5 h-5 border-2 border-[#ffd700] border-t-transparent rounded-full animate-spin" />
             <span>Loading favorites...</span>
           </div>
-        ) : favoriteMedia === "manga" ? (
-          mangaFavourites.length > 0 ? (
-            viewMode === "tier" ? (
-              <MangaTierBoard items={mangaFavourites} />
-            ) : (
-              <div className="favorite-manga-grid">
-                {mangaFavourites.map((item) => <article key={item.mal_id}>
-                  <Link to={`/manga/${item.mal_id}`}><img src={item.image || "/lost.jpg"} alt={item.title} loading="lazy" /><div><span>{item.format || "Manga"}</span><h2>{item.title}</h2><p>{item.chapters ? `${item.chapters} chapters` : "Publishing details pending"}{item.score ? ` · ★ ${item.score}` : ""}</p></div></Link>
-                  <button type="button" onClick={() => removeMangaFromFavourites(item.mal_id)}><Trash2 size={13} />Remove</button>
-                </article>)}
-              </div>
-            )
-          ) : <div className="text-center py-20 bg-neutral-900/40 rounded-2xl border border-white/5 space-y-4"><BookOpen size={35} className="mx-auto text-[#ffd700]" /><p className="font-montserrat font-bold text-lg text-white">No favorite manga yet</p><Link to="/manga" className="inline-flex items-center gap-2 rounded-full bg-[#ffd700] px-5 py-2.5 text-xs font-bold text-black">Browse manga</Link></div>
+        ) : viewMode === "grid" && !mergeFranchises ? (
+          activeGridItems.length === 0 ? (
+            <div className="text-center py-20 bg-neutral-900/40 rounded-2xl border border-white/5 space-y-4">
+              {favoriteMedia === "manga" ? <BookOpen size={35} className="mx-auto text-[#ffd700]" /> : <Heart size={35} className="mx-auto text-[#ffd700]" />}
+              <p className="font-montserrat font-bold text-lg text-white">No favorite {favoriteMedia} yet</p>
+              <button type="button" onClick={() => favoriteMedia === "manga" ? setShowAddMangaModal(true) : setShowAddAnimeModal(true)} className="inline-flex items-center gap-2 rounded-full bg-[#ffd700] px-5 py-2.5 text-xs font-bold text-black"><Plus size={14} /> Add {favoriteMedia === "manga" ? "Manga" : "Anime"}</button>
+            </div>
+          ) : (
+            <div className="favorite-grid-view">
+              {activeGridItems.map((item: any) => {
+                const image = item.image || item.images?.jpg?.large_image_url || item.images?.jpg?.image_url;
+                const rank = activeGridRanks.get(item.mal_id) || 0;
+                const ranked = favoriteMedia === "manga" ? mangaOrder.has(item.mal_id) : linearRankMap.has(item.mal_id);
+                return <article key={item.mal_id} className="favorite-grid-card">
+                  <Link to={`/${favoriteMedia}/${item.mal_id}`}>
+                    <ProgressiveImage src={image} fallbackSrc="/lost.jpg" alt={item.title || item.title_english} wrapperClassName="favorite-grid-card__cover" className="h-full w-full object-cover" />
+                    <span className="favorite-grid-card__rank">#{rank}</span>
+                    <div><small>{ranked ? "Ranked favorite" : "Waiting to rank"}</small><h2>{item.title || item.title_english}</h2><p>{item.format || item.type || (favoriteMedia === "manga" ? "Manga" : "Anime")}{item.score ? ` · ★ ${item.score}` : ""}</p></div>
+                  </Link>
+                  <button type="button" aria-label={`Remove ${item.title || item.title_english}`} onClick={() => favoriteMedia === "manga" ? removeMangaFromFavourites(item.mal_id) : removeFromFavourites(item.mal_id)}><Trash2 size={13} /></button>
+                </article>;
+              })}
+            </div>
+          )
         ) : mergeFranchises ? (
           <div className="favorite-franchise-board" aria-label="Favorites grouped by franchise">
             <div className="favorite-franchise-note">
@@ -902,7 +1041,7 @@ export const Favourites: React.FC = () => {
                     const cover = group.images?.jpg?.large_image_url || group.members?.[0]?.images?.jpg?.large_image_url || group.members?.[0]?.image;
                     return (
                       <article className="favorite-franchise-card" key={`${row.id}-${group.mal_id}`}>
-                        <img src={cover} alt="" loading="lazy" />
+                        <ProgressiveImage src={cover} alt="" wrapperClassName="favorite-franchise-card__cover" className="h-full w-full object-cover" />
                         <div className="favorite-franchise-copy">
                           <span className="favorite-franchise-kicker">
                             {group.rank ? `#${group.rank} · ` : ""}{group.memberIds.length} saved {group.memberIds.length === 1 ? "title" : "titles"}
@@ -916,9 +1055,9 @@ export const Favourites: React.FC = () => {
                               ))}
                             </div>
                           )}
-                          <a href={`/franchise/${group.mal_id}`} className="favorite-franchise-link">
+                          <Link to={`/franchise/${group.mal_id}`} className="favorite-franchise-link">
                             Full franchise guide <ChevronRight size={14} />
-                          </a>
+                          </Link>
                         </div>
                       </article>
                     );
@@ -942,14 +1081,19 @@ export const Favourites: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-              {favourites.map((item) => (
-                <AnimeCard
-                  key={item.mal_id}
-                  anime={item as any}
-                  onRemove={(animeId) => removeFromFavourites(animeId)}
-                />
-              ))}
+            <div className="favorite-grid-view">
+              {gridItems.map((item) => {
+                const image = (item as any).images?.jpg?.large_image_url || (item as any).image;
+                const rank = gridRankMap.get(item.mal_id) || 0;
+                return <article key={item.mal_id} className="favorite-grid-card">
+                  <Link to={`/anime/${item.mal_id}`}>
+                    <ProgressiveImage src={image} alt={item.title || item.title_english} wrapperClassName="favorite-grid-card__cover" className="h-full w-full object-cover" />
+                    <span className="favorite-grid-card__rank">#{rank}</span>
+                    <div><small>{linearRankMap.has(item.mal_id) ? "Ranked favorite" : "Waiting to rank"}</small><h2>{item.title || item.title_english}</h2><p>{(item as any).type || "Anime"}{item.score ? ` · ★ ${item.score}` : ""}</p></div>
+                  </Link>
+                  <button type="button" aria-label={`Remove ${item.title || item.title_english}`} onClick={() => removeFromFavourites(item.mal_id)}><Trash2 size={13} /></button>
+                </article>;
+              })}
             </div>
           )
         ) : (
@@ -966,7 +1110,7 @@ export const Favourites: React.FC = () => {
                     <span>Touch & Click Active</span>
                   </h4>
                   <p className="text-[11px] sm:text-xs text-neutral-300 mt-0.5">
-                   <span className="text-white font-semibold">Tip:</span> Tap any anime to select <span className="text-emerald-400 font-semibold">(green outline)</span>, then tap a tier row to place it, or tap another anime in the same or different tier to <span className="text-[#ffd700] font-semibold">swap positions</span>!
+                   <span className="text-white font-semibold">Tip:</span> Tap any {favoriteMedia} to select <span className="text-emerald-400 font-semibold">(green outline)</span>, then tap a tier row to place it, or tap another title to <span className="text-[#ffd700] font-semibold">swap positions</span>.
                   </p>
                 </div>
               </div>
@@ -976,7 +1120,7 @@ export const Favourites: React.FC = () => {
               {/* Left Column (lg:col-span-8 / 9): Tier Rows */}
               <div className="lg:col-span-8 xl:col-span-9 space-y-3">
                 <div className="rounded-2xl overflow-hidden border border-white/10 bg-black/50 p-2 sm:p-4 backdrop-blur-md space-y-3">
-                  {tiers.map((tier, index) => {
+                  {activeTiers.map((tier, index) => {
                     return (
                       <div
                         key={tier.id}
@@ -1008,12 +1152,12 @@ export const Favourites: React.FC = () => {
                         {/* Tier Items Grid & Tap Target */}
                         <div className="flex-1 flex flex-wrap items-center gap-2 sm:gap-3 p-2 sm:p-3 min-h-[90px]">
                           {tier.animeIds.map((animeId) => {
-                            const anime = favMap.get(animeId);
+                            const anime = activeFavMap.get(animeId);
                             if (!anime) return null;
                             const img = (anime as any).images?.jpg?.large_image_url || (anime as any).image || "";
-                            const rank = linearRankMap.get(animeId) || 0;
+                            const rank = activeRankMap.get(animeId) || 0;
                             const isSelected = selectedAnimeId === animeId;
-                            const note = customNotes[animeId];
+                            const note = activeNotes[animeId];
 
                             return (
                               <div
@@ -1045,7 +1189,7 @@ export const Favourites: React.FC = () => {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditingAnimeId(animeId);
-                                    setEditingNoteText(customNotes[animeId] || "");
+                                    setEditingNoteText(activeNotes[animeId] || "");
                                   }}
                                   className="absolute bottom-1 left-1 z-20 p-1 rounded-md bg-black/80 text-[#ffd700] opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
                                   title="Edit info note"
@@ -1077,8 +1221,8 @@ export const Favourites: React.FC = () => {
                           {tier.animeIds.length === 0 && (
                             <span className="text-xs text-neutral-500 italic pl-2 select-none">
                               {selectedAnimeId !== null
-                                ? "👉 Tap here to place selected anime in this Tier"
-                                : `Tap anime to rank in Tier ${tier.name}`}
+                                ? `Tap here to place the selected ${favoriteMedia}`
+                                : `Tap a ${favoriteMedia} to rank it in ${tier.name}`}
                             </span>
                           )}
                         </div>
@@ -1101,7 +1245,7 @@ export const Favourites: React.FC = () => {
                               e.stopPropagation();
                               handleMoveTierDown(index);
                             }}
-                            disabled={index === tiers.length - 1}
+                            disabled={index === activeTiers.length - 1}
                             className="p-1 rounded text-neutral-400 hover:text-[#ffd700] disabled:opacity-20 disabled:hover:text-neutral-400 cursor-pointer"
                             title="Move Tier Down"
                           >
@@ -1133,6 +1277,10 @@ export const Favourites: React.FC = () => {
                       </div>
                     );
                   })}
+                  <div className="favorite-tier-footer">
+                    <button type="button" onClick={() => setShowAddTierModal(true)}><Plus size={14} />Add row</button>
+                    <button type="button" className="is-muted" onClick={handleResetTiers}><RotateCcw size={14} />Reset tiers</button>
+                  </div>
                 </div>
               </div>
 
@@ -1154,17 +1302,17 @@ export const Favourites: React.FC = () => {
                       <span>Waiting List</span>
                     </h3>
                     <span className="text-[11px] text-neutral-400">
-                      {unassignedAnime.length} series waiting
+                      {activeUnassigned.length} series waiting
                     </span>
                   </div>
 
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowAddAnimeModal(true);
+                      favoriteMedia === "manga" ? setShowAddMangaModal(true) : setShowAddAnimeModal(true);
                     }}
                     className="p-1.5 rounded-lg bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700] hover:text-black transition-all cursor-pointer"
-                    title="Add Anime to Pool"
+                    title={`Add ${favoriteMedia === "manga" ? "Manga" : "Anime"} to Pool`}
                   >
                     <Plus size={14} />
                   </button>
@@ -1172,7 +1320,7 @@ export const Favourites: React.FC = () => {
 
                 {/* Pool Items Grid */}
                 <div className="flex flex-wrap gap-2.5 min-h-[140px] max-h-[480px] overflow-y-auto p-2 bg-black/40 rounded-xl border border-dashed border-white/15 items-center content-start">
-                  {unassignedAnime.map((item) => {
+                  {activeUnassigned.map((item) => {
                     const img = (item as any).images?.jpg?.large_image_url || (item as any).image || "";
                     const isSelected = selectedAnimeId === item.mal_id;
 
@@ -1209,13 +1357,13 @@ export const Favourites: React.FC = () => {
                     );
                   })}
 
-                  {unassignedAnime.length === 0 && (
+                  {activeUnassigned.length === 0 && (
                     <div className="w-full text-center py-6 space-y-2">
                       <p className="text-xs text-neutral-400 font-medium">
                         Waiting list is empty!
                       </p>
                       <button
-                        onClick={() => setShowAddAnimeModal(true)}
+                        onClick={() => favoriteMedia === "manga" ? setShowAddMangaModal(true) : setShowAddAnimeModal(true)}
                         className="inline-flex items-center gap-1.5 text-xs text-[#ffd700] hover:underline cursor-pointer"
                       >
                         <Plus size={13} />
@@ -1234,7 +1382,7 @@ export const Favourites: React.FC = () => {
       {showAddTierModal && (
         <div
           onClick={() => setShowAddTierModal(false)}
-          className="fixed inset-0 bg-black/85 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -1304,20 +1452,20 @@ export const Favourites: React.FC = () => {
       )}
 
       {/* Add Anime To list Modal */}
-      {showAddAnimeModal && (
+      {showAddAnimeModal && createPortal((
         <div
           onClick={() => setShowAddAnimeModal(false)}
-          className="fixed inset-0 bg-black/85 backdrop-blur-md z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/85 backdrop-blur-md z-[5000] flex items-center justify-center p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#15151c] border border-[#ffd700]/40 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95"
+            className="flex max-h-[82vh] w-full max-w-xl flex-col rounded-2xl border border-white/15 bg-[#17171d] p-5 shadow-2xl"
           >
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Plus size={18} className="text-[#ffd700]" />
                 <h3 className="font-montserrat font-extrabold text-base text-white">
-                  Add Anime to Favorites & Tier Pool
+                  Add Anime
                 </h3>
               </div>
               <button
@@ -1333,16 +1481,19 @@ export const Favourites: React.FC = () => {
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Search popular series to add..."
+                autoFocus
+                placeholder="Search anime titles..."
                 value={animeSearchQuery}
                 onChange={(e) => setAnimeSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/15 rounded-xl text-xs sm:text-sm text-white placeholder-neutral-400 focus:outline-none focus:border-[#ffd700]"
+                className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-[#ffd700]"
               />
             </div>
 
             {/* Candidate List */}
-            <div className="flex-1 overflow-y-auto divide-y divide-white/10 pr-1 max-h-96">
-              {poolCandidates.map((anime) => {
+            <div className="mt-4 min-h-0 flex-1 overflow-y-auto space-y-2 pr-1">
+              {animeCandidatesLoading && Array.from({ length: 4 }).map((_, index) => <div key={`anime-search-skeleton-${index}`} className="h-20 animate-pulse rounded-xl bg-white/5" />)}
+              {!animeCandidatesLoading && animeSearchQuery.trim().length < 1 && poolCandidates.length > 0 && <p className="px-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-[#ffd700]">Recommended for you</p>}
+              {!animeCandidatesLoading && poolCandidates.map((anime) => {
                 const isAlreadyFav = favourites.some((f) => f.mal_id === anime.mal_id);
                 const title = anime.title || anime.title_english || "Anime";
                 const img = (anime as any).images?.jpg?.image_url || (anime as any).image || "";
@@ -1350,14 +1501,10 @@ export const Favourites: React.FC = () => {
                 return (
                   <div
                     key={`cand-${anime.mal_id}`}
-                    className="flex items-center justify-between gap-3 py-2.5 px-2 hover:bg-white/5 rounded-xl transition-colors"
+                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={img}
-                        alt={title}
-                        className="w-10 h-14 object-cover rounded-lg border border-white/10 flex-shrink-0"
-                      />
+                      <ProgressiveImage src={img} fallbackSrc="/lost.jpg" alt={title} wrapperClassName="h-16 w-12 flex-shrink-0 rounded-lg" className="h-full w-full object-cover" />
                       <div className="min-w-0">
                         <h4 className="text-xs sm:text-sm font-bold text-white truncate">
                           {title}
@@ -1399,6 +1546,7 @@ export const Favourites: React.FC = () => {
                   </div>
                 );
               })}
+              {!animeCandidatesLoading && animeSearchQuery.trim().length >= 1 && poolCandidates.length === 0 && <p className="py-8 text-center text-sm text-neutral-500">No matches found.</p>}
             </div>
 
             <div className="pt-2 border-t border-white/10 text-right">
@@ -1411,7 +1559,33 @@ export const Favourites: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
+
+      {showAddMangaModal && createPortal((
+        <div onClick={() => setShowAddMangaModal(false)} className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div onClick={(event) => event.stopPropagation()} className="flex max-h-[82vh] w-full max-w-xl flex-col rounded-2xl border border-white/15 bg-[#17171d] p-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div><h3 className="font-montserrat text-xl font-bold text-white">Add Manga</h3><p className="mt-1 text-xs text-neutral-400">Search for a title or pick from popular manga.</p></div>
+              <button type="button" onClick={() => setShowAddMangaModal(false)} className="grid h-8 w-8 place-items-center rounded-full border border-white/10 text-neutral-300 hover:text-white"><X size={16} /></button>
+            </div>
+            <div className="relative mt-4"><Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" /><input autoFocus value={mangaSearchQuery} onChange={(event) => setMangaSearchQuery(event.target.value)} placeholder="Search manga titles..." className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-[#ffd700]" /></div>
+            <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              {mangaCandidatesLoading && <div className="py-12 text-center text-xs font-bold text-[#ffd700]">Loading manga…</div>}
+              {!mangaCandidatesLoading && mangaCandidates.map((manga) => {
+                const alreadySaved = mangaFavourites.some((item) => item.mal_id === manga.mal_id);
+                const cover = manga.images?.jpg?.image_url || manga.images?.jpg?.large_image_url || manga.image;
+                return <article key={`manga-candidate-${manga.mal_id}`} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+                  <ProgressiveImage src={cover} alt="" wrapperClassName="h-14 w-10 flex-shrink-0 rounded-lg" className="h-full w-full object-cover" />
+                  <div className="min-w-0 flex-1"><strong className="block truncate text-xs text-white">{manga.title || manga.title_english}</strong><span className="text-[10px] text-neutral-400">{manga.format || manga.type || "Manga"}{manga.chapters ? ` · ${manga.chapters} chapters` : ""}</span></div>
+                  <button type="button" disabled={alreadySaved} onClick={async () => { const added = await addMangaToFavourites(manga); if (added) setMangaCandidates((items) => [...items]); }} className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-bold ${alreadySaved ? "bg-white/10 text-neutral-500" : "bg-[#ffd700] text-black"}`}>{alreadySaved ? <><Check size={12} />Saved</> : <><Plus size={12} />Add</>}</button>
+                </article>;
+              })}
+              {!mangaCandidatesLoading && mangaCandidates.length === 0 && <p className="py-12 text-center text-xs text-neutral-400">No manga found. Try another title.</p>}
+            </div>
+            <div className="border-t border-white/10 pt-3 text-right"><button type="button" onClick={() => setShowAddMangaModal(false)} className="rounded-xl bg-white/10 px-5 py-2 text-xs font-bold text-white">Done</button></div>
+          </div>
+        </div>
+      ), document.body)}
 
       {/* Edit Anime Note / Move Modal */}
       {editingAnimeId !== null && (
@@ -1436,7 +1610,7 @@ export const Favourites: React.FC = () => {
             </div>
 
             <div className="text-xs text-white font-bold truncate">
-              {favMap.get(editingAnimeId)?.title || "Anime"}
+              {activeFavMap.get(editingAnimeId)?.title || (favoriteMedia === "manga" ? "Manga" : "Anime")}
             </div>
 
             <div>
@@ -1457,7 +1631,7 @@ export const Favourites: React.FC = () => {
                 Quick Move to Tier:
               </label>
               <div className="flex items-center gap-1.5 flex-wrap">
-                {tiers.map((t) => (
+                {activeTiers.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => handleMoveToTier(editingAnimeId, t.id)}
@@ -1498,10 +1672,10 @@ export const Favourites: React.FC = () => {
       )}
 
       {/* Share / Export Tier List Modal */}
-      {shareModalOpen && (
+      {shareModalOpen && createPortal((
         <div
           onClick={() => setShareModalOpen(false)}
-          className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[5000] flex items-center justify-center p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -1577,7 +1751,7 @@ export const Favourites: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Edit / Rename Tier Modal */}
       {editingTier && (
@@ -1655,12 +1829,12 @@ export const Favourites: React.FC = () => {
           <div className="flex items-center gap-2 pr-2 border-r border-white/10 flex-shrink-0">
             <span className="text-xs font-bold text-emerald-400">Place in:</span>
             <span className="text-xs font-semibold text-white truncate max-w-[110px]">
-              {favMap.get(selectedAnimeId)?.title || "Anime"}
+              {activeFavMap.get(selectedAnimeId)?.title || (favoriteMedia === "manga" ? "Manga" : "Anime")}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5 flex-nowrap">
-            {tiers.map((t) => (
+            {activeTiers.map((t) => (
               <button
                 key={t.id}
                 onClick={() => handleDropOnTier(t.id)}

@@ -6,10 +6,11 @@ import AnimeCard from "./AnimeCard";
 import ProgressiveImage from "./ProgressiveImage";
 import AuthModal from "./AuthModal";
 import SEO from "./SEO";
-import { List, Share2, Copy, Download, ExternalLink, X, Check, LogIn, Plus, Search, Save, Trash2, NotebookPen, Star, RotateCcw, Clock3, Layers3 } from "lucide-react";
+import { ListTodo, Share2, Copy, Download, ExternalLink, X, Check, LogIn, Plus, Search, Save, Trash2, NotebookPen, Star, RotateCcw, Clock3, Layers3 } from "lucide-react";
 import { toast } from "react-toastify";
 import { getFranchiseGroups, getPopularAnime, getPopularManga, searchAnime, searchManga } from "../services/anilist";
 import AppDropdown from "./AppDropdown";
+import Footer from "./Footer";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "../firebase/config";
 
@@ -17,6 +18,7 @@ interface TrackerFieldsProps {
   item: WatchlistItem | MangaWatchlistItem;
   mediaType: "anime" | "manga";
   onSave: (updates: { status?: string; startDate?: string; endDate?: string; personalNotes?: string; progress?: number; userScore?: number }) => Promise<void>;
+  onCancel: () => void;
 }
 
 const statusToken = (status = "") => status.toLowerCase().replace(/\s+/g, "-");
@@ -28,7 +30,7 @@ const trackerTimestamp = (item: WatchlistItem | MangaWatchlistItem) => {
 
 const deletedDateMillis = (value: any) => value?.toMillis ? value.toMillis() : Date.parse(value || "");
 
-const TrackerFields: React.FC<TrackerFieldsProps> = ({ item, mediaType, onSave }) => {
+const TrackerFields: React.FC<TrackerFieldsProps> = ({ item, mediaType, onSave, onCancel }) => {
   const [status, setStatus] = useState(item.status || (mediaType === "manga" ? "Plan to Read" : "Plan to Watch"));
   const [startDate, setStartDate] = useState(item.startDate || "");
   const [endDate, setEndDate] = useState(item.endDate || "");
@@ -45,7 +47,12 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({ item, mediaType, onSave }
     }
     setSaving(true);
     try {
-      await onSave({ status, startDate, endDate, personalNotes: personalNotes.trim(), progress, userScore });
+      const normalizedStatus = progressTotal > 0 && progress >= progressTotal
+        ? "Completed"
+        : (status === "Completed" || status === "Caught Up") && progress < progressTotal
+          ? (mediaType === "manga" ? "Reading" : "Watching")
+          : status;
+      await onSave({ status: normalizedStatus, startDate, endDate, personalNotes: personalNotes.trim(), progress, userScore });
     } finally {
       setSaving(false);
     }
@@ -56,7 +63,7 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({ item, mediaType, onSave }
       <div className="tracker-fields__body">
         <label className="tracker-fields__status">
           <span>Status</span>
-          <AppDropdown ariaLabel={`${mediaType} tracking status`} value={status} onChange={setStatus} options={(mediaType === "manga" ? ["Plan to Read", "Reading", "Caught Up", "Completed", "On-Hold", "Dropped"] : ["Plan to Watch", "Watching", "Caught Up", "Completed", "On-Hold", "Dropped"]).map((option) => ({ value: option, label: option }))} />
+          <AppDropdown ariaLabel={`${mediaType} tracking status`} value={status} onChange={(nextStatus) => { setStatus(nextStatus); if (nextStatus === "Completed" && progressTotal > 0) setProgress(progressTotal); }} options={(mediaType === "manga" ? ["Plan to Read", "Reading", "Caught Up", "Completed", "On-Hold", "Dropped"] : ["Plan to Watch", "Watching", "Caught Up", "Completed", "On-Hold", "Dropped"]).map((option) => ({ value: option, label: option }))} />
         </label>
         <div className="tracker-fields__dates">
           <label><span>Started</span><input type="date" value={startDate} max={endDate || undefined} onChange={(event) => setStartDate(event.target.value)} /></label>
@@ -66,9 +73,12 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({ item, mediaType, onSave }
             <label><span>{mediaType === "manga" ? "Chapter progress" : "Episode progress"}</span><input type="number" min={0} max={mediaType === "manga" ? (item as MangaWatchlistItem).chapters || undefined : item.episodes || undefined} value={progress} onChange={(event) => { const total = mediaType === "manga" ? Number((item as MangaWatchlistItem).chapters || Infinity) : Number(item.episodes || Infinity); setProgress(Math.max(0, Math.min(total, Number(event.target.value) || 0))); }} /></label>
             <label><span>Your score</span><input type="number" min={0} max={10} step={1} value={userScore} onChange={(event) => setUserScore(Math.max(0, Math.min(10, Number(event.target.value) || 0)))} /></label>
           </div>
-        {progressTotal > 0 && <label className="tracker-fields__progress"><span>{mediaType === "manga" ? "Reading progress" : "Watching progress"}<strong>{progress} / {progressTotal}</strong></span><input className="media-progress__slider" aria-label={`${mediaType === "manga" ? "Chapter" : "Episode"} progress`} type="range" min={0} max={progressTotal} step={1} value={Math.min(progress, progressTotal)} style={{ "--progress": `${Math.min(100, (progress / progressTotal) * 100)}%` } as React.CSSProperties} onChange={(event) => setProgress(Number(event.target.value))} /></label>}
+        {progressTotal > 0 && <label className="tracker-fields__progress"><span>{mediaType === "manga" ? "Reading progress" : "Watching progress"}<strong>{progress} / {progressTotal}</strong></span><input className="media-progress__slider" aria-label={`${mediaType === "manga" ? "Chapter" : "Episode"} progress`} type="range" min={0} max={progressTotal} step={1} value={Math.min(progress, progressTotal)} style={{ "--progress": `${Math.min(100, (progress / progressTotal) * 100)}%` } as React.CSSProperties} onChange={(event) => { const next = Number(event.target.value); setProgress(next); if (next >= progressTotal) setStatus("Completed"); else if (status === "Completed" || status === "Caught Up") setStatus(mediaType === "manga" ? "Reading" : "Watching"); }} /></label>}
         <label className="tracker-fields__notes"><span>Personal notes</span><textarea rows={2} maxLength={800} value={personalNotes} onChange={(event) => setPersonalNotes(event.target.value)} placeholder={mediaType === "manga" ? "Last chapter, favorite panel, thoughts..." : "Last episode, favorite arc, thoughts..."} /></label>
-        <button type="button" onClick={handleSave} disabled={saving}><Save size={13} /> {saving ? "Saving..." : "Save changes"}</button>
+        <div className="tracker-fields__footer">
+          <button type="button" className="is-primary" onClick={handleSave} disabled={saving}><Save size={13} /> {saving ? "Saving..." : "Save changes"}</button>
+          <button type="button" onClick={onCancel} disabled={saving}><X size={13} /> Cancel</button>
+        </div>
       </div>
     </div>
   );
@@ -212,14 +222,14 @@ export const Watchlist: React.FC = () => {
 
   if (!currentUser) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+      <div className="min-h-screen flex flex-col"><div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 flex-1">
         <SEO
           title="My Watchlist - Anime Tracker & History"
           description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Orbit."
           keywords="anime watchlist, anime tracker, anime watch progress, Anime Orbit"
           url="https://animeorbit.web.app/watchlist"
         />
-        <List size={56} className="mx-auto text-[#ffd700]" />
+        <ListTodo size={56} className="mx-auto text-[#ffd700]" />
         <h2 className="text-3xl font-extrabold font-montserrat text-white">
           My Anime Watchlist
         </h2>
@@ -234,7 +244,7 @@ export const Watchlist: React.FC = () => {
           <span>Sign In to View Watchlist</span>
         </button>
         <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
-      </div>
+      </div><Footer /></div>
     );
   }
 
@@ -261,7 +271,7 @@ export const Watchlist: React.FC = () => {
         const title = escapeHtml(item.title || item.title_english || "Untitled");
         const status = escapeHtml(item.status || (mediaTab === "manga" ? "Plan to Read" : "Plan to Watch"));
         const progressLabel = mediaTab === "manga"
-          ? ((item as MangaWatchlistItem).chapters ? `${(item as MangaWatchlistItem).chapters} chapters` : (item as MangaWatchlistItem).format || "Manga")
+          ? `${(item as MangaWatchlistItem).format || "Manga"}${(item as MangaWatchlistItem).chapters ? ` · ${(item as MangaWatchlistItem).chapters} chapters` : ""}`
           : (item.episodes ? `${item.episodes} EPS` : item.type || "TV");
         const score = item.score ? `⭐ ${item.score}` : "";
         const img = (item as any).images?.jpg?.large_image_url || item.image_url || item.image || "";
@@ -377,17 +387,17 @@ export const Watchlist: React.FC = () => {
   };
 
   return (
-    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-4">
+    <div className="min-h-screen flex flex-col"><main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6 sm:space-y-8 w-full flex-1">
       <SEO
         title="My Watchlist - Anime Tracker & History"
         description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Orbit."
         keywords="anime watchlist, anime tracker, anime watch progress, Anime Orbit"
         url="https://animeorbit.web.app/watchlist"
       />
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-5 border-b border-white/10">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div className="flex items-center gap-3 flex-wrap">
-          <List size={30} className="text-[#ffd700]" />
-          <h1 className="text-2xl sm:text-3xl font-bold font-montserrat text-white">
+          <ListTodo size={30} className="text-[#ffd700]" />
+          <h1 className="text-2xl sm:text-3xl font-extrabold font-montserrat text-white">
             My Watchlist
           </h1>
           <span className="text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
@@ -395,7 +405,7 @@ export const Watchlist: React.FC = () => {
           </span>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <div className="flex rounded-full border border-white/10 bg-white/5 p-1 text-xs font-bold">
             <button onClick={() => setMediaTab("anime")} className={`px-4 py-2 rounded-full ${mediaTab === "anime" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Anime</button>
             <button onClick={() => setMediaTab("manga")} className={`px-4 py-2 rounded-full ${mediaTab === "manga" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Manga</button>
@@ -410,8 +420,8 @@ export const Watchlist: React.FC = () => {
             <Share2 size={15} />
             <span>Share Watchlist</span>
           </button>
-          <button onClick={() => setTrashOpen((open) => !open)} className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold text-neutral-300 hover:border-[#ffd700]/50 hover:text-white">
-            <Trash2 size={14} /><span>Trash</span>{deletedItems.length > 0 && <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px]">{deletedItems.length}</span>}
+          <button aria-pressed={trashOpen} onClick={() => setTrashOpen((open) => !open)} className={`watchlist-trash-toggle ${trashOpen ? "is-active" : ""}`}>
+            <Trash2 size={14} /><span>Trash</span><span className="watchlist-trash-toggle__count" aria-label={`${deletedItems.length} recently removed titles`}>{deletedItems.length}</span>
           </button>
         </div>
       </div>
@@ -483,11 +493,11 @@ export const Watchlist: React.FC = () => {
                 <AnimeCard compact anime={item as any} />
               </div>
               <div className="tracker-card__content">
-                {expandedTracker === `anime-${item.mal_id}` ? <TrackerFields mediaType="anime" item={item} onSave={async (updates) => { await updateWatchlistEntry(item.mal_id, updates as any); setExpandedTracker(null); }} /> : <div className="tracker-card__summary"><span>{item.status || "Plan to Watch"}</span><p>{item.personalNotes || "No personal note yet"}</p><small>{item.progress || 0}{item.episodes ? ` / ${item.episodes}` : ""} episodes · {item.startDate ? `Started ${item.startDate}` : "Start date not set"}{item.endDate ? ` · Finished ${item.endDate}` : ""}</small></div>}
-                <div className="tracker-card__actions">
+                {expandedTracker === `anime-${item.mal_id}` ? <TrackerFields mediaType="anime" item={item} onCancel={() => setExpandedTracker(null)} onSave={async (updates) => { await updateWatchlistEntry(item.mal_id, updates as any); setExpandedTracker(null); }} /> : <div className="tracker-card__summary"><span>{item.status || "Plan to Watch"}</span><p>{item.personalNotes || "No personal note yet"}</p><small><b className="tracker-card__progress-tag">{item.progress || 0}{item.episodes ? ` / ${item.episodes}` : ""} episodes</b><span>{item.startDate ? `Started ${item.startDate}` : "Start date not set"}{item.endDate ? ` · Finished ${item.endDate}` : ""}</span></small></div>}
+                {expandedTracker !== `anime-${item.mal_id}` && <div className="tracker-card__actions">
                   <button type="button" aria-expanded={expandedTracker === `anime-${item.mal_id}`} onClick={() => setExpandedTracker((current) => current === `anime-${item.mal_id}` ? null : `anime-${item.mal_id}`)}><NotebookPen size={13} />{expandedTracker === `anime-${item.mal_id}` ? "Close details" : "View details"}</button>
                   <button type="button" className="is-remove" onClick={() => removeFromWatchlist(item.mal_id)}><Trash2 size={13} /></button>
-                </div>
+                </div>}
               </div>
             </div>
           ))}
@@ -500,15 +510,15 @@ export const Watchlist: React.FC = () => {
               <div className="tracker-card__media">
                 <Link to={`/manga/${item.mal_id}`} className="group block">
                   <ProgressiveImage src={item.image_url || item.image} alt={item.title} wrapperClassName="aspect-[2/3] rounded-xl" className="w-full h-full object-cover group-hover:scale-[1.02]" />
-                  <div className="pt-2"><h3 className="font-montserrat font-bold text-xs text-white line-clamp-2">{item.title}</h3><p className="text-[10px] text-neutral-400 mt-1">{item.chapters ? `${item.chapters} chapters` : item.format || "Manga"}{item.score ? ` · ★ ${item.score}` : ""}</p></div>
+                  <div className="pt-2"><h3 className="font-montserrat font-bold text-xs text-white line-clamp-2">{item.title}</h3><p className="text-[10px] text-neutral-400 mt-1">{item.format || "Manga"}{item.chapters ? ` · ${item.chapters} chapters` : ""}{item.score ? ` · ★ ${item.score}` : ""}</p></div>
                 </Link>
               </div>
               <div className="tracker-card__content">
-                {expandedTracker === `manga-${item.mal_id}` ? <TrackerFields mediaType="manga" item={item} onSave={async (updates) => { await updateMangaWatchlistEntry(item.mal_id, updates as any); setExpandedTracker(null); }} /> : <div className="tracker-card__summary"><span>{item.status || "Plan to Read"}</span><p>{item.personalNotes || "No personal note yet"}</p><small>{item.progress || 0}{item.chapters ? ` / ${item.chapters}` : ""} chapters · {item.startDate ? `Started ${item.startDate}` : "Start date not set"}{item.endDate ? ` · Finished ${item.endDate}` : ""}</small></div>}
-                <div className="tracker-card__actions">
+                {expandedTracker === `manga-${item.mal_id}` ? <TrackerFields mediaType="manga" item={item} onCancel={() => setExpandedTracker(null)} onSave={async (updates) => { await updateMangaWatchlistEntry(item.mal_id, updates as any); setExpandedTracker(null); }} /> : <div className="tracker-card__summary"><span>{item.status || "Plan to Read"}</span><p>{item.personalNotes || "No personal note yet"}</p><small><b className="tracker-card__progress-tag">{item.progress || 0}{item.chapters ? ` / ${item.chapters}` : ""} chapters</b><span>{item.startDate ? `Started ${item.startDate}` : "Start date not set"}{item.endDate ? ` · Finished ${item.endDate}` : ""}</span></small></div>}
+                {expandedTracker !== `manga-${item.mal_id}` && <div className="tracker-card__actions">
                   <button type="button" aria-expanded={expandedTracker === `manga-${item.mal_id}`} onClick={() => setExpandedTracker((current) => current === `manga-${item.mal_id}` ? null : `manga-${item.mal_id}`)}><NotebookPen size={13} />{expandedTracker === `manga-${item.mal_id}` ? "Close details" : "View details"}</button>
                   <button type="button" className="is-remove" onClick={() => removeMangaFromWatchlist(item.mal_id)}><Trash2 size={13} /></button>
-                </div>
+                </div>}
               </div>
             </div>
           ))}
@@ -544,7 +554,7 @@ export const Watchlist: React.FC = () => {
                 return (
                   <div key={item.mal_id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
                     <ProgressiveImage src={item.images?.jpg?.image_url} alt="" wrapperClassName="w-12 h-16 rounded-lg flex-shrink-0" className="w-full h-full object-cover" />
-                    <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-bold text-white">{item.title}</h3><p className="mt-1 text-xs text-neutral-400">{item.type || item.format || mediaTab}{item.score ? ` • ★ ${item.score}` : ""}</p></div>
+                    <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-bold text-white">{item.title}</h3><p className="mt-1 text-xs text-neutral-400">{item.format || item.type || mediaTab}{item.score ? ` • ★ ${item.score}` : ""}</p></div>
                     <button
                       disabled={alreadyAdded || addingId === item.mal_id}
                       aria-label={alreadyAdded ? `${item.title} is already tracked` : `Add ${item.title}`}
@@ -628,7 +638,7 @@ export const Watchlist: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </main><Footer /></div>
   );
 };
 

@@ -16,6 +16,7 @@ import { AlertCircle, MessageCircle, Star, Trash2, LogIn, ExternalLink, RefreshC
 import { toast } from "react-toastify";
 import AuthModal from "./AuthModal";
 import ProgressiveImage from "./ProgressiveImage";
+import Footer from "./Footer";
 
 export const MyReviews: React.FC = () => {
   const { currentUser } = useAuth();
@@ -78,7 +79,7 @@ export const MyReviews: React.FC = () => {
 
   if (!currentUser) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+      <div className="min-h-screen flex flex-col"><main className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 flex-1">
         <SEO
           title="My Anime Reviews - Community Ratings"
           description="View, edit, and manage all your written anime ratings and reviews across all genres on Anime Orbit."
@@ -100,12 +101,12 @@ export const MyReviews: React.FC = () => {
           <span>Sign In to Access Reviews</span>
         </button>
         <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
-      </div>
+      </main><Footer /></div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6">
+    <div className="min-h-screen flex flex-col"><main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6 sm:space-y-8 w-full flex-1">
       <SEO
         title="My Anime Reviews - Community Ratings"
         description="View, edit, and manage all your written anime ratings and reviews across all genres on Anime Orbit."
@@ -113,12 +114,13 @@ export const MyReviews: React.FC = () => {
         url="https://animeorbit.web.app/my-reviews"
       />
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/10">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+        <div className="flex items-center gap-3 flex-wrap">
           <MessageCircle size={30} className="text-[#ffd700]" />
           <h1 className="text-2xl sm:text-3xl font-extrabold font-montserrat text-white">
-            My Reviews ({reviews.length})
+            My Reviews
           </h1>
+          <span className="text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">{reviews.length} {reviews.length === 1 ? "Review" : "Reviews"}</span>
         </div>
       </div>
 
@@ -187,7 +189,7 @@ export const MyReviews: React.FC = () => {
           </p>
         </div>
       )}
-    </div>
+    </main><Footer /></div>
   );
 };
 

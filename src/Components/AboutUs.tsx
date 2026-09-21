@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import SEO from "./SEO";
+import Footer from "./Footer";
 import {
   Compass,
   Sparkles,
@@ -14,7 +15,7 @@ import {
 
 export const AboutUs: React.FC = () => {
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-10 sm:space-y-12">
+    <div className="min-h-screen flex flex-col"><main className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-10 sm:space-y-12 flex-1">
       <SEO
         title="About Anime Orbit - The Ultimate Interactive Anime Database"
         description="Anime Orbit is a state-of-the-art anime discovery hub featuring real-time ratings, chronological relations, episode guides, community reviews, and watchlist sync across all genres."
@@ -111,7 +112,7 @@ export const AboutUs: React.FC = () => {
           <ArrowRight size={18} />
         </Link>
       </div>
-    </div>
+    </main><Footer /></div>
   );
 };
 

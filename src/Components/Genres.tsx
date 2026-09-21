@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getAnimeByGenre, getAnimeListByIds } from "../services/anilist";
+import { getAnimeByGenre, getAnimeListByIds, getMangaByGenre } from "../services/anilist";
 import AnimeCard from "./AnimeCard";
 import SEO from "./SEO";
 import Footer from "./Footer";
-import { Layers, Filter, RefreshCw, Compass, ArrowRight, ArrowLeft, ArrowUp, ArrowDown } from "lucide-react";
+import { Layers, Filter, RefreshCw, Compass, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, BookOpen } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import ProgressiveImage from "./ProgressiveImage";
@@ -215,6 +215,7 @@ const GENRE_CATEGORIES: GenreCategory[] = [
 export const Genres: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeGenre = searchParams.get("genre") || "Action";
+  const activeMedia = searchParams.get("media") === "manga" ? "manga" : "anime";
   const [sortOption, setSortOption] = useState<string>("FAVOURITES_DESC");
 
   const [animeList, setAnimeList] = useState<any[]>([]);
@@ -229,12 +230,14 @@ export const Genres: React.FC = () => {
   const requestVersion = useRef(0);
   const genreRailRef = useRef<HTMLDivElement>(null);
 
-  const fetchGenreAnime = useCallback(async (genre: string, targetPage: number, sort: string, append = false) => {
+  const fetchGenreTitles = useCallback(async (genre: string, targetPage: number, sort: string, append = false, media: "anime" | "manga" = activeMedia) => {
     const version = ++requestVersion.current;
     try {
       if (!append) setInitialLoading(true);
       setLoading(true);
-      const res = await getAnimeByGenre(genre, 24, targetPage, sort);
+      const res = media === "manga"
+        ? await getMangaByGenre(genre, 24, targetPage, sort)
+        : await getAnimeByGenre(genre, 24, targetPage, sort);
       if (version !== requestVersion.current) return;
       if (!append) {
         const hero = res.media?.find((item: any) => item?.banner_image)?.banner_image
@@ -256,11 +259,12 @@ export const Genres: React.FC = () => {
         setInitialLoading(false);
       }
     }
-  }, []);
+  }, [activeMedia]);
 
   useEffect(() => {
-    fetchGenreAnime(activeGenre, 1, sortOption, false);
-  }, [activeGenre, sortOption, fetchGenreAnime]);
+    setAnimeList([]);
+    fetchGenreTitles(activeGenre, 1, sortOption, false, activeMedia);
+  }, [activeGenre, activeMedia, sortOption, fetchGenreTitles]);
 
   useEffect(() => {
     let active = true;
@@ -282,7 +286,7 @@ export const Genres: React.FC = () => {
     if (genre === activeGenre) return;
     setAnimeList([]);
     setInitialLoading(true);
-    setSearchParams({ genre, sort: sortOption });
+    setSearchParams({ genre, sort: sortOption, media: activeMedia });
     setTimeout(() => {
       const target = document.getElementById("genre-results-section");
       if (target) {
@@ -293,7 +297,7 @@ export const Genres: React.FC = () => {
 
   const handleLoadMore = () => {
     if (!loading && hasNextPage) {
-      fetchGenreAnime(activeGenre, page + 1, sortOption, true);
+      fetchGenreTitles(activeGenre, page + 1, sortOption, true, activeMedia);
     }
   };
 
@@ -308,15 +312,17 @@ export const Genres: React.FC = () => {
 
   const currentGenreMeta = GENRE_CATEGORIES.find((g) => g.name === activeGenre) || GENRE_CATEGORIES[0];
   const activeHeroImage = genreHeroImages[activeGenre];
-  const featuredTitle = currentGenreMeta.representativeTitle;
+  const featuredTitle = activeMedia === "manga"
+    ? animeList[0]?.title_english || animeList[0]?.title || `${activeGenre} manga`
+    : currentGenreMeta.representativeTitle;
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
       <SEO
-        title={`${activeGenre} Anime - Popular Series and Movies`}
-        description={`Browse top-rated ${activeGenre} anime series and movies on Anime Orbit.`}
-        keywords={`${activeGenre} anime, top ${activeGenre} anime, anime genres, Anime Orbit`}
-        url={`https://animeorbit.web.app/genres?genre=${encodeURIComponent(activeGenre)}`}
+        title={`${activeGenre} ${activeMedia === "manga" ? "Manga" : "Anime"} - Popular Titles`}
+        description={`Browse top-rated ${activeGenre} ${activeMedia} on Anime Orbit.`}
+        keywords={`${activeGenre} ${activeMedia}, top ${activeGenre} ${activeMedia}, ${activeMedia} genres, Anime Orbit`}
+        url={`https://animeorbit.web.app/genres?genre=${encodeURIComponent(activeGenre)}&media=${activeMedia}`}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-16 w-full flex-1">
@@ -346,7 +352,7 @@ export const Genres: React.FC = () => {
                 <span className="text-xs font-bold text-[#ffd700]">Fan favorite: {featuredTitle}</span>
 
                 <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold font-montserrat text-white">
-                  {activeGenre} Anime
+                  {activeGenre} {activeMedia === "manga" ? "Manga" : "Anime"}
                 </h1>
 
                 <p className="mt-2 text-sm text-neutral-300 max-w-xl leading-relaxed">
@@ -359,15 +365,19 @@ export const Genres: React.FC = () => {
             <div id="genre-results-section" className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/10 scroll-mt-24">
               <div>
                 <h2 className="font-montserrat font-bold text-xl sm:text-2xl text-white">
-                  Best {activeGenre} Anime
+                  Best {activeGenre} {activeMedia === "manga" ? "Manga" : "Anime"}
                 </h2>
                 <p className="text-xs text-neutral-400 mt-0.5">
-                  Popular series and movies picked by anime fans
+                  Popular {activeMedia === "manga" ? "series picked by manga readers" : "series and movies picked by anime fans"}
                 </p>
               </div>
 
               {/* Sort Filter Dropdown */}
-              <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
+                <div className="genre-media-switch" aria-label="Choose media type">
+                  <button type="button" aria-pressed={activeMedia === "anime"} className={activeMedia === "anime" ? "is-active" : ""} onClick={() => setSearchParams({ genre: activeGenre, sort: sortOption, media: "anime" })}>Anime</button>
+                  <button type="button" aria-pressed={activeMedia === "manga"} className={activeMedia === "manga" ? "is-active" : ""} onClick={() => setSearchParams({ genre: activeGenre, sort: sortOption, media: "manga" })}>Manga</button>
+                </div>
                 <Filter size={15} className="text-[#ffd700]" />
                 <AppDropdown ariaLabel="Sort genre results" className="w-44" value={sortOption} onChange={setSortOption} options={[{ value: "FAVOURITES_DESC", label: "Most Popular" }, { value: "SCORE_DESC", label: "Highest Rated" }, { value: "POPULARITY_DESC", label: "Most Watched" }, { value: "START_DATE_DESC", label: "Newest Releases" }]} />
               </div>
@@ -400,8 +410,8 @@ export const Genres: React.FC = () => {
             ) : animeList.length > 0 ? (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-5">
-                  {animeList.map((anime: any, idx: number) => (
-                    <AnimeCard key={`genre-${anime.mal_id}-${idx}`} anime={anime} />
+                  {animeList.map((item: any, idx: number) => (
+                    <AnimeCard key={`genre-${activeMedia}-${item.mal_id}-${idx}`} anime={item} mediaType={activeMedia} />
                   ))}
                 </div>
 
@@ -416,7 +426,7 @@ export const Genres: React.FC = () => {
                       <span>
                         {loading
                           ? "Fetching More..."
-                          : `Load More (${animeList.length} loaded)`}
+                          : `Load More ${activeMedia === "manga" ? "Manga" : "Anime"} (${animeList.length} loaded)`}
                       </span>
                     </button>
                   </div>
@@ -424,10 +434,10 @@ export const Genres: React.FC = () => {
               </>
             ) : (
               <div className="text-center py-20 bg-[#12121c]/80 rounded-3xl border border-white/10 space-y-4 max-w-md mx-auto">
-                <Compass size={48} className="mx-auto text-neutral-600" />
-                <h3 className="font-montserrat font-bold text-lg text-white">No Anime Found</h3>
+                {activeMedia === "manga" ? <BookOpen size={48} className="mx-auto text-neutral-600" /> : <Compass size={48} className="mx-auto text-neutral-600" />}
+                <h3 className="font-montserrat font-bold text-lg text-white">No {activeMedia === "manga" ? "Manga" : "Anime"} Found</h3>
                 <p className="text-xs text-neutral-400">
-                  No anime found for genre "{activeGenre}". Try another genre above.
+                  No {activeMedia} found for genre "{activeGenre}". Try another genre above.
                 </p>
               </div>
             )}

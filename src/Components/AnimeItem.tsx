@@ -1,7 +1,17 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  useParams,
+  Link,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import styled from "styled-components";
-import { getAnimeDetailsCombined, getAnimeCharacters, getAnimeStaff } from "../services/anilist";
+import {
+  getAnimeDetailsCombined,
+  getAnimeCharacters,
+  getAnimeStaff,
+  getMediaGuidePage,
+} from "../services/anilist";
 import { useFavourites } from "../context/FavouritesContext";
 import { useWatchlist } from "../context/WatchlistContext";
 import { useAuth } from "../context/AuthContext";
@@ -58,6 +68,7 @@ import { toast } from "react-toastify";
 import { sanitizeInput, checkRateLimit } from "../utils/security";
 import ProgressiveImage from "./ProgressiveImage";
 import AppDropdown from "./AppDropdown";
+import Footer from "./Footer";
 
 const PLATFORM_COLORS: Record<string, string> = {
   crunchyroll: "#f47521",
@@ -109,7 +120,9 @@ export const AnimeItem: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [charSearch, setCharSearch] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get("tab") || "overview");
+  const [activeTab, setActiveTab] = useState<string>(
+    () => searchParams.get("tab") || "overview",
+  );
   const [showMore, setShowMore] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
@@ -121,7 +134,9 @@ export const AnimeItem: React.FC = () => {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isCommentSpoiler, setIsCommentSpoiler] = useState(false);
-  const [revealedSpoilers, setRevealedSpoilers] = useState<Record<string, boolean>>({});
+  const [revealedSpoilers, setRevealedSpoilers] = useState<
+    Record<string, boolean>
+  >({});
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [postingComment, setPostingComment] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -136,9 +151,11 @@ export const AnimeItem: React.FC = () => {
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [postingReview, setPostingReview] = useState(false);
   const [trailerLoaded, setTrailerLoaded] = useState(false);
-  const { addToFavourites, removeFromFavourites, isFavourite } = useFavourites();
+  const { addToFavourites, removeFromFavourites, isFavourite } =
+    useFavourites();
   const { currentUser } = useAuth();
-  const { watchlist, updateAnimeStatus, getAnimeStatus, updateWatchlistEntry } = useWatchlist();
+  const { watchlist, updateAnimeStatus, getAnimeStatus, updateWatchlistEntry } =
+    useWatchlist();
   const [detailProgress, setDetailProgress] = useState(0);
   const [progressSaving, setProgressSaving] = useState(false);
 
@@ -168,19 +185,47 @@ export const AnimeItem: React.FC = () => {
 
   const isFav = mal_id ? isFavourite(mal_id) : false;
   const currentStatus = mal_id ? getAnimeStatus(mal_id) : null;
-  const trackedAnime = mal_id ? watchlist.find((item) => item.mal_id === mal_id) : undefined;
+  const trackedAnime = mal_id
+    ? watchlist.find((item) => item.mal_id === mal_id)
+    : undefined;
 
   useEffect(() => {
     setDetailProgress(Number(trackedAnime?.progress || 0));
   }, [trackedAnime?.mal_id, trackedAnime?.progress]);
 
+  useEffect(() => {
+    if (
+      !trackedAnime ||
+      !totalEpisodes ||
+      Number(trackedAnime.episodes || 0) === Number(totalEpisodes)
+    )
+      return;
+    void updateWatchlistEntry(trackedAnime.mal_id, {
+      episodes: Number(totalEpisodes),
+    });
+  }, [trackedAnime?.mal_id, trackedAnime?.episodes, totalEpisodes]);
+
   const saveDetailProgress = async (nextProgress: number) => {
     if (!trackedAnime) return;
-    const normalized = Math.max(0, Math.min(Number(totalEpisodes || Infinity), nextProgress));
+    const normalized = Math.max(
+      0,
+      Math.min(Number(totalEpisodes || Infinity), nextProgress),
+    );
+    const nextStatus =
+      totalEpisodes && normalized >= totalEpisodes
+        ? "Completed"
+        : trackedAnime.status === "Completed" ||
+            trackedAnime.status === "Caught Up" ||
+            (normalized > 0 && trackedAnime.status === "Plan to Watch")
+          ? "Watching"
+          : trackedAnime.status;
     setDetailProgress(normalized);
     setProgressSaving(true);
     try {
-      await updateWatchlistEntry(trackedAnime.mal_id, { status: trackedAnime.status, progress: normalized });
+      await updateWatchlistEntry(trackedAnime.mal_id, {
+        status: nextStatus,
+        progress: normalized,
+      });
     } finally {
       setProgressSaving(false);
     }
@@ -188,7 +233,19 @@ export const AnimeItem: React.FC = () => {
 
   useEffect(() => {
     const requestedTab = searchParams.get("tab");
-    if (requestedTab && ["overview", "episodes", "characters", "staff", "related", "discussion", "reviews"].includes(requestedTab)) setActiveTab(requestedTab);
+    if (
+      requestedTab &&
+      [
+        "overview",
+        "episodes",
+        "characters",
+        "staff",
+        "related",
+        "discussion",
+        "reviews",
+      ].includes(requestedTab)
+    )
+      setActiveTab(requestedTab);
   }, [searchParams]);
 
   // Fetch anime data
@@ -363,7 +420,10 @@ export const AnimeItem: React.FC = () => {
 
   const prevLightboxImage = () => {
     if (activeGalleryList.length === 0) return;
-    setLightboxIndex((prev) => (prev - 1 + activeGalleryList.length) % activeGalleryList.length);
+    setLightboxIndex(
+      (prev) =>
+        (prev - 1 + activeGalleryList.length) % activeGalleryList.length,
+    );
   };
 
   useEffect(() => {
@@ -383,7 +443,9 @@ export const AnimeItem: React.FC = () => {
     try {
       const commentsRef = collection(db, "comments");
       const numericId = Number(id);
-      const animeIds = Number.isFinite(numericId) ? [id.toString(), numericId] : [id.toString()];
+      const animeIds = Number.isFinite(numericId)
+        ? [id.toString(), numericId]
+        : [id.toString()];
       const q = query(commentsRef, where("animeId", "in", animeIds));
       const applySnapshot = (snapshot: any) => {
         const fetched = snapshot.docs
@@ -396,17 +458,13 @@ export const AnimeItem: React.FC = () => {
         setComments(fetched);
         setCommentsLoading(false);
       };
-      const unsubscribe = onSnapshot(
-        q,
-        applySnapshot,
-        async () => {
-          try {
-            applySnapshot(await getDocs(q));
-          } catch {
-            setCommentsLoading(false);
-          }
+      const unsubscribe = onSnapshot(q, applySnapshot, async () => {
+        try {
+          applySnapshot(await getDocs(q));
+        } catch {
+          setCommentsLoading(false);
         }
-      );
+      });
       return () => {
         try {
           unsubscribe();
@@ -425,7 +483,9 @@ export const AnimeItem: React.FC = () => {
     try {
       const reviewsRef = collection(db, "reviews");
       const numericId = Number(id);
-      const animeIds = Number.isFinite(numericId) ? [id.toString(), numericId] : [id.toString()];
+      const animeIds = Number.isFinite(numericId)
+        ? [id.toString(), numericId]
+        : [id.toString()];
       const q = query(reviewsRef, where("animeId", "in", animeIds));
       const applySnapshot = (snapshot: any) => {
         const fetched = snapshot.docs
@@ -438,17 +498,13 @@ export const AnimeItem: React.FC = () => {
         setReviews(fetched);
         setReviewsLoading(false);
       };
-      const unsubscribe = onSnapshot(
-        q,
-        applySnapshot,
-        async () => {
-          try {
-            applySnapshot(await getDocs(q));
-          } catch {
-            setReviewsLoading(false);
-          }
+      const unsubscribe = onSnapshot(q, applySnapshot, async () => {
+        try {
+          applySnapshot(await getDocs(q));
+        } catch {
+          setReviewsLoading(false);
         }
-      );
+      });
       return () => {
         try {
           unsubscribe();
@@ -470,7 +526,9 @@ export const AnimeItem: React.FC = () => {
     }
 
     if (!checkRateLimit(`comment_${currentUser.uid}`, 3000)) {
-      toast.warning("Please wait a few seconds before posting another comment!");
+      toast.warning(
+        "Please wait a few seconds before posting another comment!",
+      );
       return;
     }
 
@@ -482,13 +540,17 @@ export const AnimeItem: React.FC = () => {
       await addDoc(collection(db, "comments"), {
         animeId: id?.toString(),
         userId: currentUser.uid,
-        userName: currentUser.displayName || currentUser.email?.split("@")[0] || "Anonymous",
+        userName:
+          currentUser.displayName ||
+          currentUser.email?.split("@")[0] ||
+          "Anonymous",
         userAvatar: currentUser.photoURL || "",
         text: cleanText,
         content: cleanText,
         isSpoiler: isCommentSpoiler,
         animeTitle: displayTitle,
-        animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
+        animeImage:
+          images?.jpg?.large_image_url || images?.jpg?.image_url || "",
         likes: [],
         dislikes: [],
         reports: [],
@@ -505,7 +567,10 @@ export const AnimeItem: React.FC = () => {
     }
   };
 
-  const handleCommentReaction = async (comment: any, reaction: "like" | "dislike" | "report") => {
+  const handleCommentReaction = async (
+    comment: any,
+    reaction: "like" | "dislike" | "report",
+  ) => {
     if (!currentUser) {
       setAuthModalOpen(true);
       return;
@@ -514,8 +579,20 @@ export const AnimeItem: React.FC = () => {
     const liked = (comment.likes || []).includes(currentUser.uid);
     const disliked = (comment.dislikes || []).includes(currentUser.uid);
     try {
-      if (reaction === "like") await updateDoc(reference, { likes: liked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid), dislikes: arrayRemove(currentUser.uid) });
-      if (reaction === "dislike") await updateDoc(reference, { dislikes: disliked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid), likes: arrayRemove(currentUser.uid) });
+      if (reaction === "like")
+        await updateDoc(reference, {
+          likes: liked
+            ? arrayRemove(currentUser.uid)
+            : arrayUnion(currentUser.uid),
+          dislikes: arrayRemove(currentUser.uid),
+        });
+      if (reaction === "dislike")
+        await updateDoc(reference, {
+          dislikes: disliked
+            ? arrayRemove(currentUser.uid)
+            : arrayUnion(currentUser.uid),
+          likes: arrayRemove(currentUser.uid),
+        });
       if (reaction === "report") {
         await updateDoc(reference, { reports: arrayUnion(currentUser.uid) });
         toast.info("Report received. Thank you for helping the community.");
@@ -532,11 +609,23 @@ export const AnimeItem: React.FC = () => {
     setPostingReply(true);
     try {
       await addDoc(collection(db, "comments"), {
-        animeId: id?.toString(), parentId: parent.parentId || parent.id,
-        userId: currentUser.uid, userName: currentUser.displayName || currentUser.email?.split("@")[0] || "Anonymous",
-        userAvatar: currentUser.photoURL || "", text: cleanReply, content: cleanReply,
-        animeTitle: displayTitle, animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
-        likes: [], dislikes: [], reports: [], createdAt: serverTimestamp(),
+        animeId: id?.toString(),
+        parentId: parent.parentId || parent.id,
+        userId: currentUser.uid,
+        userName:
+          currentUser.displayName ||
+          currentUser.email?.split("@")[0] ||
+          "Anonymous",
+        userAvatar: currentUser.photoURL || "",
+        text: cleanReply,
+        content: cleanReply,
+        animeTitle: displayTitle,
+        animeImage:
+          images?.jpg?.large_image_url || images?.jpg?.image_url || "",
+        likes: [],
+        dislikes: [],
+        reports: [],
+        createdAt: serverTimestamp(),
       });
       setReplyText("");
       setReplyingTo(null);
@@ -568,13 +657,17 @@ export const AnimeItem: React.FC = () => {
       await addDoc(collection(db, "reviews"), {
         animeId: id?.toString(),
         userId: currentUser.uid,
-        userName: currentUser.displayName || currentUser.email?.split("@")[0] || "Anonymous",
+        userName:
+          currentUser.displayName ||
+          currentUser.email?.split("@")[0] ||
+          "Anonymous",
         userAvatar: currentUser.photoURL || "",
         rating: Number(newReviewRating),
         text: cleanReview,
         content: cleanReview,
         animeTitle: displayTitle,
-        animeImage: images?.jpg?.large_image_url || images?.jpg?.image_url || "",
+        animeImage:
+          images?.jpg?.large_image_url || images?.jpg?.image_url || "",
         createdAt: serverTimestamp(),
       });
       setNewReviewText("");
@@ -610,7 +703,11 @@ export const AnimeItem: React.FC = () => {
 
   const handleShare = async () => {
     try {
-      const genreNames = (genres || []).slice(0, 3).map((genre: any) => genre?.name || genre).filter(Boolean).join(" • ");
+      const genreNames = (genres || [])
+        .slice(0, 3)
+        .map((genre: any) => genre?.name || genre)
+        .filter(Boolean)
+        .join(" • ");
       const summary = (synopsis || "").replace(/<[^>]+>/g, "").slice(0, 180);
       const shareData = {
         title: `${displayTitle} | Anime Orbit`,
@@ -620,16 +717,20 @@ export const AnimeItem: React.FC = () => {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+        await navigator.clipboard.writeText(
+          `${shareData.text}\n${shareData.url}`,
+        );
         toast.success("Anime link copied");
       }
     } catch (error: any) {
-      if (error?.name !== "AbortError") toast.error("Could not share this anime");
+      if (error?.name !== "AbortError")
+        toast.error("Could not share this anime");
     }
   };
 
   const cleanSynopsis = useMemo(() => {
-    if (!synopsis) return "Explore full episode guides, characters, reviews, and stats on Anime Orbit.";
+    if (!synopsis)
+      return "Explore full episode guides, characters, reviews, and stats on Anime Orbit.";
     return synopsis.replace(/<[^>]+>/g, "").slice(0, 240) + "...";
   }, [synopsis]);
 
@@ -654,24 +755,55 @@ export const AnimeItem: React.FC = () => {
       numberOfEpisodes: totalEpisodes || undefined,
       url: `https://animeorbit.web.app/anime/${id}`,
     };
-  }, [displayTitle, title_japanese, cleanSynopsis, images, score, anime?.scored_by, genres, totalEpisodes, id, type]);
+  }, [
+    displayTitle,
+    title_japanese,
+    cleanSynopsis,
+    images,
+    score,
+    anime?.scored_by,
+    genres,
+    totalEpisodes,
+    id,
+    type,
+  ]);
 
   const availableSources = useMemo(() => {
-    const sources = new Map<string, { id: string | number; site: string; url: string; color?: string; notes?: string; language?: string }>();
+    const sources = new Map<
+      string,
+      {
+        id: string | number;
+        site: string;
+        url: string;
+        color?: string;
+        notes?: string;
+        language?: string;
+      }
+    >();
     (externalLinks || [])
-      .filter((link: any) => link?.url && link.type === "STREAMING" && !link.isDisabled)
-      .forEach((link: any) => sources.set(link.site || link.url, {
-        id: link.id || link.url,
-        site: link.site || "Official source",
-        url: link.url,
-        color: link.color,
-        notes: link.notes,
-        language: link.language,
-      }));
+      .filter(
+        (link: any) =>
+          link?.url && link.type === "STREAMING" && !link.isDisabled,
+      )
+      .forEach((link: any) =>
+        sources.set(link.site || link.url, {
+          id: link.id || link.url,
+          site: link.site || "Official source",
+          url: link.url,
+          color: link.color,
+          notes: link.notes,
+          language: link.language,
+        }),
+      );
     (episodes || [])
       .filter((episode: any) => episode?.url && episode?.site)
       .forEach((episode: any) => {
-        if (!sources.has(episode.site)) sources.set(episode.site, { id: episode.site, site: episode.site, url: episode.url });
+        if (!sources.has(episode.site))
+          sources.set(episode.site, {
+            id: episode.site,
+            site: episode.site,
+            url: episode.url,
+          });
       });
     return Array.from(sources.values());
   }, [externalLinks, episodes]);
@@ -680,17 +812,60 @@ export const AnimeItem: React.FC = () => {
     return (
       <Container aria-busy="true" aria-label="Loading anime details">
         <div className="detail-skeleton">
-          <Skeleton height="100%" baseColor="#1b1b20" highlightColor="#292930" borderRadius={18} />
+          <Skeleton
+            height="100%"
+            baseColor="#1b1b20"
+            highlightColor="#292930"
+            borderRadius={18}
+          />
           <div className="detail-skeleton__copy">
-            <Skeleton width="28%" height={20} baseColor="#1b1b20" highlightColor="#292930" />
-            <Skeleton width="78%" height={52} baseColor="#1b1b20" highlightColor="#292930" />
-            <Skeleton width="48%" height={20} baseColor="#1b1b20" highlightColor="#292930" />
+            <Skeleton
+              width="28%"
+              height={20}
+              baseColor="#1b1b20"
+              highlightColor="#292930"
+            />
+            <Skeleton
+              width="78%"
+              height={52}
+              baseColor="#1b1b20"
+              highlightColor="#292930"
+            />
+            <Skeleton
+              width="48%"
+              height={20}
+              baseColor="#1b1b20"
+              highlightColor="#292930"
+            />
             <div className="detail-skeleton__pills">
-              <Skeleton width={86} height={32} borderRadius={18} baseColor="#1b1b20" highlightColor="#292930" />
-              <Skeleton width={106} height={32} borderRadius={18} baseColor="#1b1b20" highlightColor="#292930" />
-              <Skeleton width={92} height={32} borderRadius={18} baseColor="#1b1b20" highlightColor="#292930" />
+              <Skeleton
+                width={86}
+                height={32}
+                borderRadius={18}
+                baseColor="#1b1b20"
+                highlightColor="#292930"
+              />
+              <Skeleton
+                width={106}
+                height={32}
+                borderRadius={18}
+                baseColor="#1b1b20"
+                highlightColor="#292930"
+              />
+              <Skeleton
+                width={92}
+                height={32}
+                borderRadius={18}
+                baseColor="#1b1b20"
+                highlightColor="#292930"
+              />
             </div>
-            <Skeleton count={4} height={15} baseColor="#1b1b20" highlightColor="#292930" />
+            <Skeleton
+              count={4}
+              height={15}
+              baseColor="#1b1b20"
+              highlightColor="#292930"
+            />
           </div>
         </div>
       </Container>
@@ -702,10 +877,26 @@ export const AnimeItem: React.FC = () => {
       <Container>
         <div className="min-h-[70vh] flex items-center justify-center px-5">
           <div className="max-w-sm text-center">
-            <ProgressiveImage src="/lost.jpg" alt="Page not found" wrapperClassName="w-40 h-40 mx-auto rounded-full bg-white mb-6" className="w-full h-full object-contain p-4" loading="eager" />
-            <h1 className="font-montserrat text-2xl font-black">This title is off orbit</h1>
-            <p className="text-neutral-400 text-sm mt-2">The anime could not be found or the data service is temporarily unavailable.</p>
-            <button onClick={handleBack} className="mt-6 rounded-full bg-[#ffd700] px-5 py-2.5 text-sm font-bold text-black">Go back</button>
+            <ProgressiveImage
+              src="/lost.jpg"
+              alt="Page not found"
+              wrapperClassName="w-40 h-40 mx-auto rounded-full bg-white mb-6"
+              className="w-full h-full object-contain p-4"
+              loading="eager"
+            />
+            <h1 className="font-montserrat text-2xl font-black">
+              This title is off orbit
+            </h1>
+            <p className="text-neutral-400 text-sm mt-2">
+              The anime could not be found or the data service is temporarily
+              unavailable.
+            </p>
+            <button
+              onClick={handleBack}
+              className="mt-6 rounded-full bg-[#ffd700] px-5 py-2.5 text-sm font-bold text-black"
+            >
+              Go back
+            </button>
           </div>
         </div>
       </Container>
@@ -727,7 +918,9 @@ export const AnimeItem: React.FC = () => {
         style={{
           backgroundImage: `url(${anime.banner_image || images?.jpg?.large_image_url || ""})`,
         }}
-        onClick={() => openLightboxAt(anime.banner_image || images?.jpg?.large_image_url)}
+        onClick={() =>
+          openLightboxAt(anime.banner_image || images?.jpg?.large_image_url)
+        }
         title="Click to view artwork in Gallery"
       >
         <Overlay />
@@ -751,7 +944,9 @@ export const AnimeItem: React.FC = () => {
             onClick={() => openLightboxAt(images?.jpg?.large_image_url)}
           />
           {mergedGalleryImages.length > 0 && (
-            <GalleryTriggerBtn onClick={() => openLightboxAt(images?.jpg?.large_image_url)}>
+            <GalleryTriggerBtn
+              onClick={() => openLightboxAt(images?.jpg?.large_image_url)}
+            >
               <ImageIcon size={16} />
               <span>Open Gallery ({mergedGalleryImages.length})</span>
             </GalleryTriggerBtn>
@@ -786,12 +981,15 @@ export const AnimeItem: React.FC = () => {
                 <Film size={15} color="#ffd700" />
                 <span>Upcoming Release</span>
               </Badge>
-            ) : anime.isOngoing || (totalEpisodes !== undefined && totalEpisodes !== null) ? (
+            ) : anime.isOngoing ||
+              (totalEpisodes !== undefined && totalEpisodes !== null) ? (
               <Badge>
                 <Film size={15} color="#ffd700" />
                 <span>
                   {anime.isOngoing
-                    ? totalEpisodes ? `${totalEpisodes}+ Episodes` : "Currently airing"
+                    ? totalEpisodes
+                      ? `${totalEpisodes}+ Episodes`
+                      : "Currently airing"
                     : `${totalEpisodes} Episodes`}
                 </span>
               </Badge>
@@ -809,16 +1007,22 @@ export const AnimeItem: React.FC = () => {
               $variant={isFav ? "active" : "default"}
               onClick={handleFavouriteToggle}
             >
-              <Heart size={18} fill={isFav ? "#ff4d4d" : "none"} color={isFav ? "#ff4d4d" : "#fff"} />
+              <Heart
+                size={18}
+                fill={isFav ? "#ff4d4d" : "none"}
+                color={isFav ? "#ff4d4d" : "#fff"}
+              />
               <span>{isFav ? "Favorited" : "Add Favorite"}</span>
             </ActionButton>
 
             <AppDropdown
               ariaLabel="Set anime tracking status"
-              className="w-44"
+              className="anime-tracker-dropdown"
               value={currentStatus || ""}
               placeholder="Add to list"
-              onChange={(value) => void updateAnimeStatus(anime, value === "remove" ? null : value)}
+              onChange={(value) =>
+                void updateAnimeStatus(anime, value === "remove" ? null : value)
+              }
               options={[
                 { value: "Plan to Watch", label: "Plan to Watch" },
                 { value: "Watching", label: "Watching" },
@@ -826,7 +1030,15 @@ export const AnimeItem: React.FC = () => {
                 { value: "Completed", label: "Completed" },
                 { value: "On-Hold", label: "On Hold" },
                 { value: "Dropped", label: "Dropped" },
-                ...(currentStatus ? [{ value: "remove", label: "Remove from list", tone: "danger" as const }] : []),
+                ...(currentStatus
+                  ? [
+                      {
+                        value: "remove",
+                        label: "Remove from list",
+                        tone: "danger" as const,
+                      },
+                    ]
+                  : []),
               ]}
             />
 
@@ -834,14 +1046,26 @@ export const AnimeItem: React.FC = () => {
               <Share2 size={18} />
               <span>Share</span>
             </ActionButton>
-            <Link to={`/franchise/${mal_id}`} className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white transition-colors hover:border-[#ffd700]/60 hover:text-[#ffd700]">
-              <Layers3 size={17} /><span>Franchise guide</span>
+            <Link
+              to={`/franchise/${mal_id}`}
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white transition-colors hover:border-[#ffd700]/60 hover:text-[#ffd700]"
+            >
+              <Layers3 size={17} />
+              <span>Franchise guide</span>
             </Link>
           </ActionsRow>
 
           {trackedAnime && (
-            <div className="media-progress" aria-label="Your episode progress">
-              <div className="media-progress__heading"><span>Your progress</span><strong>{detailProgress} / {totalEpisodes || "?"} episodes</strong></div>
+            <div
+              className="media-progress anime-detail-progress"
+              aria-label="Your episode progress"
+            >
+              <div className="media-progress__heading">
+                <span>Your progress</span>
+                <strong>
+                  {detailProgress} / {totalEpisodes || "?"} episodes
+                </strong>
+              </div>
               {totalEpisodes ? (
                 <input
                   className="media-progress__slider"
@@ -851,18 +1075,60 @@ export const AnimeItem: React.FC = () => {
                   max={totalEpisodes}
                   step={1}
                   value={detailProgress}
-                  style={{ "--progress": `${Math.min(100, (detailProgress / totalEpisodes) * 100)}%` } as React.CSSProperties}
-                  onChange={(event) => setDetailProgress(Number(event.target.value))}
+                  style={
+                    {
+                      "--progress": `${Math.min(100, (detailProgress / totalEpisodes) * 100)}%`,
+                    } as React.CSSProperties
+                  }
+                  onChange={(event) =>
+                    setDetailProgress(Number(event.target.value))
+                  }
                   onPointerUp={() => void saveDetailProgress(detailProgress)}
                   onKeyUp={() => void saveDetailProgress(detailProgress)}
                   onBlur={() => void saveDetailProgress(detailProgress)}
                 />
-              ) : <div className="media-progress__bar is-unknown" aria-label="Episode total is not available" />}
+              ) : (
+                <div
+                  className="media-progress__bar is-unknown"
+                  aria-label="Episode total is not available"
+                />
+              )}
               <div className="media-progress__controls">
-                <button type="button" disabled={progressSaving || detailProgress <= 0} onClick={() => void saveDetailProgress(detailProgress - 1)}>−</button>
-                <input aria-label="Episode progress" type="number" min={0} max={totalEpisodes || undefined} value={detailProgress} onChange={(event) => setDetailProgress(Math.max(0, Number(event.target.value) || 0))} onBlur={() => void saveDetailProgress(detailProgress)} />
-                <button type="button" disabled={progressSaving || Boolean(totalEpisodes && detailProgress >= totalEpisodes)} onClick={() => void saveDetailProgress(detailProgress + 1)}>+</button>
-                <span>{progressSaving ? "Saving…" : trackedAnime.status || "Watching"}</span>
+                <button
+                  type="button"
+                  disabled={progressSaving || detailProgress <= 0}
+                  onClick={() => void saveDetailProgress(detailProgress - 1)}
+                >
+                  −
+                </button>
+                <input
+                  aria-label="Episode progress"
+                  type="number"
+                  min={0}
+                  max={totalEpisodes || undefined}
+                  value={detailProgress}
+                  onChange={(event) =>
+                    setDetailProgress(
+                      Math.max(0, Number(event.target.value) || 0),
+                    )
+                  }
+                  onBlur={() => void saveDetailProgress(detailProgress)}
+                />
+                <button
+                  type="button"
+                  disabled={
+                    progressSaving ||
+                    Boolean(totalEpisodes && detailProgress >= totalEpisodes)
+                  }
+                  onClick={() => void saveDetailProgress(detailProgress + 1)}
+                >
+                  +
+                </button>
+                <span>
+                  {progressSaving
+                    ? "Saving…"
+                    : trackedAnime.status || "Watching"}
+                </span>
               </div>
             </div>
           )}
@@ -872,10 +1138,16 @@ export const AnimeItem: React.FC = () => {
       <TabsBar>
         {[
           { id: "overview", label: "Overview" },
-          { id: "episodes", label: `Episodes ${totalEpisodes ? `(${totalEpisodes})` : ""}` },
+          {
+            id: "episodes",
+            label: `Episodes ${totalEpisodes ? `(${totalEpisodes})` : ""}`,
+          },
           { id: "characters", label: "Characters" },
           { id: "staff", label: "Staff" },
-          { id: "related", label: `Related ${relations.length ? `(${relations.length})` : ""}` },
+          {
+            id: "related",
+            label: `Related ${relations.length ? `(${relations.length})` : ""}`,
+          },
           { id: "discussion", label: "Discussion" },
           { id: "reviews", label: "Reviews" },
         ].map((tab) => (
@@ -896,7 +1168,9 @@ export const AnimeItem: React.FC = () => {
             <SynopsisText>
               {synopsis ? (
                 <>
-                  {showMore || synopsis.length <= 450 ? synopsis : `${synopsis.substring(0, 450)}…`}
+                  {showMore || synopsis.length <= 450
+                    ? synopsis
+                    : `${synopsis.substring(0, 450)}…`}
                   {synopsis.length > 450 && (
                     <ReadMoreBtn onClick={() => setShowMore(!showMore)}>
                       {showMore ? "Show Less" : "Read More"}
@@ -917,16 +1191,61 @@ export const AnimeItem: React.FC = () => {
             )}
 
             <InfoGrid>
-              {studios?.length > 0 && <InfoCard><InfoLabel>Studios</InfoLabel><InfoValue>{studios.map((s: any) => s.name).join(", ")}</InfoValue></InfoCard>}
-              {producers?.length > 0 && <InfoCard><InfoLabel>Producers</InfoLabel><InfoValue>{producers.slice(0, 3).map((p: any) => p.name).join(", ")}</InfoValue></InfoCard>}
-              {source && <InfoCard><InfoLabel>Based on</InfoLabel><InfoValue>{source}</InfoValue></InfoCard>}
-              {duration && <InfoCard><InfoLabel>Duration</InfoLabel><InfoValue>{duration}</InfoValue></InfoCard>}
-              {status && <InfoCard><InfoLabel>Status</InfoLabel><InfoValue>{status}</InfoValue></InfoCard>}
-              {anime.aired?.string && anime.aired.string !== "Not Available" && <InfoCard><InfoLabel>First aired</InfoLabel><InfoValue>{anime.aired.string}</InfoValue></InfoCard>}
+              {studios?.length > 0 && (
+                <InfoCard>
+                  <InfoLabel>Studios</InfoLabel>
+                  <InfoValue>
+                    {studios.map((s: any) => s.name).join(", ")}
+                  </InfoValue>
+                </InfoCard>
+              )}
+              {producers?.length > 0 && (
+                <InfoCard>
+                  <InfoLabel>Producers</InfoLabel>
+                  <InfoValue>
+                    {producers
+                      .slice(0, 3)
+                      .map((p: any) => p.name)
+                      .join(", ")}
+                  </InfoValue>
+                </InfoCard>
+              )}
+              {source && (
+                <InfoCard>
+                  <InfoLabel>Based on</InfoLabel>
+                  <InfoValue>{source}</InfoValue>
+                </InfoCard>
+              )}
+              {duration && (
+                <InfoCard>
+                  <InfoLabel>Duration</InfoLabel>
+                  <InfoValue>{duration}</InfoValue>
+                </InfoCard>
+              )}
+              {status && (
+                <InfoCard>
+                  <InfoLabel>Status</InfoLabel>
+                  <InfoValue>{status}</InfoValue>
+                </InfoCard>
+              )}
+              {anime.aired?.string &&
+                anime.aired.string !== "Not Available" && (
+                  <InfoCard>
+                    <InfoLabel>First aired</InfoLabel>
+                    <InfoValue>{anime.aired.string}</InfoValue>
+                  </InfoCard>
+                )}
             </InfoGrid>
 
             {(() => {
-              const ytId = trailer?.youtube_id || trailer?.id || (trailer?.embed_url ? trailer.embed_url.match(/(?:embed\/|v=|\/vi\/|youtu\.be\/|\/v\/)([^?&#]+)/)?.[1] : null);
+              const ytId =
+                trailer?.youtube_id ||
+                trailer?.id ||
+                (trailer?.embed_url
+                  ? trailer.embed_url.match(
+                      /(?:embed\/|v=|\/vi\/|youtu\.be\/|\/v\/)([^?&#]+)/,
+                    )?.[1]
+                  : null);
               const cleanEmbedUrl = ytId
                 ? `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`
                 : "";
@@ -936,21 +1255,39 @@ export const AnimeItem: React.FC = () => {
 
               if (!ytId) {
                 const trailerSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${displayTitle} official trailer`)}`;
-                const officialLink = (externalLinks || []).find((link: any) => link?.url && link.type === "INFO" && !link.isDisabled);
+                const officialLink = (externalLinks || []).find(
+                  (link: any) =>
+                    link?.url && link.type === "INFO" && !link.isDisabled,
+                );
                 return (
                   <TrailerSection>
                     <SectionTitle>Trailer</SectionTitle>
                     <div className="rounded-2xl border border-white/10 bg-[#18181d] p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <p className="font-montserrat font-bold text-white">No trailer is listed for this series yet.</p>
-                        <p className="text-sm text-neutral-400 mt-1">Look for the official upload or open the series website.</p>
+                        <p className="font-montserrat font-bold text-white">
+                          No trailer is listed for this series yet.
+                        </p>
+                        <p className="text-sm text-neutral-400 mt-1">
+                          Look for the official upload or open the series
+                          website.
+                        </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <a href={trailerSearchUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-[#ff0033] px-4 py-2 text-xs font-bold text-white">
+                        <a
+                          href={trailerSearchUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-full bg-[#ff0033] px-4 py-2 text-xs font-bold text-white"
+                        >
                           <Play size={14} fill="currentColor" /> Search YouTube
                         </a>
                         {officialLink && (
-                          <a href={officialLink.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white">
+                          <a
+                            href={officialLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-white"
+                          >
                             <ExternalLink size={14} /> Official site
                           </a>
                         )}
@@ -962,8 +1299,19 @@ export const AnimeItem: React.FC = () => {
 
               return (
                 <TrailerSection>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.8rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                    <SectionTitle style={{ margin: 0 }}>Official Trailer & Preview</SectionTitle>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "0.8rem",
+                      flexWrap: "wrap",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <SectionTitle style={{ margin: 0 }}>
+                      Official Trailer & Preview
+                    </SectionTitle>
                     <a
                       href={directWatchUrl}
                       target="_blank"
@@ -981,7 +1329,7 @@ export const AnimeItem: React.FC = () => {
                         fontWeight: 700,
                         fontSize: "0.75rem",
                         textDecoration: "none",
-                        transition: "all 0.2s ease"
+                        transition: "all 0.2s ease",
                       }}
                     >
                       <ExternalLink size={13} />
@@ -1025,27 +1373,89 @@ export const AnimeItem: React.FC = () => {
             })()}
 
             {availableSources.length > 0 && (
-            <div style={{ marginTop: "2.5rem", padding: "1.5rem", background: "#1a1a1f", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "20px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                <h4 style={{ fontFamily: "Montserrat, sans-serif", fontWeight: 700, color: "#ffd700", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "0.5rem", margin: 0 }}>
-                  <ExternalLink size={18} />
-                  <span>Where to watch</span>
-                </h4>
-                <span style={{ fontSize: "0.75rem", color: "#888" }}>Links supplied for this series</span>
+              <div
+                style={{
+                  marginTop: "2.5rem",
+                  padding: "1.5rem",
+                  background: "#1a1a1f",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "1rem",
+                    flexWrap: "wrap",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontFamily: "Montserrat, sans-serif",
+                      fontWeight: 700,
+                      color: "#ffd700",
+                      fontSize: "1.1rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      margin: 0,
+                    }}
+                  >
+                    <ExternalLink size={18} />
+                    <span>Where to watch</span>
+                  </h4>
+                  <span style={{ fontSize: "0.75rem", color: "#888" }}>
+                    Links supplied for this series
+                  </span>
+                </div>
+                <div
+                  style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}
+                >
+                  {availableSources.map((link) => {
+                    const brandColor = getPlatformColor(link.site, link.color);
+                    return (
+                      <a
+                        key={link.id || link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.55rem",
+                          padding: "0.55rem 0.8rem 0.55rem 1rem",
+                          background: `${brandColor}18`,
+                          border: `1px solid ${brandColor}80`,
+                          borderRadius: "12px",
+                          color: brandColor,
+                          fontSize: "0.8rem",
+                          fontWeight: 700,
+                          textDecoration: "none",
+                        }}
+                      >
+                        <ExternalLink size={14} />
+                        <span>{link.site}</span>
+                        <span
+                          style={{
+                            color: "#ddd",
+                            background: "rgba(0,0,0,.28)",
+                            borderRadius: "999px",
+                            padding: ".15rem .45rem",
+                            fontSize: ".62rem",
+                            textTransform: "uppercase",
+                            letterSpacing: ".04em",
+                          }}
+                        >
+                          {getStreamTag(link)}
+                        </span>
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                {availableSources.map((link) => {
-                  const brandColor = getPlatformColor(link.site, link.color);
-                  return (
-                    <a key={link.id || link.url} href={link.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "0.55rem", padding: "0.55rem 0.8rem 0.55rem 1rem", background: `${brandColor}18`, border: `1px solid ${brandColor}80`, borderRadius: "12px", color: brandColor, fontSize: "0.8rem", fontWeight: 700, textDecoration: "none" }}>
-                      <ExternalLink size={14} />
-                      <span>{link.site}</span>
-                      <span style={{ color: "#ddd", background: "rgba(0,0,0,.28)", borderRadius: "999px", padding: ".15rem .45rem", fontSize: ".62rem", textTransform: "uppercase", letterSpacing: ".04em" }}>{getStreamTag(link)}</span>
-                    </a>
-                  );
-                })}
-              </div>
-            </div>
             )}
           </OverviewContent>
         )}
@@ -1055,6 +1465,9 @@ export const AnimeItem: React.FC = () => {
             episodes={episodes}
             totalEpisodes={totalEpisodes}
             animeTitle={displayTitle}
+            malId={anime.malId}
+            kitsuId={anime.kitsuId}
+            fallbackImage={anime.banner_image || images?.jpg?.large_image_url || images?.jpg?.image_url}
             onImageClick={openLightboxAt}
           />
         )}
@@ -1062,12 +1475,44 @@ export const AnimeItem: React.FC = () => {
         {activeTab === "characters" && (
           <div>
             {/* Character Search & Filter Bar */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
-              <h3 style={{ fontSize: "1.3rem", fontWeight: 800, color: "#ffd700", fontFamily: "Montserrat, sans-serif" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "1.5rem",
+                flexWrap: "wrap",
+                gap: "1rem",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.3rem",
+                  fontWeight: 800,
+                  color: "#ffd700",
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
                 Characters ({characters.length})
               </h3>
-              <div style={{ position: "relative", minWidth: "240px", maxWidth: "340px", width: "100%" }}>
-                <Search size={16} color="#888" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
+              <div
+                style={{
+                  position: "relative",
+                  minWidth: "240px",
+                  maxWidth: "340px",
+                  width: "100%",
+                }}
+              >
+                <Search
+                  size={16}
+                  color="#888"
+                  style={{
+                    position: "absolute",
+                    left: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                  }}
+                />
                 <input
                   id="character-search-input"
                   name="characterSearch"
@@ -1097,7 +1542,9 @@ export const AnimeItem: React.FC = () => {
                   return (
                     char.character?.name?.toLowerCase().includes(q) ||
                     char.role?.toLowerCase().includes(q) ||
-                    char.voice_actors?.[0]?.person?.name?.toLowerCase().includes(q)
+                    char.voice_actors?.[0]?.person?.name
+                      ?.toLowerCase()
+                      .includes(q)
                   );
                 })
                 .slice(0, charSearch.trim() ? undefined : visibleCharCount)
@@ -1108,17 +1555,25 @@ export const AnimeItem: React.FC = () => {
                       alt={char.character?.name}
                       wrapperClassName="anime-character-image"
                       className="w-full h-full object-cover"
-                      onClick={() => openCharGallery(char.character?.images?.jpg?.image_url)}
+                      onClick={() =>
+                        openCharGallery(char.character?.images?.jpg?.image_url)
+                      }
                       title="Click for character artwork view"
                     />
                     <CharacterInfo>
                       <CharacterName
-                        onClick={() => openCharGallery(char.character?.images?.jpg?.image_url)}
+                        onClick={() =>
+                          openCharGallery(
+                            char.character?.images?.jpg?.image_url,
+                          )
+                        }
                         style={{ cursor: "pointer" }}
                       >
                         {char.character?.name}
                       </CharacterName>
-                      <CharacterRole $role={char.role}>{char.role}</CharacterRole>
+                      <CharacterRole $role={char.role}>
+                        {char.role}
+                      </CharacterRole>
                       {char.voice_actors?.[0] && (
                         <VoiceActorInfo>
                           VA: {char.voice_actors[0].person?.name}
@@ -1129,41 +1584,76 @@ export const AnimeItem: React.FC = () => {
                 ))}
             </CharacterGrid>
 
-            {!charSearch.trim() && (visibleCharCount < characters.length || hasMoreChars) && (
-              <div style={{ textAlign: "center", marginTop: "2rem" }}>
-                <button
-                  onClick={loadMoreCharacters}
-                  disabled={loadingMoreChars}
-                  style={{
-                    background: "#ffd700",
-                    color: "#141414",
-                    fontWeight: 800,
-                    padding: "0.7rem 2rem",
-                    borderRadius: "25px",
-                    border: "none",
-                    cursor: loadingMoreChars ? "not-allowed" : "pointer",
-                    fontFamily: "Montserrat, sans-serif",
-                    fontSize: "0.85rem",
-                    opacity: loadingMoreChars ? 0.7 : 1,
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {loadingMoreChars ? "Loading more characters..." : `Load More (${characters.length} shown)`}
-                </button>
-              </div>
-            )}
+            {!charSearch.trim() &&
+              (visibleCharCount < characters.length || hasMoreChars) && (
+                <div style={{ textAlign: "center", marginTop: "2rem" }}>
+                  <button
+                    onClick={loadMoreCharacters}
+                    disabled={loadingMoreChars}
+                    style={{
+                      background: "#ffd700",
+                      color: "#141414",
+                      fontWeight: 800,
+                      padding: "0.7rem 2rem",
+                      borderRadius: "25px",
+                      border: "none",
+                      cursor: loadingMoreChars ? "not-allowed" : "pointer",
+                      fontFamily: "Montserrat, sans-serif",
+                      fontSize: "0.85rem",
+                      opacity: loadingMoreChars ? 0.7 : 1,
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {loadingMoreChars
+                      ? "Loading more characters..."
+                      : `Load More (${characters.length} shown)`}
+                  </button>
+                </div>
+              )}
           </div>
         )}
 
         {activeTab === "staff" && (
           <div>
             {/* Staff Search & Filter Bar */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
-              <h3 style={{ fontSize: "1.3rem", fontWeight: 800, color: "#ffd700", fontFamily: "Montserrat, sans-serif" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "1.5rem",
+                flexWrap: "wrap",
+                gap: "1rem",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.3rem",
+                  fontWeight: 800,
+                  color: "#ffd700",
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
                 Staff & Production Crew ({staff.length})
               </h3>
-              <div style={{ position: "relative", minWidth: "240px", maxWidth: "340px", width: "100%" }}>
-                <Search size={16} color="#888" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }} />
+              <div
+                style={{
+                  position: "relative",
+                  minWidth: "240px",
+                  maxWidth: "340px",
+                  width: "100%",
+                }}
+              >
+                <Search
+                  size={16}
+                  color="#888"
+                  style={{
+                    position: "absolute",
+                    left: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                  }}
+                />
                 <input
                   id="staff-search-input"
                   name="staffSearch"
@@ -1192,7 +1682,9 @@ export const AnimeItem: React.FC = () => {
                   const q = staffSearch.toLowerCase();
                   return (
                     st.person?.name?.toLowerCase().includes(q) ||
-                    st.positions?.some((p: string) => p.toLowerCase().includes(q))
+                    st.positions?.some((p: string) =>
+                      p.toLowerCase().includes(q),
+                    )
                   );
                 })
                 .slice(0, staffSearch.trim() ? undefined : visibleStaffCount)
@@ -1204,38 +1696,41 @@ export const AnimeItem: React.FC = () => {
                       loading="lazy"
                     />
                     <StaffInfo>
-                      <StaffName>
-                        {st.person?.name}
-                      </StaffName>
-                      <StaffPositions>{st.positions?.join(", ")}</StaffPositions>
+                      <StaffName>{st.person?.name}</StaffName>
+                      <StaffPositions>
+                        {st.positions?.join(", ")}
+                      </StaffPositions>
                     </StaffInfo>
                   </StaffCard>
                 ))}
             </StaffGrid>
 
-            {!staffSearch.trim() && (visibleStaffCount < staff.length || hasMoreStaff) && (
-              <div style={{ textAlign: "center", marginTop: "2rem" }}>
-                <button
-                  onClick={loadMoreStaff}
-                  disabled={loadingMoreStaff}
-                  style={{
-                    background: "#ffd700",
-                    color: "#141414",
-                    fontWeight: 800,
-                    padding: "0.7rem 2rem",
-                    borderRadius: "25px",
-                    border: "none",
-                    cursor: loadingMoreStaff ? "not-allowed" : "pointer",
-                    fontFamily: "Montserrat, sans-serif",
-                    fontSize: "0.85rem",
-                    opacity: loadingMoreStaff ? 0.7 : 1,
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {loadingMoreStaff ? "Loading more staff..." : `Load More(${staff.length} shown)`}
-                </button>
-              </div>
-            )}
+            {!staffSearch.trim() &&
+              (visibleStaffCount < staff.length || hasMoreStaff) && (
+                <div style={{ textAlign: "center", marginTop: "2rem" }}>
+                  <button
+                    onClick={loadMoreStaff}
+                    disabled={loadingMoreStaff}
+                    style={{
+                      background: "#ffd700",
+                      color: "#141414",
+                      fontWeight: 800,
+                      padding: "0.7rem 2rem",
+                      borderRadius: "25px",
+                      border: "none",
+                      cursor: loadingMoreStaff ? "not-allowed" : "pointer",
+                      fontFamily: "Montserrat, sans-serif",
+                      fontSize: "0.85rem",
+                      opacity: loadingMoreStaff ? 0.7 : 1,
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {loadingMoreStaff
+                      ? "Loading more staff..."
+                      : `Load More(${staff.length} shown)`}
+                  </button>
+                </div>
+              )}
           </div>
         )}
 
@@ -1245,7 +1740,11 @@ export const AnimeItem: React.FC = () => {
               relations.map((relation, idx) => (
                 <RelationGroup key={idx}>
                   <RelationTypeHeader>
-                    <BookOpen size={20} color="#ffd700" style={{ marginRight: "0.5rem" }} />
+                    <BookOpen
+                      size={20}
+                      color="#ffd700"
+                      style={{ marginRight: "0.5rem" }}
+                    />
                     <span>{relation.relation}</span>
                     <span className="count">({relation.entry.length})</span>
                   </RelationTypeHeader>
@@ -1257,27 +1756,47 @@ export const AnimeItem: React.FC = () => {
                         entry.type?.toLowerCase() === "novel" ||
                         entry.type?.toLowerCase() === "light_novel" ||
                         relation.relation?.toLowerCase().includes("adaptation");
-                      const targetUrl = isManga ? `/manga/${entry.mal_id}` : `/anime/${entry.mal_id}`;
+                      const targetUrl = isManga
+                        ? `/manga/${entry.mal_id}`
+                        : `/anime/${entry.mal_id}`;
 
                       return (
                         <RelationCard key={entry.mal_id} to={targetUrl}>
                           <RelationCoverWrapper>
                             {entry.image ? (
-                              <img src={entry.image} alt={entry.name} loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = "/lost.jpg"; }} />
+                              <img
+                                src={entry.image}
+                                alt={entry.name}
+                                loading="lazy"
+                                decoding="async"
+                                onError={(event) => {
+                                  event.currentTarget.src = "/lost.jpg";
+                                }}
+                              />
                             ) : (
                               <div className="no-image">No Image</div>
                             )}
                             <RelationBadge>{relation.relation}</RelationBadge>
                             {entry.score && (
                               <RelationScoreBadge>
-                                <Star size={10} fill="#ffd700" color="#ffd700" style={{ display: 'inline', marginRight: '2px' }} />
+                                <Star
+                                  size={10}
+                                  fill="#ffd700"
+                                  color="#ffd700"
+                                  style={{
+                                    display: "inline",
+                                    marginRight: "2px",
+                                  }}
+                                />
                                 {entry.score}
                               </RelationScoreBadge>
                             )}
                           </RelationCoverWrapper>
                           <RelationDetails>
                             <RelationName>{entry.name}</RelationName>
-                            <RelationMeta>{entry.type || (isManga ? "Manga" : "Anime")}</RelationMeta>
+                            <RelationMeta>
+                              {entry.type || (isManga ? "Manga" : "Anime")}
+                            </RelationMeta>
                           </RelationDetails>
                         </RelationCard>
                       );
@@ -1304,19 +1823,52 @@ export const AnimeItem: React.FC = () => {
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                 />
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem", flexWrap: "wrap", gap: "0.5rem" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "0.45rem", fontSize: "0.8rem", color: "#aaa", cursor: "pointer" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginTop: "0.75rem",
+                    flexWrap: "wrap",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.45rem",
+                      fontSize: "0.8rem",
+                      color: "#aaa",
+                      cursor: "pointer",
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={isCommentSpoiler}
                       onChange={(e) => setIsCommentSpoiler(e.target.checked)}
-                      style={{ accentColor: "#ffd700", width: "16px", height: "16px", cursor: "pointer" }}
+                      style={{
+                        accentColor: "#ffd700",
+                        width: "16px",
+                        height: "16px",
+                        cursor: "pointer",
+                      }}
                     />
-                    <span style={{ color: isCommentSpoiler ? "#ffd700" : "#aaa", fontWeight: isCommentSpoiler ? 700 : 500 }}>
+                    <span
+                      style={{
+                        color: isCommentSpoiler ? "#ffd700" : "#aaa",
+                        fontWeight: isCommentSpoiler ? 700 : 500,
+                      }}
+                    >
                       ⚠️ Contains Spoilers (Blur for others)
                     </span>
                   </label>
-                  <CommentSubmitButton type="submit" disabled={postingComment || !newComment.trim()}>{postingComment ? "Posting..." : "Post Comment"}</CommentSubmitButton>
+                  <CommentSubmitButton
+                    type="submit"
+                    disabled={postingComment || !newComment.trim()}
+                  >
+                    {postingComment ? "Posting..." : "Post Comment"}
+                  </CommentSubmitButton>
                 </div>
               </CommentForm>
             ) : (
@@ -1329,98 +1881,300 @@ export const AnimeItem: React.FC = () => {
               {commentsLoading ? (
                 <LoadingText>Loading comments...</LoadingText>
               ) : comments.length > 0 ? (
-                comments.filter((entry) => !entry.parentId).map((comment) => {
-                  const isSpoiler = comment.isSpoiler;
-                  const isRevealed = revealedSpoilers[comment.id];
-                  const replies = comments.filter((entry) => entry.parentId === comment.id);
-                  const liked = Boolean(currentUser && (comment.likes || []).includes(currentUser.uid));
-                  const disliked = Boolean(currentUser && (comment.dislikes || []).includes(currentUser.uid));
+                comments
+                  .filter((entry) => !entry.parentId)
+                  .map((comment) => {
+                    const isSpoiler = comment.isSpoiler;
+                    const isRevealed = revealedSpoilers[comment.id];
+                    const replies = comments.filter(
+                      (entry) => entry.parentId === comment.id,
+                    );
+                    const liked = Boolean(
+                      currentUser &&
+                      (comment.likes || []).includes(currentUser.uid),
+                    );
+                    const disliked = Boolean(
+                      currentUser &&
+                      (comment.dislikes || []).includes(currentUser.uid),
+                    );
 
-                  return (
-                    <CommentCard key={comment.id}>
-                      <UserAvatarSmall>
-                        {comment.userAvatar ? (
-                          <img src={comment.userAvatar} alt="Avatar" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = "/lost.jpg"; }} />
-                        ) : (
-                          <UserCheck size={18} color="#ffd700" />
-                        )}
-                      </UserAvatarSmall>
-                      <CommentBody>
-                        <CommentHeader>
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            <span className="author">{comment.userName}</span>
-                            {isSpoiler && (
-                              <span style={{ fontSize: "0.65rem", padding: "0.15rem 0.4rem", borderRadius: "6px", background: "rgba(255, 77, 77, 0.2)", color: "#ff6b6b", border: "1px solid rgba(255, 77, 77, 0.4)", fontWeight: 700 }}>
-                                SPOILER
-                              </span>
-                            )}
-                          </div>
-                          <span className="date">
-                            {comment.createdAt?.toDate ? comment.createdAt.toDate().toLocaleDateString() : "Recently"}
-                          </span>
-                        </CommentHeader>
-
-                        {isSpoiler && !isRevealed ? (
-                          <div
-                            onClick={() => setRevealedSpoilers((prev) => ({ ...prev, [comment.id]: true }))}
-                            style={{
-                              marginTop: "0.5rem",
-                              padding: "0.75rem 1rem",
-                              background: "rgba(255, 77, 77, 0.08)",
-                              border: "1px dashed rgba(255, 77, 77, 0.4)",
-                              borderRadius: "12px",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: "0.5rem"
-                            }}
-                          >
-                            <span style={{ fontSize: "0.8rem", color: "#ff8888", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                              <AlertTriangle size={15} />
-                              <span>This comment contains spoilers. Click to reveal.</span>
+                    return (
+                      <CommentCard key={comment.id}>
+                        <UserAvatarSmall>
+                          {comment.userAvatar ? (
+                            <img
+                              src={comment.userAvatar}
+                              alt="Avatar"
+                              loading="lazy"
+                              decoding="async"
+                              onError={(event) => {
+                                event.currentTarget.src = "/lost.jpg";
+                              }}
+                            />
+                          ) : (
+                            <UserCheck size={18} color="#ffd700" />
+                          )}
+                        </UserAvatarSmall>
+                        <CommentBody>
+                          <CommentHeader>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.5rem",
+                              }}
+                            >
+                              <span className="author">{comment.userName}</span>
+                              {isSpoiler && (
+                                <span
+                                  style={{
+                                    fontSize: "0.65rem",
+                                    padding: "0.15rem 0.4rem",
+                                    borderRadius: "6px",
+                                    background: "rgba(255, 77, 77, 0.2)",
+                                    color: "#ff6b6b",
+                                    border: "1px solid rgba(255, 77, 77, 0.4)",
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  SPOILER
+                                </span>
+                              )}
+                            </div>
+                            <span className="date">
+                              {comment.createdAt?.toDate
+                                ? comment.createdAt
+                                    .toDate()
+                                    .toLocaleDateString()
+                                : "Recently"}
                             </span>
-                            <Eye size={16} color="#ff8888" />
-                          </div>
-                        ) : (
-                          <div style={{ position: "relative" }}>
-                            <CommentText>{comment.text || comment.content}</CommentText>
-                            {isSpoiler && (
-                              <button
-                                onClick={() => setRevealedSpoilers((prev) => ({ ...prev, [comment.id]: false }))}
-                                style={{ background: "none", border: "none", color: "#777", fontSize: "0.7rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.3rem", marginTop: "0.3rem" }}
+                          </CommentHeader>
+
+                          {isSpoiler && !isRevealed ? (
+                            <div
+                              onClick={() =>
+                                setRevealedSpoilers((prev) => ({
+                                  ...prev,
+                                  [comment.id]: true,
+                                }))
+                              }
+                              style={{
+                                marginTop: "0.5rem",
+                                padding: "0.75rem 1rem",
+                                background: "rgba(255, 77, 77, 0.08)",
+                                border: "1px dashed rgba(255, 77, 77, 0.4)",
+                                borderRadius: "12px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "0.5rem",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "0.8rem",
+                                  color: "#ff8888",
+                                  fontWeight: 600,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "0.4rem",
+                                }}
                               >
-                                <EyeOff size={12} /> Hide Spoiler
+                                <AlertTriangle size={15} />
+                                <span>
+                                  This comment contains spoilers. Click to
+                                  reveal.
+                                </span>
+                              </span>
+                              <Eye size={16} color="#ff8888" />
+                            </div>
+                          ) : (
+                            <div style={{ position: "relative" }}>
+                              <CommentText>
+                                {comment.text || comment.content}
+                              </CommentText>
+                              {isSpoiler && (
+                                <button
+                                  onClick={() =>
+                                    setRevealedSpoilers((prev) => ({
+                                      ...prev,
+                                      [comment.id]: false,
+                                    }))
+                                  }
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "#777",
+                                    fontSize: "0.7rem",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "0.3rem",
+                                    marginTop: "0.3rem",
+                                  }}
+                                >
+                                  <EyeOff size={12} /> Hide Spoiler
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          <div className="comment-actions mt-3 text-[11px]">
+                            <button
+                              type="button"
+                              aria-pressed={liked}
+                              onClick={() =>
+                                handleCommentReaction(comment, "like")
+                              }
+                              className={`comment-reaction ${liked ? "is-liked" : ""}`}
+                            >
+                              <ThumbsUp size={13} />
+                              {comment.likes?.length || 0}
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={disliked}
+                              onClick={() =>
+                                handleCommentReaction(comment, "dislike")
+                              }
+                              className={`comment-reaction ${disliked ? "is-disliked" : ""}`}
+                            >
+                              <ThumbsDown size={13} />
+                              {comment.dislikes?.length || 0}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!currentUser) return setAuthModalOpen(true);
+                                setReplyingTo(
+                                  replyingTo === comment.id ? null : comment.id,
+                                );
+                                setReplyText("");
+                              }}
+                              className="comment-action-label"
+                            >
+                              <Reply size={13} />
+                              Reply
+                            </button>
+                            <button
+                              type="button"
+                              disabled={Boolean(
+                                currentUser &&
+                                (comment.reports || []).includes(
+                                  currentUser.uid,
+                                ),
+                              )}
+                              onClick={() =>
+                                handleCommentReaction(comment, "report")
+                              }
+                              className="comment-report"
+                            >
+                              <Flag size={12} />
+                              Report
+                            </button>
+                          </div>
+
+                          {replyingTo === comment.id && (
+                            <div className="mt-3 flex gap-2 rounded-xl border border-white/10 bg-black/20 p-2">
+                              <input
+                                autoFocus
+                                value={replyText}
+                                maxLength={1200}
+                                onChange={(event) =>
+                                  setReplyText(event.target.value)
+                                }
+                                onKeyDown={(event) => {
+                                  if (
+                                    event.key === "Enter" &&
+                                    !event.shiftKey
+                                  ) {
+                                    event.preventDefault();
+                                    void handlePostReply(comment);
+                                  }
+                                }}
+                                placeholder={`Reply to ${comment.userName}...`}
+                                className="min-w-0 flex-1 bg-transparent px-2 text-xs text-white outline-none placeholder:text-neutral-600"
+                              />
+                              <button
+                                type="button"
+                                disabled={postingReply || !replyText.trim()}
+                                onClick={() => handlePostReply(comment)}
+                                className="grid h-8 w-8 place-items-center rounded-lg bg-[#ffd700] text-black disabled:opacity-40"
+                              >
+                                <Send size={14} />
                               </button>
-                            )}
-                          </div>
-                        )}
-                        <div className="comment-actions mt-3 text-[11px]">
-                          <button type="button" aria-pressed={liked} onClick={() => handleCommentReaction(comment, "like")} className={`comment-reaction ${liked ? "is-liked" : ""}`}><ThumbsUp size={13} />{comment.likes?.length || 0}</button>
-                          <button type="button" aria-pressed={disliked} onClick={() => handleCommentReaction(comment, "dislike")} className={`comment-reaction ${disliked ? "is-disliked" : ""}`}><ThumbsDown size={13} />{comment.dislikes?.length || 0}</button>
-                          <button type="button" onClick={() => { if (!currentUser) return setAuthModalOpen(true); setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }} className="comment-action-label"><Reply size={13} />Reply</button>
-                          <button type="button" disabled={Boolean(currentUser && (comment.reports || []).includes(currentUser.uid))} onClick={() => handleCommentReaction(comment, "report")} className="comment-report"><Flag size={12} />Report</button>
-                        </div>
+                            </div>
+                          )}
 
-                        {replyingTo === comment.id && (
-                          <div className="mt-3 flex gap-2 rounded-xl border border-white/10 bg-black/20 p-2">
-                            <input autoFocus value={replyText} maxLength={1200} onChange={(event) => setReplyText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void handlePostReply(comment); } }} placeholder={`Reply to ${comment.userName}...`} className="min-w-0 flex-1 bg-transparent px-2 text-xs text-white outline-none placeholder:text-neutral-600" />
-                            <button type="button" disabled={postingReply || !replyText.trim()} onClick={() => handlePostReply(comment)} className="grid h-8 w-8 place-items-center rounded-lg bg-[#ffd700] text-black disabled:opacity-40"><Send size={14} /></button>
-                          </div>
-                        )}
-
-                        {replies.length > 0 && (
-                          <div className="mt-4 space-y-2 border-l border-white/10 pl-3 sm:pl-4">
-                            {replies.map((reply) => {
-                              const replyLiked = Boolean(currentUser && (reply.likes || []).includes(currentUser.uid));
-                              return <div key={reply.id} className="rounded-xl bg-white/[0.035] p-3"><div className="flex items-center justify-between gap-3"><span className="text-xs font-bold text-white">{reply.userName}</span><span className="text-[10px] text-neutral-600">{reply.createdAt?.toDate ? reply.createdAt.toDate().toLocaleDateString() : "Recently"}</span></div><p className="mt-1.5 text-xs leading-relaxed text-neutral-300">{reply.text || reply.content}</p><div className="comment-actions mt-2 text-[10px]"><button type="button" aria-pressed={replyLiked} onClick={() => handleCommentReaction(reply, "like")} className={`comment-reaction is-small ${replyLiked ? "is-liked" : ""}`}><ThumbsUp size={11} />{reply.likes?.length || 0}</button><button type="button" onClick={() => { setReplyingTo(comment.id); setReplyText(`@${reply.userName} `); }} className="comment-action-label is-small">Reply</button><button type="button" onClick={() => handleCommentReaction(reply, "report")} className="comment-report is-icon" aria-label="Report reply"><Flag size={11} /></button></div></div>;
-                            })}
-                          </div>
-                        )}
-                      </CommentBody>
-                    </CommentCard>
-                  );
-                })
+                          {replies.length > 0 && (
+                            <div className="mt-4 space-y-2 border-l border-white/10 pl-3 sm:pl-4">
+                              {replies.map((reply) => {
+                                const replyLiked = Boolean(
+                                  currentUser &&
+                                  (reply.likes || []).includes(currentUser.uid),
+                                );
+                                return (
+                                  <div
+                                    key={reply.id}
+                                    className="rounded-xl bg-white/[0.035] p-3"
+                                  >
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="text-xs font-bold text-white">
+                                        {reply.userName}
+                                      </span>
+                                      <span className="text-[10px] text-neutral-600">
+                                        {reply.createdAt?.toDate
+                                          ? reply.createdAt
+                                              .toDate()
+                                              .toLocaleDateString()
+                                          : "Recently"}
+                                      </span>
+                                    </div>
+                                    <p className="mt-1.5 text-xs leading-relaxed text-neutral-300">
+                                      {reply.text || reply.content}
+                                    </p>
+                                    <div className="comment-actions mt-2 text-[10px]">
+                                      <button
+                                        type="button"
+                                        aria-pressed={replyLiked}
+                                        onClick={() =>
+                                          handleCommentReaction(reply, "like")
+                                        }
+                                        className={`comment-reaction is-small ${replyLiked ? "is-liked" : ""}`}
+                                      >
+                                        <ThumbsUp size={11} />
+                                        {reply.likes?.length || 0}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setReplyingTo(comment.id);
+                                          setReplyText(`@${reply.userName} `);
+                                        }}
+                                        className="comment-action-label is-small"
+                                      >
+                                        Reply
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleCommentReaction(reply, "report")
+                                        }
+                                        className="comment-report is-icon"
+                                        aria-label="Report reply"
+                                      >
+                                        <Flag size={11} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </CommentBody>
+                      </CommentCard>
+                    );
+                  })
               ) : (
                 <EmptyState>No comments yet. Start the discussion!</EmptyState>
               )}
@@ -1436,13 +2190,24 @@ export const AnimeItem: React.FC = () => {
               <ReviewForm onSubmit={handlePostReview}>
                 <ReviewFormHeader>
                   <span className="rating-label">Your Rating:</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      flexWrap: "wrap",
+                    }}
+                  >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
                       <Star
                         key={star}
                         size={20}
                         fill={
-                          (hoverRating !== null ? star <= hoverRating : star <= newReviewRating)
+                          (
+                            hoverRating !== null
+                              ? star <= hoverRating
+                              : star <= newReviewRating
+                          )
                             ? "#ffd700"
                             : "none"
                         }
@@ -1453,12 +2218,21 @@ export const AnimeItem: React.FC = () => {
                         style={{
                           cursor: "pointer",
                           transition: "transform 0.15s ease",
-                          transform: hoverRating === star ? "scale(1.25)" : "scale(1)",
+                          transform:
+                            hoverRating === star ? "scale(1.25)" : "scale(1)",
                         }}
                       />
                     ))}
-                    <span style={{ color: "#ffd700", fontWeight: 800, fontSize: "0.95rem", marginLeft: "0.5rem" }}>
-                      {hoverRating !== null ? hoverRating : newReviewRating} / 10 Stars
+                    <span
+                      style={{
+                        color: "#ffd700",
+                        fontWeight: 800,
+                        fontSize: "0.95rem",
+                        marginLeft: "0.5rem",
+                      }}
+                    >
+                      {hoverRating !== null ? hoverRating : newReviewRating} /
+                      10 Stars
                     </span>
                   </div>
                 </ReviewFormHeader>
@@ -1469,7 +2243,12 @@ export const AnimeItem: React.FC = () => {
                   value={newReviewText}
                   onChange={(e) => setNewReviewText(e.target.value)}
                 />
-                <ReviewSubmitButton type="submit" disabled={postingReview || !newReviewText.trim()}>{postingReview ? "Posting..." : "Post Review"}</ReviewSubmitButton>
+                <ReviewSubmitButton
+                  type="submit"
+                  disabled={postingReview || !newReviewText.trim()}
+                >
+                  {postingReview ? "Posting..." : "Post Review"}
+                </ReviewSubmitButton>
               </ReviewForm>
             ) : (
               <SignInPrompt onClick={() => setAuthModalOpen(true)}>
@@ -1487,11 +2266,18 @@ export const AnimeItem: React.FC = () => {
                       <ReviewAuthorMeta>
                         <span className="name">{rev.userName}</span>
                         <span className="date">
-                          {rev.createdAt?.toDate ? rev.createdAt.toDate().toLocaleDateString() : "Recently"}
+                          {rev.createdAt?.toDate
+                            ? rev.createdAt.toDate().toLocaleDateString()
+                            : "Recently"}
                         </span>
                       </ReviewAuthorMeta>
                       <ReviewScoreBadge>
-                        <Star size={12} fill="#ffd700" color="#ffd700" style={{ display: 'inline', marginRight: '4px' }} />
+                        <Star
+                          size={12}
+                          fill="#ffd700"
+                          color="#ffd700"
+                          style={{ display: "inline", marginRight: "4px" }}
+                        />
                         <span>{rev.rating} / 10</span>
                       </ReviewScoreBadge>
                     </ReviewItemHeader>
@@ -1511,14 +2297,26 @@ export const AnimeItem: React.FC = () => {
           <LightboxOverlay onClick={() => setLightboxOpen(false)}>
             <LightboxContainer onClick={(e) => e.stopPropagation()}>
               <LightboxHeader>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    flexWrap: "wrap",
+                  }}
+                >
                   <LightboxCounter>
-                    <ImageIcon size={16} color="#ffd700" style={{ marginRight: "0.4rem" }} />
+                    <ImageIcon
+                      size={16}
+                      color="#ffd700"
+                      style={{ marginRight: "0.4rem" }}
+                    />
                     <span>
                       {lightboxIndex + 1} / {activeGalleryList.length}
                     </span>
-                    <LightboxTypeBadge>{activeGalleryList[lightboxIndex]?.type || galleryTitle}</LightboxTypeBadge>
+                    <LightboxTypeBadge>
+                      {activeGalleryList[lightboxIndex]?.type || galleryTitle}
+                    </LightboxTypeBadge>
                   </LightboxCounter>
                 </div>
 
@@ -1540,14 +2338,18 @@ export const AnimeItem: React.FC = () => {
                       fontFamily: "Montserrat, sans-serif",
                     }}
                   >
-                  <X size={24} color="#fff" />
+                    <X size={24} color="#fff" />
                   </button>
                 </LightboxCloseBtn>
               </LightboxHeader>
 
               <LightboxImageStage>
                 {activeGalleryList.length > 1 && (
-                  <LightboxNavBtn className="prev" onClick={prevLightboxImage} aria-label="Previous image">
+                  <LightboxNavBtn
+                    className="prev"
+                    onClick={prevLightboxImage}
+                    aria-label="Previous image"
+                  >
                     <ChevronLeft size={28} />
                   </LightboxNavBtn>
                 )}
@@ -1555,16 +2357,24 @@ export const AnimeItem: React.FC = () => {
                   src={activeGalleryList[lightboxIndex]?.url}
                   alt={activeGalleryList[lightboxIndex]?.caption}
                   decoding="async"
-                  onError={(event) => { event.currentTarget.src = "/lost.jpg"; }}
+                  onError={(event) => {
+                    event.currentTarget.src = "/lost.jpg";
+                  }}
                 />
                 {activeGalleryList.length > 1 && (
-                  <LightboxNavBtn className="next" onClick={nextLightboxImage} aria-label="Next image">
+                  <LightboxNavBtn
+                    className="next"
+                    onClick={nextLightboxImage}
+                    aria-label="Next image"
+                  >
                     <ChevronRight size={28} />
                   </LightboxNavBtn>
                 )}
               </LightboxImageStage>
 
-              <LightboxCaption>{activeGalleryList[lightboxIndex]?.caption}</LightboxCaption>
+              <LightboxCaption>
+                {activeGalleryList[lightboxIndex]?.caption}
+              </LightboxCaption>
 
               {/* Bottom Thumbnail Strip */}
               {activeGalleryList.length > 1 && (
@@ -1576,7 +2386,15 @@ export const AnimeItem: React.FC = () => {
                       onClick={() => setLightboxIndex(idx)}
                       aria-label={`View image ${idx + 1}`}
                     >
-                      <img src={img.url} alt={img.caption || `Thumb ${idx + 1}`} loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = "/lost.jpg"; }} />
+                      <img
+                        src={img.url}
+                        alt={img.caption || `Thumb ${idx + 1}`}
+                        loading="lazy"
+                        decoding="async"
+                        onError={(event) => {
+                          event.currentTarget.src = "/lost.jpg";
+                        }}
+                      />
                     </LightboxThumbItem>
                   ))}
                 </LightboxThumbnails>
@@ -1586,7 +2404,13 @@ export const AnimeItem: React.FC = () => {
         )}
       </AnimatePresence>
 
-      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+      />
+     <div className="anime-detail-footer">
+        <Footer />
+      </div>
     </Container>
   );
 };
@@ -1596,20 +2420,67 @@ const EpisodesView: React.FC<{
   episodes: any[];
   totalEpisodes?: number;
   animeTitle?: string;
+  malId?: number;
+  kitsuId?: string;
+  fallbackImage?: string;
   onImageClick: (url: string) => void;
 }> = ({
   episodes,
   totalEpisodes,
   animeTitle,
+  malId,
+  kitsuId,
+  fallbackImage,
   onImageClick,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBatch, setSelectedBatch] = useState(0);
   const [renderLimit, setRenderLimit] = useState(24);
+  const [resolvedEpisodes, setResolvedEpisodes] = useState(episodes);
   const observerRef = useRef<HTMLDivElement>(null);
 
   const batchSize = 50;
-  const count = episodes.length;
+  const count = resolvedEpisodes.length;
+
+  useEffect(() => {
+    setResolvedEpisodes(episodes);
+  }, [episodes]);
+
+  useEffect(() => {
+    if (!animeTitle || count === 0) return;
+    let cancelled = false;
+    const enrichSelectedRange = async () => {
+      const guide = await getMediaGuidePage({
+        mediaType: "ANIME",
+        malId,
+        kitsuId,
+        title: animeTitle,
+        page: selectedBatch + 1,
+        perPage: batchSize,
+        fallbackCount: totalEpisodes,
+      });
+      if (cancelled || !guide.items?.length) return;
+      setResolvedEpisodes((current) => {
+        const next = [...current];
+        guide.items.forEach((item: any) => {
+          const index = Number(item.number) - 1;
+          if (index < 0 || index >= next.length) return;
+          next[index] = {
+            ...next[index],
+            ...item,
+            mal_id: item.number,
+            thumbnail: item.thumbnail || next[index]?.thumbnail,
+            summary: item.summary || next[index]?.summary,
+          };
+        });
+        return next;
+      });
+    };
+    void enrichSelectedRange();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBatch, animeTitle, malId, kitsuId, totalEpisodes, count]);
 
   const batches = useMemo(() => {
     if (count <= batchSize) return [];
@@ -1631,16 +2502,16 @@ const EpisodesView: React.FC<{
   const allFilteredEpisodes = useMemo(() => {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      return episodes.filter(
+      return resolvedEpisodes.filter(
         (ep) =>
           ep.mal_id.toString() === q ||
-          (ep.title && ep.title.toLowerCase().includes(q))
+          (ep.title && ep.title.toLowerCase().includes(q)),
       );
     }
-    if (batches.length === 0) return episodes;
+    if (batches.length === 0) return resolvedEpisodes;
     const startIdx = selectedBatch * batchSize;
-    return episodes.slice(startIdx, startIdx + batchSize);
-  }, [episodes, searchQuery, selectedBatch, batches.length]);
+    return resolvedEpisodes.slice(startIdx, startIdx + batchSize);
+  }, [resolvedEpisodes, searchQuery, selectedBatch, batches.length]);
 
   const displayedEpisodes = useMemo(() => {
     return allFilteredEpisodes.slice(0, renderLimit);
@@ -1653,11 +2524,16 @@ const EpisodesView: React.FC<{
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && renderLimit < allFilteredEpisodes.length) {
-          setRenderLimit((prev) => Math.min(prev + 24, allFilteredEpisodes.length));
+        if (
+          entries[0].isIntersecting &&
+          renderLimit < allFilteredEpisodes.length
+        ) {
+          setRenderLimit((prev) =>
+            Math.min(prev + 24, allFilteredEpisodes.length),
+          );
         }
       },
-      { rootMargin: "250px" }
+      { rootMargin: "250px" },
     );
 
     observer.observe(el);
@@ -1667,21 +2543,47 @@ const EpisodesView: React.FC<{
   return (
     <EpisodesContent>
       <EpisodesHeaderRow>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
           <SectionTitle style={{ margin: 0 }}>
             Episodes ({totalEpisodes || episodes.length})
           </SectionTitle>
 
           {batches.length > 1 && !searchQuery.trim() && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <span style={{ fontSize: "0.85rem", color: "#ffd700", fontWeight: 700 }}>Jump to:</span>
-              <AppDropdown ariaLabel="Jump to episode range" className="w-44" value={String(selectedBatch)} onChange={(value) => setSelectedBatch(Number(value))} options={batches.map((batch) => ({ value: String(batch.index), label: `Episodes ${batch.label}` }))} />
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <AppDropdown
+                ariaLabel="Jump to episode range"
+                className="w-44"
+                value={String(selectedBatch)}
+                onChange={(value) => setSelectedBatch(Number(value))}
+                options={batches.map((batch) => ({
+                  value: String(batch.index),
+                  label: `Episodes ${batch.label}`,
+                }))}
+              />
             </div>
           )}
         </div>
 
         <EpisodeSearchWrapper>
-          <Search size={16} color="#888" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }} />
+          <Search
+            size={16}
+            color="#888"
+            style={{
+              position: "absolute",
+              left: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+            }}
+          />
           <EpisodeSearchInput
             type="text"
             placeholder="Search episode # or title..."
@@ -1708,11 +2610,22 @@ const EpisodesView: React.FC<{
       {displayedEpisodes.length > 0 ? (
         <>
           <EpisodeGrid>
-            {displayedEpisodes.map((episode) => (
+            {displayedEpisodes.map((episode) => {
+              const episodeImage = episode.thumbnail || fallbackImage;
+              return (
               <EpisodeCard key={episode.mal_id}>
-                <EpisodeMediaWrapper onClick={() => episode.thumbnail && onImageClick(episode.thumbnail)}>
-                  {episode.thumbnail ? (
-                    <ProgressiveImage src={episode.thumbnail} alt={episode.title} wrapperClassName="w-full h-full" className="w-full h-full object-cover" />
+                <EpisodeMediaWrapper
+                  onClick={() =>
+                    episodeImage && onImageClick(episodeImage)
+                  }
+                >
+                  {episodeImage ? (
+                    <ProgressiveImage
+                      src={episodeImage}
+                      alt={episode.title}
+                      wrapperClassName="w-full h-full"
+                      className={`w-full h-full object-cover ${episode.thumbnail ? "" : "opacity-55 scale-105"}`}
+                    />
                   ) : (
                     <EpisodePlaceholder>
                       <Film size={28} color="#ffd700" />
@@ -1720,29 +2633,56 @@ const EpisodesView: React.FC<{
                   )}
                   <EpisodeBadge>EP {episode.mal_id}</EpisodeBadge>
                   {episode.url && (
-                    <EpisodePlayBtn href={episode.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title={`Open Episode ${episode.mal_id} on ${episode.site || "the official source"}`}>
+                    <EpisodePlayBtn
+                      href={episode.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title={`Open Episode ${episode.mal_id} on ${episode.site || "the official source"}`}
+                    >
                       <Play size={15} fill="#fff" color="#fff" />
                     </EpisodePlayBtn>
                   )}
                 </EpisodeMediaWrapper>
                 <EpisodeInfo>
                   <EpisodeTitleRow>
-                    <EpisodeTitle>{episode.title || `Episode ${episode.mal_id}`}</EpisodeTitle>
-                    {episode.site && <EpisodeSiteBadge>{episode.site}</EpisodeSiteBadge>}
+                    <EpisodeTitle>
+                      {episode.title || `Episode ${episode.mal_id}`}
+                    </EpisodeTitle>
+                    {episode.site && (
+                      <EpisodeSiteBadge>{episode.site}</EpisodeSiteBadge>
+                    )}
                   </EpisodeTitleRow>
                   <EpisodeSummaryText>
-                    {episode.summary || (episode.aired ? `Aired: ${new Date(episode.aired).toLocaleDateString()} • Episode ${episode.mal_id}` : `Episode ${episode.mal_id} of the series.`)}
+                    {episode.summary ||
+                      (episode.aired
+                        ? `Aired: ${new Date(episode.aired).toLocaleDateString()} • Episode ${episode.mal_id}`
+                        : `Episode ${episode.mal_id} of the series.`)}
                   </EpisodeSummaryText>
                 </EpisodeInfo>
               </EpisodeCard>
-            ))}
+              );
+            })}
           </EpisodeGrid>
 
           {/* Infinite Scroll Trigger Anchor */}
-          <div ref={observerRef} style={{ height: "40px", margin: "1rem 0", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <div
+            ref={observerRef}
+            style={{
+              height: "40px",
+              margin: "1rem 0",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
             {renderLimit < allFilteredEpisodes.length && (
               <button
-                onClick={() => setRenderLimit((prev) => Math.min(prev + 24, allFilteredEpisodes.length))}
+                onClick={() =>
+                  setRenderLimit((prev) =>
+                    Math.min(prev + 24, allFilteredEpisodes.length),
+                  )
+                }
                 style={{
                   background: "rgba(255, 215, 0, 0.15)",
                   border: "1px solid rgba(255, 215, 0, 0.4)",
@@ -1751,19 +2691,33 @@ const EpisodesView: React.FC<{
                   borderRadius: "20px",
                   fontSize: "0.85rem",
                   fontWeight: 700,
-                  cursor: "pointer"
+                  cursor: "pointer",
                 }}
               >
-                Showing {renderLimit} of {allFilteredEpisodes.length} Episodes — Load More
+                Showing {renderLimit} of {allFilteredEpisodes.length} Episodes —
+                Load More
               </button>
             )}
           </div>
         </>
       ) : (
         <EmptyState>
-          <Film size={36} color="#ffd700" style={{ margin: "0 auto 0.75rem", opacity: 0.8 }} />
-          <p style={{ color: "white", fontWeight: 700, fontSize: "1.05rem", marginBottom: "0.25rem" }}>
-            {searchQuery.trim() ? "No episodes match your search query." : "Upcoming Anime Release"}
+          <Film
+            size={36}
+            color="#ffd700"
+            style={{ margin: "0 auto 0.75rem", opacity: 0.8 }}
+          />
+          <p
+            style={{
+              color: "white",
+              fontWeight: 700,
+              fontSize: "1.05rem",
+              marginBottom: "0.25rem",
+            }}
+          >
+            {searchQuery.trim()
+              ? "No episodes match your search query."
+              : "Upcoming Anime Release"}
           </p>
           <p style={{ color: "#888", fontSize: "0.85rem" }}>
             {searchQuery.trim()
@@ -1803,9 +2757,9 @@ const BackButton = styled.button`
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(255, 215, 0, 0.4);
-  color: #ffd700;
+  background: rgba(247, 246, 244, 0.05);
+  border: 1px solid rgba(237, 237, 235, 0.4);
+  color: #dfded8;
   padding: 0.5rem 1.1rem;
   border-radius: 20px;
   font-family: "Montserrat", sans-serif;
@@ -1840,18 +2794,39 @@ const BackgroundImage = styled.div`
   opacity: 0.45;
   filter: blur(1px);
   cursor: pointer;
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,0) 100%);
-  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,0) 100%);
+  mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.8) 60%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 0.8) 60%,
+    rgba(0, 0, 0, 0) 100%
+  );
 
   @media (max-width: 768px) {
-    display: none;
+    display: block;
+    height: 780px;
+    opacity: 0.32;
+    filter: none;
+    background-position: center top;
+    background-size: cover;
+    background-repeat: no-repeat;
   }
 `;
 
 const Overlay = styled.div`
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 60%, #141414 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.7) 60%,
+    #141414 100%
+  );
 `;
 
 const HeroSection = styled.div`
@@ -2018,12 +2993,20 @@ const ActionButton = styled.button<{ $variant?: string }>`
     $variant === "active"
       ? "rgba(255, 77, 77, 0.2)"
       : $variant === "success"
-      ? "rgba(39, 174, 96, 0.2)"
-      : "rgba(255, 255, 255, 0.08)"};
+        ? "rgba(39, 174, 96, 0.2)"
+        : "rgba(255, 255, 255, 0.08)"};
   color: ${({ $variant }) =>
-    $variant === "active" ? "#ff4d4d" : $variant === "success" ? "#27ae60" : "white"};
+    $variant === "active"
+      ? "#ff4d4d"
+      : $variant === "success"
+        ? "#27ae60"
+        : "white"};
   border-color: ${({ $variant }) =>
-    $variant === "active" ? "#ff4d4d" : $variant === "success" ? "#27ae60" : "rgba(255, 255, 255, 0.2)"};
+    $variant === "active"
+      ? "#ff4d4d"
+      : $variant === "success"
+        ? "#27ae60"
+        : "rgba(255, 255, 255, 0.2)"};
 
   &:hover {
     transform: translateY(-2px);
@@ -2051,7 +3034,8 @@ const StatusOption = styled.button<{ $active?: boolean }>`
   width: 100%;
   text-align: left;
   padding: 0.55rem 0.9rem;
-  background: ${({ $active }) => ($active ? "rgba(255, 215, 0, 0.2)" : "transparent")};
+  background: ${({ $active }) =>
+    $active ? "rgba(255, 215, 0, 0.2)" : "transparent"};
   color: ${({ $active }) => ($active ? "#ffd700" : "#d0d0d0")};
   border: none;
   border-radius: 8px;
@@ -2098,7 +3082,8 @@ const TabsBar = styled.div`
 const TabButton = styled.button<{ $active: boolean }>`
   background: transparent;
   border: none;
-  border-bottom: 2px solid ${({ $active }) => ($active ? "#ffd700" : "transparent")};
+  border-bottom: 2px solid
+    ${({ $active }) => ($active ? "#ffd700" : "transparent")};
   color: ${({ $active }) => ($active ? "#ffd700" : "rgba(255, 255, 255, 0.6)")};
   padding: 0.8rem 1.4rem;
   font-family: "Montserrat", sans-serif;
@@ -2250,9 +3235,11 @@ const BatchContainer = styled.div`
 `;
 
 const BatchButton = styled.button<{ $active: boolean }>`
-  background: ${({ $active }) => ($active ? "#ffd700" : "rgba(255, 255, 255, 0.05)")};
+  background: ${({ $active }) =>
+    $active ? "#ffd700" : "rgba(255, 255, 255, 0.05)"};
   color: ${({ $active }) => ($active ? "#141414" : "#d0d0d0")};
-  border: 1px solid ${({ $active }) => ($active ? "#ffd700" : "rgba(255, 255, 255, 0.1)")};
+  border: 1px solid
+    ${({ $active }) => ($active ? "#ffd700" : "rgba(255, 255, 255, 0.1)")};
   padding: 0.4rem 0.9rem;
   border-radius: 20px;
   font-family: "Montserrat", sans-serif;
@@ -2279,7 +3266,9 @@ const EpisodeCard = styled.div`
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    border-color 0.3s ease;
 
   &:hover {
     transform: translateY(-4px);
@@ -2386,7 +3375,7 @@ const EpisodeSummaryText = styled.p`
 
 const CharacterGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1rem;
 
   @media (max-width: 480px) {
@@ -2397,16 +3386,22 @@ const CharacterGrid = styled.div`
 const CharacterCard = styled.div<{ $role?: string }>`
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 3px solid ${({ $role }) => $role === "MAIN" ? "#ffd700" : $role === "SUPPORTING" ? "#54a0ff" : "#a55eea"};
+  border-left: 3px solid
+    ${({ $role }) =>
+      $role === "MAIN"
+        ? "#ffd700"
+        : $role === "SUPPORTING"
+          ? "#54a0ff"
+          : "#a55eea"};
   border-radius: 12px;
   padding: 0.8rem;
   display: flex;
-  gap: 1rem;
+  gap: 1.1rem;
   align-items: center;
 
   .anime-character-image {
-    width: 65px;
-    height: 90px;
+    width: 95px;
+    height: 140px;
     flex: 0 0 auto;
     border-radius: 8px;
     cursor: pointer;
@@ -2430,7 +3425,12 @@ const CharacterName = styled.div`
 
 const CharacterRole = styled.div<{ $role?: string }>`
   font-size: 0.8rem;
-  color: ${({ $role }) => $role === "MAIN" ? "#ffd700" : $role === "SUPPORTING" ? "#54a0ff" : "#c58cff"};
+  color: ${({ $role }) =>
+    $role === "MAIN"
+      ? "#ffd700"
+      : $role === "SUPPORTING"
+        ? "#54a0ff"
+        : "#c58cff"};
   margin-top: 0.2rem;
 `;
 
@@ -2526,7 +3526,9 @@ const RelationCard = styled(Link)`
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    border-color 0.3s ease;
   text-decoration: none;
 
   &:hover {
@@ -2672,7 +3674,10 @@ const CommentSubmitButton = styled.button`
   font-size: 0.85rem;
   cursor: pointer;
 
-  &:disabled { opacity: 0.55; cursor: not-allowed; }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 `;
 
 const SignInPrompt = styled.div`
@@ -2824,7 +3829,10 @@ const ReviewSubmitButton = styled.button`
   font-size: 0.85rem;
   cursor: pointer;
 
-  &:disabled { opacity: 0.55; cursor: not-allowed; }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 `;
 
 const ReviewsList = styled.div`
@@ -3017,7 +4025,8 @@ const LightboxThumbItem = styled.button<{ $active: boolean }>`
   flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
-  border: 2px solid ${({ $active }) => ($active ? "#ffd700" : "rgba(255, 255, 255, 0.2)")};
+  border: 2px solid
+    ${({ $active }) => ($active ? "#ffd700" : "rgba(255, 255, 255, 0.2)")};
   background: #111;
   cursor: pointer;
   padding: 0;

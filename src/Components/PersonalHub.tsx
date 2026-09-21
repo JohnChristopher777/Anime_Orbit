@@ -10,7 +10,7 @@ import {
   BookOpen,
   Compass,
   Layers,
-  Bookmark,
+  ListTodo,
   Sparkles,
   ArrowRight,
   Star,
@@ -454,7 +454,7 @@ export const PersonalHub: React.FC = () => {
                     </div>
                   )}
                   <div className="absolute bottom-2.5 right-2.5 bg-cyan-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow uppercase">
-                    MANGA
+                    {manga.format || "Manga"}
                   </div>
                 </div>
                 <div className="p-3">
@@ -462,7 +462,7 @@ export const PersonalHub: React.FC = () => {
                     {displayTitle}
                   </h4>
                   <div className="flex items-center justify-between text-[11px] text-neutral-400 mt-2.5 pt-2 border-t border-white/5 font-medium">
-                    <span>{manga.format || "MANGA"}</span>
+                    <span>{manga.format || "Manga"}</span>
                     <span>{manga.chapters ? `${manga.chapters} CH` : "ONGOING"}</span>
                   </div>
                 </div>
@@ -564,7 +564,7 @@ export const PersonalHub: React.FC = () => {
               to="/watchlist"
               className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-emerald-500/20 border border-white/15 hover:border-emerald-400 text-xs sm:text-sm font-bold text-emerald-300 transition-all flex items-center gap-2"
             >
-              <Bookmark size={16} />
+              <ListTodo size={16} />
               <span>Watchlist ({savedWatchlist.length})</span>
             </Link>
             <Link

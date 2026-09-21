@@ -19,13 +19,17 @@ export interface AnimeCardProps {
     score?: number | string | null;
     type?: string;
     episodes?: number | null;
+    chapters?: number | null;
+    format?: string;
+    year?: number | null;
   };
   onRemove?: (animeId: number) => void;
   compact?: boolean;
+  mediaType?: "anime" | "manga";
 }
 
 export const AnimeCard = React.forwardRef<HTMLDivElement, AnimeCardProps>(
-  ({ anime, onRemove, compact = false }, ref) => {
+  ({ anime, onRemove, compact = false, mediaType = "anime" }, ref) => {
     const imageUrl =
       anime.images?.jpg?.large_image_url ||
       anime.images?.jpg?.image_url ||
@@ -37,7 +41,8 @@ export const AnimeCard = React.forwardRef<HTMLDivElement, AnimeCardProps>(
       ? `${smallImageUrl} 320w, ${imageUrl} 600w`
       : undefined;
 
-    const displayTitle = anime.title || anime.title_english || "Unknown Anime";
+    const isManga = mediaType === "manga";
+    const displayTitle = anime.title || anime.title_english || (isManga ? "Unknown Manga" : "Unknown Anime");
     const score = anime.score;
 
     return (
@@ -46,7 +51,7 @@ export const AnimeCard = React.forwardRef<HTMLDivElement, AnimeCardProps>(
         className={`group relative flex flex-col bg-transparent rounded-lg transition-transform duration-200 hover:-translate-y-1 ${compact ? "" : "h-full"}`}
       >
         <Link
-          to={`/anime/${anime.mal_id}`}
+          to={`/${mediaType}/${anime.mal_id}`}
           className={`flex flex-col text-inherit no-underline ${compact ? "" : "flex-grow"}`}
         >
           {/* Cover Image Wrapper */}
@@ -75,8 +80,8 @@ export const AnimeCard = React.forwardRef<HTMLDivElement, AnimeCardProps>(
               {displayTitle}
             </h3>
             <div className="text-xs text-neutral-400 flex items-center justify-between mt-auto pt-2 font-medium border-t border-white/5">
-              <span>{anime.type || "TV"}</span>
-              <span>{anime.episodes ? `${anime.episodes} EP` : "N/A"}</span>
+              <span>{isManga ? (anime.format || anime.type || "Manga") : (anime.type || "TV")}</span>
+              <span>{isManga ? (anime.chapters ? `${anime.chapters} CH` : anime.year || "Ongoing") : (anime.episodes ? `${anime.episodes} EP` : "N/A")}</span>
             </div>
           </div>
         </Link>

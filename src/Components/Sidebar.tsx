@@ -5,7 +5,7 @@ import {
   Info,
   Heart,
   User,
-  List,
+  ListTodo,
   X,
   Calendar,
   TrendingUp,
@@ -17,6 +17,7 @@ import {
   Compass,
   BookOpen,
   Layers3,
+  Flame,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useGlobalContext } from "../context/global";
@@ -110,6 +111,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </Link>
 
           <Link
+            to="/popular"
+            onClick={() => handleLinkClick("/popular")}
+            className={navClass("/popular")}
+          >
+            <Flame size={18} className="text-[#ffd700]" />
+            <span>Popular</span>
+          </Link>
+
+          <Link
             to="/airing"
             onClick={() => handleLinkClick("/airing")}
             className={navClass("/airing")}
@@ -190,7 +200,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => handleLinkClick("/watchlist")}
                 className={navClass("/watchlist")}
               >
-                <List size={18} className="text-[#ffd700]" />
+                <ListTodo size={18} className="text-[#ffd700]" />
                 <span>My Watchlist</span>
               </Link>
 

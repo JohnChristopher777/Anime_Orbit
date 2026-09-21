@@ -281,7 +281,7 @@ export const GlobalContextProvider: React.FC<{ children: ReactNode }> = ({ child
     }
   };
 
-  const getAnimePictures = async (id: string | number) => {
+  const getAnimePictures = useCallback(async (id: string | number) => {
     dispatch({ type: LOADING });
     try {
       const data = await fetchCharacterPictures(id);
@@ -289,7 +289,7 @@ export const GlobalContextProvider: React.FC<{ children: ReactNode }> = ({ child
     } catch {
       dispatch({ type: GET_PICTURES, payload: [] });
     }
-  };
+  }, []);
 
   return (
     <GlobalContext.Provider

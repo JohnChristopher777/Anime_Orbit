@@ -40,6 +40,7 @@ export interface MangaWatchlistItem extends WatchlistItem {
   chapters?: number | null;
   volumes?: number | null;
   format?: string;
+  countryOfOrigin?: string | null;
 }
 
 export interface DeletedLibraryItem extends MangaWatchlistItem {
@@ -81,10 +82,10 @@ interface WatchlistContextType {
   isWatched: (animeId: number) => boolean;
   updateAnimeStatus: (anime: any, status: string | null) => Promise<void>;
   getAnimeStatus: (animeId: number) => string | null;
-  updateWatchlistEntry: (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore">>) => Promise<void>;
+  updateWatchlistEntry: (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "episodes">>) => Promise<void>;
   addMangaToWatchlist: (manga: any) => Promise<void>;
   removeMangaFromWatchlist: (mangaId: number) => Promise<void>;
-  updateMangaWatchlistEntry: (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore">>) => Promise<void>;
+  updateMangaWatchlistEntry: (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "chapters">>) => Promise<void>;
   restoreDeletedItem: (originalKey: string) => Promise<void>;
   permanentlyDeleteItem: (originalKey: string) => Promise<void>;
   emptyTrash: () => Promise<void>;
@@ -276,9 +277,9 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
       setDeletedItems((items) => [localItem, ...items.filter((entry) => entry.originalKey !== originalKey)]);
     }
     toast(({ closeToast }) => (
-      <div className="flex items-center gap-3 text-xs">
+      <div className="flex w-full items-center gap-3 text-xs">
         <span className="min-w-0 flex-1"><strong className="block truncate text-white">{item.title}</strong><span className="text-neutral-400">Moved to Trash for 5 days</span></span>
-        <button type="button" className="rounded-full bg-[#ffd700] px-3 py-1.5 font-bold text-black" onClick={() => { void restoreDeletedItem(originalKey); closeToast?.(); }}>Undo</button>
+        <button type="button" className="ml-auto flex-shrink-0 rounded-full bg-[#ffd700] px-3 py-1.5 font-bold text-black" onClick={() => { void restoreDeletedItem(originalKey); closeToast?.(); }}>Undo</button>
       </div>
     ), { autoClose: 7000 });
   };
@@ -424,15 +425,16 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     return item ? (item.status || "Plan to Watch") : null;
   };
 
-  const updateWatchlistEntry = async (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore">>) => {
+  const updateWatchlistEntry = async (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "episodes">>) => {
     if (!currentUser) return;
     try {
       const currentItem = watchlist.find((item) => item.mal_id === animeId);
       const updatedAt = new Date().toISOString();
       const progress = Math.max(0, Number(updates.progress ?? currentItem?.progress ?? 0));
       const requestedStatus = updates.status || currentItem?.status || "Plan to Watch";
-      const hasEpisodeTotal = Number(currentItem?.episodes || 0) > 0;
-      const reachedFinalEpisode = Boolean(hasEpisodeTotal && progress >= Number(currentItem?.episodes));
+      const episodeTotal = Number(updates.episodes ?? currentItem?.episodes ?? 0);
+      const hasEpisodeTotal = episodeTotal > 0;
+      const reachedFinalEpisode = Boolean(hasEpisodeTotal && progress >= episodeTotal);
       const derivedStatus = reachedFinalEpisode
         ? "Completed"
         : hasEpisodeTotal && requestedStatus === "Completed"
@@ -443,7 +445,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
       const normalizedUpdates = {
         ...updates,
         status: derivedStatus,
-        progress: hasEpisodeTotal ? Math.min(progress, Number(currentItem?.episodes)) : progress,
+        progress: hasEpisodeTotal ? Math.min(progress, episodeTotal) : progress,
         ...(reachedFinalEpisode ? { endDate: updates.endDate || new Date().toISOString().slice(0, 10) } : {}),
       };
       await setDoc(doc(db, "users", currentUser.uid, "watchlist", animeId.toString()), { ...normalizedUpdates, mediaType: "ANIME", updatedAt }, { merge: true });
@@ -473,6 +475,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
       type: "Manga",
       mediaType: "MANGA",
       format: manga.format || manga.type || "MANGA",
+      countryOfOrigin: manga.countryOfOrigin || null,
       chapters: manga.chapters || null,
       volumes: manga.volumes || null,
       genres: manga.genres?.map((genre: any) => genre.name || genre) || [],
@@ -531,12 +534,12 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
-  const updateMangaWatchlistEntry = async (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore">>) => {
+  const updateMangaWatchlistEntry = async (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "chapters">>) => {
     if (!currentUser) return;
     try {
       const currentItem = mangaWatchlist.find((item) => item.mal_id === mangaId);
       const progress = Math.max(0, Number(updates.progress ?? currentItem?.progress ?? 0));
-      const total = Number(currentItem?.chapters || 0);
+      const total = Number(updates.chapters ?? currentItem?.chapters ?? 0);
       const requestedStatus = updates.status || currentItem?.status || "Plan to Read";
       const reachedFinalChapter = total > 0 && progress >= total;
       const derivedStatus = reachedFinalChapter
@@ -554,7 +557,6 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
         mediaType: "MANGA",
         updatedAt: new Date().toISOString(),
       }, { merge: true });
-      toast.success(reachedFinalChapter ? "Final chapter logged — manga completed" : "Manga tracker saved");
     } catch {
       toast.error("Could not save reading notes");
     }

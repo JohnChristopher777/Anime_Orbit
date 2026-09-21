@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { getMangaDetailsCombined } from "../services/anilist";
+import { getMangaDetailsCombined, getMediaGuidePage } from "../services/anilist";
 import SEO from "./SEO";
 import Footer from "./Footer";
 import Skeleton from "react-loading-skeleton";
@@ -43,6 +43,9 @@ export const MangaDetails: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [trackerBusy, setTrackerBusy] = useState(false);
   const [chapterPage, setChapterPage] = useState(1);
+  const [chapterGuideItems, setChapterGuideItems] = useState<any[]>([]);
+  const [chapterTotal, setChapterTotal] = useState(0);
+  const [chapterGuideLoading, setChapterGuideLoading] = useState(false);
   const [chapterProgress, setChapterProgress] = useState(0);
   const [progressSaving, setProgressSaving] = useState(false);
   const { mangaWatchlist, addMangaToWatchlist, removeMangaFromWatchlist, updateMangaWatchlistEntry } = useWatchlist();
@@ -52,6 +55,11 @@ export const MangaDetails: React.FC = () => {
   useEffect(() => {
     setChapterProgress(Number(trackedMangaEntry?.progress || 0));
   }, [trackedMangaEntry?.mal_id, trackedMangaEntry?.progress]);
+
+  useEffect(() => {
+    if (!trackedMangaEntry || !chapterTotal || Number(trackedMangaEntry.chapters || 0) === chapterTotal) return;
+    void updateMangaWatchlistEntry(trackedMangaEntry.mal_id, { chapters: chapterTotal });
+  }, [trackedMangaEntry?.mal_id, trackedMangaEntry?.chapters, chapterTotal]);
 
   useEffect(() => {
     if (!lightboxOpen) return;
@@ -76,6 +84,9 @@ export const MangaDetails: React.FC = () => {
       try {
         const data = await getMangaDetailsCombined(id);
         setManga(data);
+        setChapterPage(1);
+        setChapterGuideItems(data?.chapterGuide || []);
+        setChapterTotal(Number(data?.chapters || 0));
       } catch (err) {
         console.error("Error loading manga details:", err);
       } finally {
@@ -85,6 +96,30 @@ export const MangaDetails: React.FC = () => {
 
     fetchManga();
   }, [id]);
+
+  useEffect(() => {
+    if (!manga) return;
+    let cancelled = false;
+    const loadChapterPage = async () => {
+      setChapterGuideLoading(true);
+      const result = await getMediaGuidePage({
+        mediaType: "MANGA",
+        malId: manga.malId,
+        kitsuId: manga.kitsuId,
+        title: manga.title,
+        page: chapterPage,
+        perPage: 50,
+        fallbackCount: manga.chapters,
+      });
+      if (!cancelled) {
+        setChapterGuideItems(result.items || []);
+        setChapterTotal(Math.max(Number(manga.chapters || 0), Number(result.totalCount || 0)));
+        setChapterGuideLoading(false);
+      }
+    };
+    void loadChapterPage();
+    return () => { cancelled = true; };
+  }, [chapterPage, manga?.mal_id, manga?.malId, manga?.kitsuId]);
 
   const handleBack = () => {
     if (window.history.length > 2) {
@@ -163,7 +198,8 @@ export const MangaDetails: React.FC = () => {
         await removeMangaFromWatchlist(manga.mal_id);
       } else {
         if (!isInMangaWatchlist) await addMangaToWatchlist(manga);
-        await updateMangaWatchlistEntry(manga.mal_id, { status, ...(status === "Completed" && manga.chapters ? { progress: manga.chapters } : {}) });
+        const total = chapterTotal || Number(manga.chapters || 0);
+        await updateMangaWatchlistEntry(manga.mal_id, { status, ...(status === "Completed" && total ? { progress: total } : {}) });
       }
     } finally {
       setTrackerBusy(false);
@@ -172,11 +208,17 @@ export const MangaDetails: React.FC = () => {
 
   const saveChapterProgress = async (nextProgress: number) => {
     if (!trackedManga) return;
-    const normalized = Math.max(0, Math.min(Number(manga.chapters || Infinity), nextProgress));
+    const total = chapterTotal || Number(manga.chapters || 0);
+    const normalized = Math.max(0, Math.min(total || Infinity, nextProgress));
+    const nextStatus = total && normalized >= total
+      ? "Completed"
+      : (trackedManga.status === "Completed" || trackedManga.status === "Caught Up" || (normalized > 0 && trackedManga.status === "Plan to Read"))
+        ? "Reading"
+        : trackedManga.status;
     setChapterProgress(normalized);
     setProgressSaving(true);
     try {
-      await updateMangaWatchlistEntry(manga.mal_id, { status: trackedManga.status, progress: normalized });
+      await updateMangaWatchlistEntry(manga.mal_id, { status: nextStatus, progress: normalized });
     } finally {
       setProgressSaving(false);
     }
@@ -200,13 +242,17 @@ export const MangaDetails: React.FC = () => {
   const animeAdaptations = (manga.relations || []).filter(
     (r: any) => r.node?.type === "ANIME"
   );
-  const knownChapterCount = typeof manga.chapters === "number" ? manga.chapters : 0;
-  const chapterPageSize = 24;
+  const knownChapterCount = Math.max(chapterTotal, typeof manga.chapters === "number" ? manga.chapters : 0);
+  const chapterPageSize = 50;
   const chapterPageCount = Math.max(1, Math.ceil(knownChapterCount / chapterPageSize));
   const chapterStart = (chapterPage - 1) * chapterPageSize + 1;
+  const guideByNumber = new Map(chapterGuideItems.map((chapter) => [Number(chapter.number), chapter]));
   const visibleChapters = knownChapterCount
-    ? Array.from({ length: Math.min(chapterPageSize, knownChapterCount - chapterStart + 1) }, (_, index) => chapterStart + index)
-    : [];
+    ? Array.from({ length: Math.min(chapterPageSize, knownChapterCount - chapterStart + 1) }, (_, index) => {
+        const number = chapterStart + index;
+        return guideByNumber.get(number) || { number, title: `Chapter ${number}`, summary: "", aired: null, metadataAvailable: false };
+      })
+    : chapterGuideItems;
 
   return (
     <div className="min-h-screen bg-[#0a0a0e] text-white font-inter flex flex-col overflow-x-hidden">
@@ -250,7 +296,7 @@ export const MangaDetails: React.FC = () => {
           <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-10 flex flex-col justify-end space-y-3 max-w-3xl">
             <div className="inline-flex items-center gap-1.5 bg-[#ffd700]/20 border border-[#ffd700]/50 text-[#ffd700] text-xs font-bold uppercase font-montserrat px-3 py-1 rounded-full w-fit backdrop-blur-md shadow-sm">
               <BookOpen size={13} />
-              <span>Manga</span>
+              <span>{manga.format || "Manga"}</span>
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-staatliches uppercase tracking-wide text-white drop-shadow-2xl leading-tight">
               {manga.title}
@@ -260,7 +306,7 @@ export const MangaDetails: React.FC = () => {
                 {manga.title_japanese}
               </p>
             )}
-            <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold">
+            <div className="manga-detail-hero-meta flex flex-wrap gap-2 pt-1 text-[10px] font-bold">
               <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-emerald-300">{manga.status}</span>
               <span className="rounded-full border border-white/15 bg-black/35 px-2.5 py-1 text-neutral-200">Started {formatMediaDate(manga.startDate)}</span>
               <span className="rounded-full border border-[#ffd700]/30 bg-[#ffd700]/10 px-2.5 py-1 text-[#ffd700]">{knownChapterCount ? `${knownChapterCount} chapters` : "Chapter count pending"}</span>
@@ -268,36 +314,6 @@ export const MangaDetails: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {trackedManga && (
-        <div className="mx-auto mb-6 w-full max-w-7xl px-3 sm:px-8">
-          <div className="media-progress" aria-label="Your chapter progress">
-            <div className="media-progress__heading"><span>Your reading progress</span><strong>{chapterProgress} / {manga.chapters || "?"} chapters</strong></div>
-            {manga.chapters ? (
-              <input
-                className="media-progress__slider"
-                aria-label={`Chapter progress: ${chapterProgress} of ${manga.chapters}`}
-                type="range"
-                min={0}
-                max={manga.chapters}
-                step={1}
-                value={chapterProgress}
-                style={{ "--progress": `${Math.min(100, (chapterProgress / manga.chapters) * 100)}%` } as React.CSSProperties}
-                onChange={(event) => setChapterProgress(Number(event.target.value))}
-                onPointerUp={() => void saveChapterProgress(chapterProgress)}
-                onKeyUp={() => void saveChapterProgress(chapterProgress)}
-                onBlur={() => void saveChapterProgress(chapterProgress)}
-              />
-            ) : <div className="media-progress__bar is-unknown" aria-label="Chapter total is not available" />}
-            <div className="media-progress__controls">
-              <button type="button" disabled={progressSaving || chapterProgress <= 0} onClick={() => void saveChapterProgress(chapterProgress - 1)}>−</button>
-              <input aria-label="Chapter progress" type="number" min={0} max={manga.chapters || undefined} value={chapterProgress} onChange={(event) => setChapterProgress(Math.max(0, Number(event.target.value) || 0))} onBlur={() => void saveChapterProgress(chapterProgress)} />
-              <button type="button" disabled={progressSaving || Boolean(manga.chapters && chapterProgress >= manga.chapters)} onClick={() => void saveChapterProgress(chapterProgress + 1)}>+</button>
-              <span>{progressSaving ? "Saving…" : trackedManga.status || "Reading"}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Details Grid */}
       <div className="manga-detail-layout max-w-7xl mx-auto px-3 sm:px-8 pb-16 w-full grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-10">
@@ -336,8 +352,23 @@ export const MangaDetails: React.FC = () => {
             <Link to={`/franchise/${manga.mal_id}`} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-[11px] font-bold text-white hover:border-[#ffd700]/60 hover:text-[#ffd700]"><GitBranch size={14} /><span>Franchise guide</span></Link>
           </div>
 
+          {trackedManga && (
+            <div className="media-progress" aria-label="Your chapter progress">
+              <div className="media-progress__heading"><span>Your reading progress</span><strong>{chapterProgress} / {knownChapterCount || "?"} chapters</strong></div>
+              {knownChapterCount ? (
+                <input className="media-progress__slider" aria-label={`Chapter progress: ${chapterProgress} of ${knownChapterCount}`} type="range" min={0} max={knownChapterCount} step={1} value={Math.min(chapterProgress, knownChapterCount)} style={{ "--progress": `${Math.min(100, (chapterProgress / knownChapterCount) * 100)}%` } as React.CSSProperties} onChange={(event) => setChapterProgress(Number(event.target.value))} onPointerUp={() => void saveChapterProgress(chapterProgress)} onKeyUp={() => void saveChapterProgress(chapterProgress)} onBlur={() => void saveChapterProgress(chapterProgress)} />
+              ) : <div className="media-progress__bar is-unknown" aria-label="Chapter total is not available" />}
+              <div className="media-progress__controls">
+                <button type="button" disabled={progressSaving || chapterProgress <= 0} onClick={() => void saveChapterProgress(chapterProgress - 1)}>−</button>
+                <input aria-label="Chapter progress" type="number" min={0} max={knownChapterCount || undefined} value={chapterProgress} onChange={(event) => setChapterProgress(Math.max(0, Number(event.target.value) || 0))} onBlur={() => void saveChapterProgress(chapterProgress)} />
+                <button type="button" disabled={progressSaving || Boolean(knownChapterCount && chapterProgress >= knownChapterCount)} onClick={() => void saveChapterProgress(chapterProgress + 1)}>+</button>
+                <span>{progressSaving ? "Saving…" : trackedManga.status || "Reading"}</span>
+              </div>
+            </div>
+          )}
+
           {/* Key Facts Card */}
-          <div className="bg-[#12121a]/95 border border-white/10 rounded-2xl p-5 space-y-3.5 shadow-xl">
+          <div className="manga-detail-facts bg-[#12121a]/95 border border-white/10 rounded-2xl p-5 space-y-3.5 shadow-xl">
             <h3 className="font-montserrat font-bold text-xs uppercase tracking-wider text-[#ffd700] pb-2 border-b border-white/10 flex items-center gap-2">
               <Sparkles size={14} />
               <span>Manga details</span>
@@ -357,7 +388,7 @@ export const MangaDetails: React.FC = () => {
               </div>
               <div>
                 <span className="text-neutral-400 block text-[11px]">Total Chapters</span>
-                <span className="font-semibold text-white pt-0.5 block">{manga.chapters}</span>
+                <span className="font-semibold text-white pt-0.5 block">{knownChapterCount || "Not reported"}</span>
               </div>
               <div>
                 <span className="text-neutral-400 block text-[11px]">Total Volumes</span>
@@ -381,7 +412,7 @@ export const MangaDetails: React.FC = () => {
               </div>
               <div>
                 <span className="text-neutral-400 block text-[11px]">Latest listed chapter</span>
-                <span className="font-semibold text-white pt-0.5 block">{typeof manga.chapters === "number" ? `Chapter ${manga.chapters}` : "Not reported"}</span>
+                <span className="font-semibold text-white pt-0.5 block">{knownChapterCount ? `Chapter ${knownChapterCount}` : "Not reported"}</span>
               </div>
               <div>
                 <span className="text-neutral-400 block text-[11px]">Based on</span>
@@ -404,7 +435,7 @@ export const MangaDetails: React.FC = () => {
                 {(manga.genres || []).map((genre: string) => (
                   <Link
                     key={genre}
-                    to={`/genres?genre=${encodeURIComponent(genre)}`}
+                    to={`/genres?genre=${encodeURIComponent(genre)}&media=manga`}
                     className="bg-[#ffd700]/10 hover:bg-[#ffd700] text-[#ffd700] hover:text-black border border-[#ffd700]/30 text-[11px] font-semibold px-2.5 py-0.5 rounded-full transition-colors"
                   >
                     {genre}
@@ -472,13 +503,21 @@ export const MangaDetails: React.FC = () => {
 
           <section className="manga-chapter-guide" aria-labelledby="manga-chapters-title">
             <div className="manga-chapter-guide__header">
-              <div><span><ListOrdered size={13} /> Chapter guide</span><h2 id="manga-chapters-title">Published chapters</h2><p>AniList supplies the chapter count, but not individual official chapter titles or summaries. Missing names are shown honestly instead of being invented.</p></div>
+              <div><span><ListOrdered size={13} /> Chapter guide</span><h2 id="manga-chapters-title">Published chapters</h2><p>Confirmed chapter totals stay synced with your reading progress. Published names, dates and summaries appear when the catalogue provides them.</p></div>
               {knownChapterCount > 0 && <strong>{knownChapterCount}</strong>}
             </div>
-            {visibleChapters.length > 0 ? <>
+            {chapterGuideLoading ? <div className="manga-chapter-guide__empty">Loading chapter details...</div> : visibleChapters.length > 0 ? <>
+              {chapterPageCount > 1 && <div className="manga-chapter-guide__ranges" aria-label="Chapter ranges">
+                {Array.from({ length: chapterPageCount }, (_, pageIndex) => {
+                  const rangeStart = pageIndex * chapterPageSize + 1;
+                  const rangeEnd = Math.min(knownChapterCount, rangeStart + chapterPageSize - 1);
+                  const pageNumber = pageIndex + 1;
+                  return <button key={pageNumber} type="button" className={chapterPage === pageNumber ? "is-active" : ""} aria-pressed={chapterPage === pageNumber} onClick={() => setChapterPage(pageNumber)}>{rangeStart} - {rangeEnd}</button>;
+                })}
+              </div>}
               <div className="manga-chapter-guide__grid">
-                {visibleChapters.map((chapter) => <article key={chapter} className={chapter === knownChapterCount ? "is-latest" : ""}>
-                  <span><Hash size={12} />{chapter}</span><div><h3>Chapter {chapter}</h3><p>{chapter === knownChapterCount ? "Latest chapter recorded by AniList" : "Official chapter title not supplied"}</p></div>
+                {visibleChapters.map((chapter: any) => <article key={chapter.number} className={chapter.number === knownChapterCount ? "is-latest" : ""}>
+                  <span><Hash size={12} />{chapter.number}</span><div><h3>{chapter.title || `Chapter ${chapter.number}`}</h3><p>{chapter.summary || (chapter.metadataAvailable ? "No synopsis was published for this chapter." : "Chapter details are not published in the connected catalogues.")}</p>{chapter.aired && <time dateTime={chapter.aired}>{new Date(chapter.aired).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</time>}</div>
                 </article>)}
               </div>
               {chapterPageCount > 1 && <div className="manga-chapter-guide__pager"><button disabled={chapterPage === 1} onClick={() => setChapterPage((page) => Math.max(1, page - 1))}><ChevronLeft size={14} /> Previous</button><span>Page {chapterPage} of {chapterPageCount}</span><button disabled={chapterPage === chapterPageCount} onClick={() => setChapterPage((page) => Math.min(chapterPageCount, page + 1))}>Next <ChevronRight size={14} /></button></div>}

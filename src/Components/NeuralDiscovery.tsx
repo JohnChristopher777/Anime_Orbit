@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   AlertCircle,
   ArrowRight,
-  Bookmark,
+  ListTodo,
   CheckCircle2,
   Compass,
   Heart,
@@ -42,6 +42,15 @@ interface DialogueResult {
   anime: string;
   character: string;
   line: string;
+  confidence?: number;
+  reason?: string;
+}
+
+interface AiDiscoveryResult {
+  summary: string;
+  setting: string;
+  characters: string[];
+  matches: Array<{ title: string; character?: string; quote?: string; reason: string; confidence: number }>;
 }
 
 const GENRES = [
@@ -121,6 +130,29 @@ const compressImage = (file: File): Promise<Blob> => new Promise((resolve, rejec
   image.src = objectUrl;
 });
 
+const blobToBase64 = (blob: Blob): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || "").split(",")[1] || "");
+  reader.onerror = () => reject(new Error("This image could not be read."));
+  reader.readAsDataURL(blob);
+});
+
+const askGemini = async (payload: Record<string, unknown>): Promise<AiDiscoveryResult> => {
+  const response = await fetch("/.netlify/functions/discovery", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Visual search is not available");
+  const result = await response.json();
+  return {
+    summary: String(result.summary || ""),
+    setting: String(result.setting || ""),
+    characters: Array.isArray(result.characters) ? result.characters.filter(Boolean).slice(0, 8) : [],
+    matches: Array.isArray(result.matches) ? result.matches.filter((match: any) => match?.title).slice(0, 6) : [],
+  };
+};
+
 const ResultSkeleton = () => (
   <div className="finder-results" aria-label="Loading anime">
     {Array.from({ length: 6 }).map((_, index) => (
@@ -145,6 +177,9 @@ export const NeuralDiscovery: React.FC = () => {
   const [traceResults, setTraceResults] = React.useState<TraceResult[]>([]);
   const [traceLoading, setTraceLoading] = React.useState(false);
   const [traceError, setTraceError] = React.useState("");
+  const [visualInsight, setVisualInsight] = React.useState<AiDiscoveryResult | null>(null);
+  const [visualMatches, setVisualMatches] = React.useState<any[]>([]);
+  const [visualLoading, setVisualLoading] = React.useState(false);
 
   const [titleQuery, setTitleQuery] = React.useState("");
   const [titleResults, setTitleResults] = React.useState<any[]>([]);
@@ -155,11 +190,13 @@ export const NeuralDiscovery: React.FC = () => {
   const [sceneResults, setSceneResults] = React.useState<any[]>([]);
   const [sceneLoading, setSceneLoading] = React.useState(false);
   const [sceneError, setSceneError] = React.useState("");
+  const [sceneInsight, setSceneInsight] = React.useState<AiDiscoveryResult | null>(null);
 
   const [dialogueQuery, setDialogueQuery] = React.useState("");
   const [dialogueResults, setDialogueResults] = React.useState<DialogueResult[]>([]);
   const [dialogueLoading, setDialogueLoading] = React.useState(false);
   const [dialogueError, setDialogueError] = React.useState("");
+  const [dialogueInsight, setDialogueInsight] = React.useState<AiDiscoveryResult | null>(null);
 
   const [selectedGenre, setSelectedGenre] = React.useState("Action");
   const [vibeResults, setVibeResults] = React.useState<any[]>([]);
@@ -175,6 +212,7 @@ export const NeuralDiscovery: React.FC = () => {
   const initialVibeLoaded = React.useRef(false);
   const personalTasteLoaded = React.useRef("");
   const hydratedLibraryKey = React.useRef("");
+  const recommendationOffset = React.useRef(0);
 
   React.useEffect(() => () => {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
@@ -231,6 +269,8 @@ export const NeuralDiscovery: React.FC = () => {
     setImagePreview(URL.createObjectURL(file));
     setImageUrl("");
     setTraceResults([]);
+    setVisualMatches([]);
+    setVisualInsight(null);
     setTraceError("");
   };
 
@@ -239,7 +279,35 @@ export const NeuralDiscovery: React.FC = () => {
     setImageFile(null);
     setImagePreview("");
     setTraceResults([]);
+    setVisualMatches([]);
+    setVisualInsight(null);
     setTraceError("");
+  };
+
+  const resolveAiAnime = async (matches: AiDiscoveryResult["matches"]) => {
+    const resolved = await Promise.allSettled(matches.slice(0, 6).map((match) => searchAnime(match.title, 2)));
+    return [...new Map(resolved.flatMap((result) => result.status === "fulfilled" ? result.value || [] : []).filter((anime: any) => anime?.mal_id).map((anime: any) => [anime.mal_id, anime])).values()] as any[];
+  };
+
+  const findVisualWithAI = async (file: File | null, directUrl: string) => {
+    setVisualLoading(true);
+    setVisualInsight(null);
+    setVisualMatches([]);
+    try {
+      const payload: Record<string, unknown> = { kind: "image" };
+      if (file) {
+        const compressed = await compressImage(file);
+        payload.imageData = await blobToBase64(compressed);
+        payload.mimeType = compressed.type || "image/jpeg";
+      } else payload.imageUrl = directUrl;
+      const result = await askGemini(payload);
+      setVisualInsight(result);
+      setVisualMatches(await resolveAiAnime(result.matches));
+    } catch {
+      // trace.moe remains available as the frame-specific fallback.
+    } finally {
+      setVisualLoading(false);
+    }
   };
 
   const findScreenshot = async () => {
@@ -251,6 +319,7 @@ export const NeuralDiscovery: React.FC = () => {
     setTraceLoading(true);
     setTraceResults([]);
     setTraceError("");
+    void findVisualWithAI(imageFile, directUrl);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 30000);
     try {
@@ -333,12 +402,21 @@ export const NeuralDiscovery: React.FC = () => {
     setSceneLoading(true);
     setSceneError("");
     setSceneResults([]);
+    setSceneInsight(null);
     try {
+      let aiResult: AiDiscoveryResult | null = null;
+      try {
+        aiResult = await askGemini({ kind: "scene", text: query });
+        setSceneInsight(aiResult);
+      } catch {
+        // Catalogue clue matching below is the resilient fallback.
+      }
       const lowerQuery = query.toLowerCase();
       const genres = SCENE_SIGNALS.filter((signal) => signal.terms.some((term) => lowerQuery.includes(term))).map((signal) => signal.genre).slice(0, 2);
       const keywords = [...new Set(tokens)].sort((a, b) => b.length - a.length).slice(0, 3);
       const requests = [
         searchAnime(query, 12),
+        ...(aiResult?.matches || []).slice(0, 6).map((match) => searchAnime(match.title, 3)),
         ...keywords.map((keyword) => searchAnime(keyword, 8)),
         ...genres.map((genre) => getAnimeByGenre(genre, 18, 1, "SCORE_DESC").then((result) => result.media || [])),
         getPopularAnime(50, 1),
@@ -355,7 +433,9 @@ export const NeuralDiscovery: React.FC = () => {
         const text = `${anime.title || ""} ${anime.title_english || ""} ${anime.synopsis || ""} ${animeGenres.join(" ")}`.toLowerCase();
         const termHits = tokens.filter((token) => text.includes(token)).length;
         const genreHits = genres.filter((genre) => animeGenres.includes(genre)).length;
-        return { anime, rank: termHits * 4 + genreHits * 3 + Number(anime.score || 0) / 10 };
+        const aiIndex = aiResult?.matches.findIndex((match) => [anime.title, anime.title_english].filter(Boolean).some((title) => String(title).toLowerCase().includes(match.title.toLowerCase()) || match.title.toLowerCase().includes(String(title).toLowerCase()))) ?? -1;
+        const aiBoost = aiIndex >= 0 ? 30 - aiIndex * 3 : 0;
+        return { anime, rank: aiBoost + termHits * 4 + genreHits * 3 + Number(anime.score || 0) / 10 };
       }).filter((item) => item.rank > 1).sort((a, b) => b.rank - a.rank).slice(0, 18).map((item) => item.anime);
       setSceneResults(ranked);
       if (!ranked.length) setSceneError("No strong match was found. Add a setting, action, visual detail, or genre clue.");
@@ -391,9 +471,17 @@ export const NeuralDiscovery: React.FC = () => {
     setDialogueLoading(true);
     setDialogueError("");
     setDialogueResults([]);
+    setDialogueInsight(null);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 12000);
     try {
+      let aiResult: AiDiscoveryResult | null = null;
+      try {
+        aiResult = await askGemini({ kind: "dialogue", text: query });
+        setDialogueInsight(aiResult);
+      } catch {
+        // Remote quote search and the local quote index remain available.
+      }
       const fetchQuotes = async (filter: "anime" | "character") => {
         const response = await fetch(`https://api.animechan.io/v1/quotes/?${filter}=${encodeURIComponent(query)}`, { signal: controller.signal });
         if (!response.ok) return [];
@@ -407,8 +495,9 @@ export const NeuralDiscovery: React.FC = () => {
         anime: String(typeof row.anime === "string" ? row.anime : row.anime?.name || "").trim(),
         character: String(typeof row.character === "string" ? row.character : row.character?.name || "Unknown character").trim(),
       })).filter((row: DialogueResult) => row.line && row.anime);
+      const aiRows: DialogueResult[] = (aiResult?.matches || []).map((match) => ({ anime: match.title, character: match.character || "Unknown character", line: match.quote || query, confidence: match.confidence, reason: match.reason }));
       const fallback = localDialogueSearch(query);
-      const combined = [...new Map([...fallback, ...remote].map((row) => [row.line.toLowerCase(), row])).values()];
+      const combined = [...new Map([...aiRows, ...fallback, ...remote].map((row) => [`${row.anime}:${row.line}`.toLowerCase(), row])).values()];
       const uniqueAnime = [...new Set(combined.map((row) => row.anime))];
       const resolved = await Promise.allSettled(uniqueAnime.map(async (anime) => ({ anime, results: await searchAnime(anime, 1) })));
       const ids = new Map<string, number>();
@@ -453,7 +542,10 @@ export const NeuralDiscovery: React.FC = () => {
         const matches = (item: any) => (item.genres || []).filter((raw: any) => taste.includes(typeof raw === "string" ? raw : raw?.name)).length;
         return matches(b) - matches(a) || Number(b.score || 0) - Number(a.score || 0);
       });
-      setPersonalResults(unique.slice(0, 18));
+      const offset = unique.length ? recommendationOffset.current % unique.length : 0;
+      recommendationOffset.current += 7;
+      const rotated = [...unique.slice(offset), ...unique.slice(0, offset)];
+      setPersonalResults(rotated.slice(0, 18));
       if (!unique.length) setPersonalError("No new recommendations were returned.");
     } catch {
       setPersonalError("Recommendations could not connect. Please try again.");
@@ -518,6 +610,8 @@ export const NeuralDiscovery: React.FC = () => {
             </div>
             {traceError && <div className="finder-error"><AlertCircle size={17} />{traceError}</div>}
             {traceLoading ? <ResultSkeleton /> : traceResults.length > 0 && <div className="finder-trace-results">{traceResults.map((result, index) => <Link to={`/anime/${result.id}`} key={`${result.id}-${index}`}><ProgressiveImage src={result.image} alt={result.title} wrapperClassName="finder-trace-results__image" className="h-full w-full object-cover" /><div><span>{result.similarity}% frame match</span><h3>{result.title}</h3><p>Episode {result.episode} · {formatTime(result.time)}</p></div><ArrowRight size={18} /></Link>)}</div>}
+            {(visualLoading || visualInsight) && <div className="finder-ai-answer">{visualLoading ? <><RefreshCw size={18} className="animate-spin" /><div><strong>Reading characters and setting…</strong><p>Checking visual clues beyond an exact episode-frame match.</p></div></> : visualInsight && <><Sparkles size={18} /><div><strong>{visualInsight.summary || "Visual matches"}</strong>{visualInsight.setting && <p>{visualInsight.setting}</p>}{visualInsight.characters.length > 0 && <span>{visualInsight.characters.join(" · ")}</span>}</div></>}</div>}
+            {!visualLoading && visualMatches.length > 0 && <><div className="finder-result-label">Character and setting matches</div><AnimeResults items={visualMatches} /></>}
           </section>
         )}
 
@@ -545,6 +639,7 @@ export const NeuralDiscovery: React.FC = () => {
             <form className="finder-scene-search" onSubmit={findScene}><textarea rows={4} value={sceneQuery} onChange={(event) => setSceneQuery(event.target.value)} placeholder="Example: A detective finds a notebook that can kill people and starts playing mind games with the police." /><button disabled={sceneLoading}><Search size={16} />{sceneLoading ? "Checking clues..." : "Find matching anime"}</button></form>
             <div className="finder-examples"><span>Try:</span>{["Pirates searching for a legendary treasure", "A girl travels through time to save her friends", "A volleyball team reaches a national tournament"].map((example) => <button key={example} onClick={() => setSceneQuery(example)}>{example}</button>)}</div>
             {sceneError && <div className="finder-error"><AlertCircle size={17} />{sceneError}</div>}
+            {sceneInsight && <div className="finder-ai-answer"><Sparkles size={18} /><div><strong>{sceneInsight.summary}</strong>{sceneInsight.setting && <p>{sceneInsight.setting}</p>}{sceneInsight.characters.length > 0 && <span>{sceneInsight.characters.join(" · ")}</span>}</div></div>}
             {sceneLoading ? <ResultSkeleton /> : <AnimeResults items={sceneResults} empty="Describe a scene to find likely matches." />}
           </section>
         )}
@@ -555,14 +650,15 @@ export const NeuralDiscovery: React.FC = () => {
             <form className="finder-search" onSubmit={findDialogue}><Quote size={18} /><input value={dialogueQuery} onChange={(event) => setDialogueQuery(event.target.value)} placeholder="Try: set your heart ablaze, Luffy, or Steins;Gate" /><button disabled={dialogueLoading}>{dialogueLoading ? "Searching..." : "Search"}</button></form>
             <div className="finder-examples"><span>Popular:</span>{DIALOGUE_INDEX.slice(0, 4).map((entry) => <button key={entry.line} onClick={() => { setDialogueQuery(entry.line); void findDialogueText(entry.line); }}>{entry.line}</button>)}</div>
             {dialogueError && <div className="finder-error"><AlertCircle size={17} />{dialogueError}</div>}
-            {dialogueLoading ? <div className="finder-dialogue-loading"><span /><span /><span /></div> : <div className="finder-dialogue-results">{(dialogueResults.length ? dialogueResults : DIALOGUE_INDEX.slice(0, 6)).map((entry) => <article key={`${entry.anime}-${entry.line}`}><Quote size={18} /><div><p>“{entry.line}”</p><span>{entry.character} · {entry.anime}</span></div>{entry.id && <Link to={`/anime/${entry.id}`}>Open anime<ArrowRight size={14} /></Link>}</article>)}</div>}
+            {dialogueInsight && <div className="finder-ai-answer"><Sparkles size={18} /><div><strong>{dialogueInsight.summary}</strong>{dialogueInsight.setting && <p>{dialogueInsight.setting}</p>}</div></div>}
+            {dialogueLoading ? <div className="finder-dialogue-loading"><span /><span /><span /></div> : <div className="finder-dialogue-results">{(dialogueResults.length ? dialogueResults : DIALOGUE_INDEX.slice(0, 6)).map((entry) => <article key={`${entry.anime}-${entry.line}`}><Quote size={18} /><div><p>“{entry.line}”</p><span>{entry.character} · {entry.anime}{entry.confidence ? ` · ${entry.confidence}% match` : ""}</span>{entry.reason && <small>{entry.reason}</small>}</div>{entry.id && <Link to={`/anime/${entry.id}`}>Open anime<ArrowRight size={14} /></Link>}</article>)}</div>}
           </section>
         )}
 
         {activeTab === "for-you" && (
           <section className="finder-panel">
             <div className="finder-panel__heading"><div><span>Your library</span><h2>Recommendations from what you saved</h2><p>Uses your favorites and anime watchlist, then leaves out titles already saved.</p></div>{savedLibraryIds.length > 0 && <button className="finder-refresh" onClick={buildRecommendations} disabled={personalLoading || libraryHydrating}><RefreshCw size={15} className={personalLoading ? "animate-spin" : ""} />Refresh picks</button>}</div>
-            {!savedLibraryIds.length ? <div className="finder-library-empty"><Sparkles size={28} /><h3>Build a little history first</h3><p>Add a few anime to Favorites or Watchlist and your picks will appear here.</p><div><Link to="/favourites"><Heart size={15} />Favorites</Link><Link to="/watchlist"><Bookmark size={15} />Watchlist</Link></div></div> : libraryHydrating ? <ResultSkeleton /> : <><div className="finder-taste">Based on {taste.length ? taste.map((genre) => <span key={genre}><CheckCircle2 size={13} />{genre}</span>) : <span><CheckCircle2 size={13} />Your saved anime</span>}</div>{personalError && <div className="finder-error"><AlertCircle size={17} />{personalError}</div>}{personalLoading ? <ResultSkeleton /> : <AnimeResults items={personalResults} empty="No new picks are available yet. Refresh to try again." />}</>}
+            {!savedLibraryIds.length ? <div className="finder-library-empty"><Sparkles size={28} /><h3>Build a little history first</h3><p>Add a few anime to Favorites or Watchlist and your picks will appear here.</p><div><Link to="/favourites"><Heart size={15} />Favorites</Link><Link to="/watchlist"><ListTodo size={15} />Watchlist</Link></div></div> : libraryHydrating ? <ResultSkeleton /> : <><div className="finder-taste">Based on {taste.length ? taste.map((genre) => <span key={genre}><CheckCircle2 size={13} />{genre}</span>) : <span><CheckCircle2 size={13} />Your saved anime</span>}</div>{personalError && <div className="finder-error"><AlertCircle size={17} />{personalError}</div>}{personalLoading ? <ResultSkeleton /> : <AnimeResults items={personalResults} empty="No new picks are available yet. Refresh to try again." />}</>}
           </section>
         )}
       </main>

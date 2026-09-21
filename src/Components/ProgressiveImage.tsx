@@ -25,6 +25,7 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
   const [resolvedSrc, setResolvedSrc] = useState(src || fallbackSrc);
   const [isLoading, setIsLoading] = useState(Boolean(src));
   const [usingFallback, setUsingFallback] = useState(!src);
+  const [isNearViewport, setIsNearViewport] = useState(loading !== "lazy");
   const imageRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
@@ -34,7 +35,29 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
   }, [src, fallbackSrc]);
 
   useEffect(() => {
-    if (!isLoading) return;
+    const image = imageRef.current;
+    if (!image || loading !== "lazy" || typeof IntersectionObserver === "undefined") {
+      setIsNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsNearViewport(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(image);
+    return () => observer.disconnect();
+  }, [resolvedSrc, loading]);
+
+  useEffect(() => {
+    // Native lazy images can remain intentionally untouched while offscreen.
+    // Starting the watchdog before they approach the viewport incorrectly
+    // replaces valid remote artwork with the local fallback.
+    if (!isLoading || !isNearViewport) return;
     const image = imageRef.current;
     if (image?.complete) {
       if (image.naturalWidth > 0) setIsLoading(false);
@@ -53,7 +76,7 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
       }
     }, usingFallback ? 4500 : 12000);
     return () => window.clearTimeout(timeout);
-  }, [fallbackSrc, isLoading, resolvedSrc, usingFallback]);
+  }, [fallbackSrc, isLoading, isNearViewport, resolvedSrc, usingFallback]);
 
   return (
     <span className={`progressive-image ${usingFallback ? "progressive-image--fallback" : ""} ${wrapperClassName}`}>

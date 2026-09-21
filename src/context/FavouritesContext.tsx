@@ -18,6 +18,7 @@ export interface FavouriteAnime {
   genres?: string[];
   addedAt?: string;
   mediaType?: "ANIME" | "MANGA";
+  countryOfOrigin?: string | null;
 }
 
 export interface DeletedFavourite extends FavouriteAnime {
@@ -114,6 +115,7 @@ export const FavouritesProvider: React.FC<{ children: ReactNode }> = ({ children
         chapters: mediaType === "MANGA" ? media.chapters || null : null,
         volumes: mediaType === "MANGA" ? media.volumes || null : null,
         format: media.format || media.type || mediaType,
+        countryOfOrigin: media.countryOfOrigin || null,
         genres: (media.genres || []).map((genre: any) => typeof genre === "string" ? genre : genre?.name).filter(Boolean),
         mediaType,
         addedAt: new Date().toISOString(),
@@ -158,7 +160,7 @@ export const FavouritesProvider: React.FC<{ children: ReactNode }> = ({ children
         await deleteDoc(doc(db, "users", currentUser.uid, "favourites", key));
         setDeletedFavourites((items) => [local, ...items.filter((entry) => entry.originalKey !== key)]);
       }
-      toast(({ closeToast }) => <div className="flex items-center gap-3 text-xs"><span className="min-w-0 flex-1"><strong className="block truncate">{item.title}</strong><small className="text-neutral-400">In Trash for five days</small></span><button className="rounded-full bg-[#ffd700] px-3 py-1.5 font-bold text-black" onClick={() => { void restoreFavourite(key); closeToast?.(); }}>Undo</button></div>, { autoClose: 7000 });
+      toast(({ closeToast }) => <div className="flex w-full items-center gap-3 text-xs"><span className="min-w-0 flex-1"><strong className="block truncate">{item.title}</strong><small className="text-neutral-400">In Trash for five days</small></span><button className="ml-auto flex-shrink-0 rounded-full bg-[#ffd700] px-3 py-1.5 font-bold text-black" onClick={() => { void restoreFavourite(key); closeToast?.(); }}>Undo</button></div>, { autoClose: 7000 });
       return true;
     } catch {
       toast.error("Could not remove this favorite");

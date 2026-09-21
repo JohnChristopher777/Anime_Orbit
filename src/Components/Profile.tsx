@@ -4,7 +4,11 @@ import { useFavourites } from "../context/FavouritesContext";
 import { useWatchlist } from "../context/WatchlistContext";
 import { db } from "../firebase/config";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
-import { EmailAuthProvider, reauthenticateWithCredential, updateProfile } from "firebase/auth";
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updateProfile,
+} from "firebase/auth";
 import {
   User,
   Heart,
@@ -75,11 +79,15 @@ export const Profile: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [genreBackfill, setGenreBackfill] = useState<Record<number, string[]>>({});
+  const [genreBackfill, setGenreBackfill] = useState<Record<number, string[]>>(
+    {},
+  );
 
   // Deletion States
   const [deletionScheduled, setDeletionScheduled] = useState(false);
-  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<string | null>(null);
+  const [scheduledDeletionDate, setScheduledDeletionDate] = useState<
+    string | null
+  >(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -118,7 +126,9 @@ export const Profile: React.FC = () => {
   const handleOpenEditSection = () => {
     setIsEditing(true);
     setTimeout(() => {
-      document.getElementById("edit-profile-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document
+        .getElementById("edit-profile-form")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
   };
 
@@ -127,7 +137,9 @@ export const Profile: React.FC = () => {
     setIsEditing(next);
     if (next) {
       setTimeout(() => {
-        document.getElementById("edit-profile-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document
+          .getElementById("edit-profile-form")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 80);
     }
   };
@@ -162,7 +174,9 @@ export const Profile: React.FC = () => {
             });
             setDeletionScheduled(false);
             setScheduledDeletionDate(null);
-            toast.info("Welcome back! Your scheduled account deletion has been cancelled.");
+            toast.info(
+              "Welcome back! Your scheduled account deletion has been cancelled.",
+            );
           } else if (data.scheduledDeletionDate) {
             setDeletionScheduled(true);
             setScheduledDeletionDate(data.scheduledDeletionDate);
@@ -178,7 +192,9 @@ export const Profile: React.FC = () => {
   useEffect(() => {
     if (!currentUser) return;
     const missingIds = [...watchlist, ...favourites]
-      .filter((item) => !(item.genres || []).length && !genreBackfill[item.mal_id])
+      .filter(
+        (item) => !(item.genres || []).length && !genreBackfill[item.mal_id],
+      )
       .map((item) => Number(item.mal_id))
       .filter(Boolean);
     if (!missingIds.length) return;
@@ -187,16 +203,22 @@ export const Profile: React.FC = () => {
       if (!active) return;
       setGenreBackfill((current) => {
         const next = { ...current };
-        missingIds.forEach((mediaId) => { if (!next[mediaId]) next[mediaId] = []; });
+        missingIds.forEach((mediaId) => {
+          if (!next[mediaId]) next[mediaId] = [];
+        });
         titles.forEach((title) => {
           next[Number(title.mal_id)] = (title.genres || [])
-            .map((genre: any) => typeof genre === "string" ? genre : genre?.name)
+            .map((genre: any) =>
+              typeof genre === "string" ? genre : genre?.name,
+            )
             .filter(Boolean);
         });
         return next;
       });
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [currentUser, watchlist, favourites, genreBackfill]);
 
   // Validate User ID: 15 chars max, at least 1 number, at least 1 uppercase letter, allowed: . @ - _
@@ -204,8 +226,10 @@ export const Profile: React.FC = () => {
     if (!id || !id.trim()) return null;
     if (id.length > 15) return "User ID must be 15 characters or less";
     if (!/\d/.test(id)) return "User ID must contain at least 1 number";
-    if (!/[A-Z]/.test(id)) return "User ID must contain at least 1 uppercase letter";
-    if (!/^[a-zA-Z0-9.@\-_]+$/.test(id)) return "Allowed symbols are: . @ - _ only";
+    if (!/[A-Z]/.test(id))
+      return "User ID must contain at least 1 uppercase letter";
+    if (!/^[a-zA-Z0-9.@\-_]+$/.test(id))
+      return "Allowed symbols are: . @ - _ only";
     return null;
   };
 
@@ -233,10 +257,13 @@ export const Profile: React.FC = () => {
   const joinedDate = useMemo(() => {
     if (!currentUser?.metadata?.creationTime) return "Recently";
     try {
-      return new Date(currentUser.metadata.creationTime).toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-      });
+      return new Date(currentUser.metadata.creationTime).toLocaleDateString(
+        "en-US",
+        {
+          month: "long",
+          year: "numeric",
+        },
+      );
     } catch {
       return "Recently";
     }
@@ -247,8 +274,16 @@ export const Profile: React.FC = () => {
     try {
       const parts = birthDate.split("-");
       if (parts.length === 3) {
-        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        return d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+        const d = new Date(
+          parseInt(parts[0]),
+          parseInt(parts[1]) - 1,
+          parseInt(parts[2]),
+        );
+        return d.toLocaleDateString("en-US", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
       }
       return birthDate;
     } catch {
@@ -261,7 +296,10 @@ export const Profile: React.FC = () => {
     const birth = new Date(birthDate);
     if (isNaN(birth.getTime())) return false;
     const today = new Date();
-    return birth.getDate() === today.getDate() && birth.getMonth() === today.getMonth();
+    return (
+      birth.getDate() === today.getDate() &&
+      birth.getMonth() === today.getMonth()
+    );
   }, [birthDate]);
 
   const isAdult = calculatedAge !== null && calculatedAge >= 18;
@@ -305,11 +343,11 @@ export const Profile: React.FC = () => {
           allowMatureContent: finalMatureSetting,
           updatedAt: new Date().toISOString(),
         },
-        { merge: true }
+        { merge: true },
       );
 
       window.dispatchEvent(
-        new CustomEvent("orbit_avatar_updated", { detail: { avatarUrl } })
+        new CustomEvent("orbit_avatar_updated", { detail: { avatarUrl } }),
       );
 
       toast.success("Profile saved successfully!");
@@ -337,10 +375,15 @@ export const Profile: React.FC = () => {
     setDeleting(true);
 
     try {
-      const credential = EmailAuthProvider.credential(currentUser.email, deletePassword);
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        deletePassword,
+      );
       await reauthenticateWithCredential(currentUser, credential);
 
-      const destructDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const destructDate = new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ).toISOString();
       await setDoc(
         doc(db, "users", currentUser.uid),
         {
@@ -348,14 +391,16 @@ export const Profile: React.FC = () => {
           scheduledDeletionDate: destructDate,
           deletionStatus: "pending_destruction",
         },
-        { merge: true }
+        { merge: true },
       );
 
       setDeletionScheduled(true);
       setScheduledDeletionDate(destructDate);
       setDeleteModalOpen(false);
       setDeletePassword("");
-      toast.warning("Account deletion scheduled. You have 30 days to log in to cancel!");
+      toast.warning(
+        "Account deletion scheduled. You have 30 days to log in to cancel!",
+      );
     } catch (err: any) {
       toast.error("Failed to verify credentials: " + (err.message || "Error"));
     } finally {
@@ -373,7 +418,7 @@ export const Profile: React.FC = () => {
           scheduledDeletionDate: null,
           deletionStatus: "cancelled_manually",
         },
-        { merge: true }
+        { merge: true },
       );
       setDeletionScheduled(false);
       setScheduledDeletionDate(null);
@@ -412,30 +457,52 @@ export const Profile: React.FC = () => {
             <span>Sign In / Register</span>
           </button>
         </div>
-        <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+        />
       </div>
     );
   }
 
-  const watchingCount = watchlist.filter((item) => (item.status || "Plan to Watch") === "Watching").length;
-  const completedCount = watchlist.filter((item) => (item.status || "Plan to Watch") === "Completed").length;
-  const planToWatchCount = watchlist.filter((item) => (item.status || "Plan to Watch") === "Plan to Watch").length;
-  const caughtUpCount = watchlist.filter((item) => item.status === "Caught Up").length;
-  const pausedCount = watchlist.filter((item) => item.status === "On-Hold" || item.status === "Dropped").length;
-  const completionRate = watchlist.length ? Math.round((completedCount / watchlist.length) * 100) : 0;
-  const genreCounts = [...watchlist, ...favourites].reduce<Record<string, number>>((counts, item: any) => {
-    const genres = (item.genres || []).length ? item.genres : genreBackfill[item.mal_id] || [];
+  const watchingCount = watchlist.filter(
+    (item) => (item.status || "Plan to Watch") === "Watching",
+  ).length;
+  const completedCount = watchlist.filter(
+    (item) => (item.status || "Plan to Watch") === "Completed",
+  ).length;
+  const planToWatchCount = watchlist.filter(
+    (item) => (item.status || "Plan to Watch") === "Plan to Watch",
+  ).length;
+  const caughtUpCount = watchlist.filter(
+    (item) => item.status === "Caught Up",
+  ).length;
+  const pausedCount = watchlist.filter(
+    (item) => item.status === "On-Hold" || item.status === "Dropped",
+  ).length;
+  const completionRate = watchlist.length
+    ? Math.round((completedCount / watchlist.length) * 100)
+    : 0;
+  const genreCounts = [...watchlist, ...favourites].reduce<
+    Record<string, number>
+  >((counts, item: any) => {
+    const genres = (item.genres || []).length
+      ? item.genres
+      : genreBackfill[item.mal_id] || [];
     genres.forEach((rawGenre: any) => {
       const genre = typeof rawGenre === "string" ? rawGenre : rawGenre?.name;
       if (genre) counts[genre] = (counts[genre] || 0) + 1;
     });
     return counts;
   }, {});
-  const topGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topGenres = Object.entries(genreCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
   const maxGenreCount = topGenres[0]?.[1] || 1;
   const totalEpisodesWatched = watchlist.reduce((total, item) => {
     const logged = Math.max(0, Number(item.progress || 0));
-    if (item.status === "Completed" && item.episodes) return total + Math.max(logged, Number(item.episodes));
+    if (item.status === "Completed" && item.episodes)
+      return total + Math.max(logged, Number(item.episodes));
     return total + logged;
   }, 0);
   const watchMinutes = watchlist.reduce((total, item) => {
@@ -443,18 +510,33 @@ export const Profile: React.FC = () => {
     const completed = item.status === "Completed";
     const isMovie = String(item.type || "").toLowerCase() === "movie";
     if (isMovie) return total + (completed || logged > 0 ? 120 : 0);
-    return total + (completed && item.episodes ? Math.max(logged, Number(item.episodes)) : logged) * 24;
+    return (
+      total +
+      (completed && item.episodes
+        ? Math.max(logged, Number(item.episodes))
+        : logged) *
+        24
+    );
   }, 0);
-  const interestAxes = Array.from({ length: 5 }, (_, index) => topGenres[index] || [`Taste ${index + 1}`, 0] as [string, number]);
-  const radarPoints = interestAxes.map(([, count], index) => {
-    const angle = -Math.PI / 2 + index * (Math.PI * 2 / 5);
-    const radius = 42 * (Number(count) / maxGenreCount);
-    return `${50 + Math.cos(angle) * radius},${50 + Math.sin(angle) * radius}`;
-  }).join(" ");
-  const radarGridPoints = (scale: number) => interestAxes.map((_, index) => {
-    const angle = -Math.PI / 2 + index * (Math.PI * 2 / 5);
-    return `${50 + Math.cos(angle) * 42 * scale},${50 + Math.sin(angle) * 42 * scale}`;
-  }).join(" ");
+  const interestAxes = Array.from(
+    { length: 5 },
+    (_, index) =>
+      topGenres[index] || ([`Taste ${index + 1}`, 0] as [string, number]),
+  );
+  const radarPoints = interestAxes
+    .map(([, count], index) => {
+      const angle = -Math.PI / 2 + index * ((Math.PI * 2) / 5);
+      const radius = 42 * (Number(count) / maxGenreCount);
+      return `${50 + Math.cos(angle) * radius},${50 + Math.sin(angle) * radius}`;
+    })
+    .join(" ");
+  const radarGridPoints = (scale: number) =>
+    interestAxes
+      .map((_, index) => {
+        const angle = -Math.PI / 2 + index * ((Math.PI * 2) / 5);
+        return `${50 + Math.cos(angle) * 42 * scale},${50 + Math.sin(angle) * 42 * scale}`;
+      })
+      .join(" ");
   const identityGenre = topGenres[0]?.[0] || favoriteGenre || "Anime";
 
   return (
@@ -475,7 +557,8 @@ export const Profile: React.FC = () => {
               Happy birthday, {displayName || "Anime Fan"}
             </h2>
             <p className="text-sm text-neutral-200 mt-2 max-w-lg mx-auto leading-relaxed">
-              Wishing you a wonderful year filled with thrilling adventures, unforgettable stories, and great anime moments!
+              Wishing you a wonderful year filled with thrilling adventures,
+              unforgettable stories, and great anime moments!
             </p>
           </div>
         )}
@@ -484,19 +567,26 @@ export const Profile: React.FC = () => {
         {deletionScheduled && scheduledDeletionDate && (
           <div className="relative bg-red-950/55 border border-red-500/60 rounded-2xl p-5 sm:p-6 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
-              <AlertTriangle size={28} className="text-red-400 flex-shrink-0 mt-0.5" />
+              <AlertTriangle
+                size={28}
+                className="text-red-400 flex-shrink-0 mt-0.5"
+              />
               <div>
                 <h3 className="text-base font-bold font-montserrat text-red-200">
                   Account deletion scheduled
                 </h3>
                 <p className="text-xs sm:text-sm text-neutral-300 mt-1">
-                  Your account and all associated data are scheduled to be deleted on{" "}
+                  Your account and all associated data are scheduled to be
+                  deleted on{" "}
                   <span className="font-bold text-white">
-                    {new Date(scheduledDeletionDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {new Date(scheduledDeletionDate).toLocaleDateString(
+                      "en-US",
+                      {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      },
+                    )}
                   </span>{" "}
                   (30-day grace period). You can cancel before that date.
                 </p>
@@ -590,10 +680,16 @@ export const Profile: React.FC = () => {
                     </p>
                   )}
 
-                  <div className="profile-identity-stamp" aria-label="Anime profile identity">
+                  <div
+                    className="profile-identity-stamp"
+                    aria-label="Anime profile identity"
+                  >
                     <span>Anime Orbit profile</span>
                     <strong>{identityGenre} fan</strong>
-                    <small>{completedCount} completed · {Math.round(watchMinutes / 60)} watch hours</small>
+                    <small>
+                      {completedCount} completed ·{" "}
+                      {Math.round(watchMinutes / 60)} watch hours
+                    </small>
                   </div>
 
                   {/* Joined Date & Email */}
@@ -615,7 +711,8 @@ export const Profile: React.FC = () => {
                   </div>
 
                   <p className="text-sm text-neutral-300 pt-1 leading-relaxed max-w-xl">
-                    {bio || "Add a short bio about the anime and manga you enjoy."}
+                    {bio ||
+                      "Add a short bio about the anime and manga you enjoy."}
                   </p>
                 </div>
               </div>
@@ -639,24 +736,184 @@ export const Profile: React.FC = () => {
               </div>
             </div>
 
-            <section className="profile-insights" aria-labelledby="profile-insights-title">
-              <div className="profile-insights__header"><div><span>Your library</span><h2 id="profile-insights-title">Watching overview</h2></div><div><Link to="/watchlist">Open watchlist</Link><Link to="/favourites">View favorites</Link></div></div>
+            <section
+              className="profile-insights"
+              aria-labelledby="profile-insights-title"
+            >
+              <div className="profile-insights__header">
+                <div>
+                  <h2 id="profile-insights-title">Profile overview</h2>
+                </div>
+                <div>
+                  <Link to="/watchlist">Open watchlist</Link>
+                  <Link to="/favourites">View favorites</Link>
+                </div>
+              </div>
               <div className="profile-insights__stats">
-                <div><strong>{watchlist.length}</strong><span>Tracked</span></div>
-                <div><strong>{watchingCount}</strong><span>Watching</span></div>
-                <div><strong>{caughtUpCount}</strong><span>Caught up</span></div>
-                <div><strong>{completedCount}</strong><span>Completed</span></div>
-                <div><strong>{favourites.length}</strong><span>Favorites</span></div>
-                <div><strong>{totalEpisodesWatched}</strong><span>Episodes watched</span></div>
-                <div><strong>{Math.round(watchMinutes / 60)}</strong><span>Watch hours</span></div>
+                <div>
+                  <strong>{watchlist.length}</strong>
+                  <span>Tracked</span>
+                </div>
+                <div>
+                  <strong>{watchingCount}</strong>
+                  <span>Watching</span>
+                </div>
+                <div>
+                  <strong>{caughtUpCount}</strong>
+                  <span>Caught up</span>
+                </div>
+                <div>
+                  <strong>{completedCount}</strong>
+                  <span>Completed</span>
+                </div>
+                <div>
+                  <strong>{favourites.length}</strong>
+                  <span>Favorites</span>
+                </div>
+                <div>
+                  <strong>{totalEpisodesWatched}</strong>
+                  <span>Episodes watched</span>
+                </div>
+                <div>
+                  <strong>{Math.round(watchMinutes / 60)}</strong>
+                  <span>Watch hours</span>
+                </div>
               </div>
               <div className="profile-insights__demographics">
                 <div className="profile-completion">
-                  <div className="profile-completion__ring" style={{ "--completion": `${completionRate * 3.6}deg` } as React.CSSProperties}><strong>{completionRate}%</strong><span>complete</span></div>
-                  <div><h3>List progress</h3><p>{watchlist.length ? `${completedCount} completed · ${caughtUpCount} caught up · ${pausedCount} paused or dropped` : "Start tracking anime to build your viewing overview."}</p><div className="profile-status-bar"><span style={{ width: `${(watchingCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(caughtUpCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(completedCount / (watchlist.length || 1)) * 100}%` }} /><span style={{ width: `${(planToWatchCount / (watchlist.length || 1)) * 100}%` }} /></div></div>
+                  <div
+                    className="profile-completion__ring"
+                    style={
+                      {
+                        "--completion": `${completionRate * 3.6}deg`,
+                      } as React.CSSProperties
+                    }
+                  >
+                    <strong>{completionRate}%</strong>
+                    <span>complete</span>
+                  </div>
+                  <div>
+                    <h3>List progress</h3>
+                    <p>
+                      {watchlist.length
+                        ? `${completedCount} completed · ${caughtUpCount} caught up · ${pausedCount} paused or dropped`
+                        : "Start tracking anime to build your viewing overview."}
+                    </p>
+                    <div className="profile-status-bar">
+                      <span
+                        style={{
+                          width: `${(watchingCount / (watchlist.length || 1)) * 100}%`,
+                        }}
+                      />
+                      <span
+                        style={{
+                          width: `${(caughtUpCount / (watchlist.length || 1)) * 100}%`,
+                        }}
+                      />
+                      <span
+                        style={{
+                          width: `${(completedCount / (watchlist.length || 1)) * 100}%`,
+                        }}
+                      />
+                      <span
+                        style={{
+                          width: `${(planToWatchCount / (watchlist.length || 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="profile-genres"><h3>Most watched genres</h3>{topGenres.length ? topGenres.map(([genre, count]) => <div key={genre}><span>{genre}</span><i><b style={{ width: `${(count / maxGenreCount) * 100}%` }} /></i><small>{count}</small></div>) : <p>Add genres through your Watchlist and Favorites to see your taste here.</p>}</div>
-                <div className="profile-radar"><div><span>Your anime fingerprint</span><h3>{userId ? `@${userId}` : displayName || "Anime fan"}</h3><p>Built from genres in your Watchlist and Favorites.</p></div><div className="profile-radar__chart"><svg viewBox="0 0 100 100" role="img" aria-label="Interest web chart">{[1,.75,.5,.25].map((scale) => <polygon key={scale} points={radarGridPoints(scale)} className="profile-radar__grid" />)}{interestAxes.map((_, index) => { const angle = -Math.PI / 2 + index * (Math.PI * 2 / 5); return <line key={`axis-${index}`} x1="50" y1="50" x2={50 + Math.cos(angle) * 42} y2={50 + Math.sin(angle) * 42} className="profile-radar__axis" />; })}<polygon points={radarPoints || "50,50 50,50 50,50 50,50 50,50"} className="profile-radar__area" />{interestAxes.map(([genre], index) => { const angle = -Math.PI / 2 + index * (Math.PI * 2 / 5); return <circle key={`${genre}-${index}`} cx={50 + Math.cos(angle) * 42 * (Number(interestAxes[index][1]) / maxGenreCount)} cy={50 + Math.sin(angle) * 42 * (Number(interestAxes[index][1]) / maxGenreCount)} r="2" />; })}</svg>{interestAxes.map(([genre], index) => <span key={`${genre}-label`} data-axis={index}>{genre}</span>)}</div></div>
+                <div className="profile-genres">
+                  <h3>Most watched genres</h3>
+                  {topGenres.length ? (
+                    topGenres.map(([genre, count]) => (
+                      <div key={genre}>
+                        <span>{genre}</span>
+                        <i>
+                          <b
+                            style={{
+                              width: `${(count / maxGenreCount) * 100}%`,
+                            }}
+                          />
+                        </i>
+                        <small>{count}</small>
+                      </div>
+                    ))
+                  ) : (
+                    <p>
+                      Add genres through your Watchlist and Favorites to see
+                      your taste here.
+                    </p>
+                  )}
+                </div>
+                <div className="profile-radar">
+                  <div>
+                    <h3>
+                      {userId ? `@${userId}` : displayName || "Anime fan"}
+                    </h3>
+                    <p>Built from genres in your Watchlist and Favorites.</p>
+                  </div>
+                  <div className="profile-radar__chart">
+                    <svg
+                      viewBox="0 0 100 100"
+                      role="img"
+                      aria-label="Interest web chart"
+                    >
+                      {[1, 0.75, 0.5, 0.25].map((scale) => (
+                        <polygon
+                          key={scale}
+                          points={radarGridPoints(scale)}
+                          className="profile-radar__grid"
+                        />
+                      ))}
+                      {interestAxes.map((_, index) => {
+                        const angle =
+                          -Math.PI / 2 + index * ((Math.PI * 2) / 5);
+                        return (
+                          <line
+                            key={`axis-${index}`}
+                            x1="50"
+                            y1="50"
+                            x2={50 + Math.cos(angle) * 42}
+                            y2={50 + Math.sin(angle) * 42}
+                            className="profile-radar__axis"
+                          />
+                        );
+                      })}
+                      <polygon
+                        points={radarPoints || "50,50 50,50 50,50 50,50 50,50"}
+                        className="profile-radar__area"
+                      />
+                      {interestAxes.map(([genre], index) => {
+                        const angle =
+                          -Math.PI / 2 + index * ((Math.PI * 2) / 5);
+                        return (
+                          <circle
+                            key={`${genre}-${index}`}
+                            cx={
+                              50 +
+                              Math.cos(angle) *
+                                42 *
+                                (Number(interestAxes[index][1]) / maxGenreCount)
+                            }
+                            cy={
+                              50 +
+                              Math.sin(angle) *
+                                42 *
+                                (Number(interestAxes[index][1]) / maxGenreCount)
+                            }
+                            r="2"
+                          />
+                        );
+                      })}
+                    </svg>
+                    {interestAxes.map(([genre], index) => (
+                      <span key={`${genre}-label`} data-axis={index}>
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </section>
           </div>
@@ -718,7 +975,8 @@ export const Profile: React.FC = () => {
                         : "border-white/20 opacity-70 hover:opacity-100"
                     }`}
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = AVATAR_PRESETS[4];
+                      (e.currentTarget as HTMLImageElement).src =
+                        AVATAR_PRESETS[4];
                     }}
                   />
                 ))}
@@ -763,7 +1021,8 @@ export const Profile: React.FC = () => {
                       alt={`Banner Option ${idx + 1}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = BANNER_PRESETS[3];
+                        (e.currentTarget as HTMLImageElement).src =
+                          BANNER_PRESETS[3];
                       }}
                     />
                   </div>
@@ -774,7 +1033,10 @@ export const Profile: React.FC = () => {
             {/* Display Name (15 Char Restriction) */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label htmlFor="profile-display-name" className="block text-xs font-bold uppercase font-montserrat text-neutral-300">
+                <label
+                  htmlFor="profile-display-name"
+                  className="block text-xs font-bold uppercase font-montserrat text-neutral-300"
+                >
                   Display Name (Max 15 Characters)
                 </label>
                 <span className="text-[11px] text-[#ffd700] font-mono">
@@ -796,7 +1058,10 @@ export const Profile: React.FC = () => {
             {/* Unique User ID Tag */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label htmlFor="profile-user-id" className="block text-xs font-bold uppercase font-montserrat text-neutral-300">
+                <label
+                  htmlFor="profile-user-id"
+                  className="block text-xs font-bold uppercase font-montserrat text-neutral-300"
+                >
                   Unique User ID (Pinpoint Identifier)
                 </label>
                 <span className="text-[11px] text-[#ffd700] font-mono">
@@ -804,7 +1069,9 @@ export const Profile: React.FC = () => {
                 </span>
               </div>
               <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-[#ffd700] font-mono font-bold text-sm">@</span>
+                <span className="absolute left-3.5 top-2.5 text-[#ffd700] font-mono font-bold text-sm">
+                  @
+                </span>
                 <input
                   id="profile-user-id"
                   name="userId"
@@ -822,14 +1089,19 @@ export const Profile: React.FC = () => {
                 </p>
               ) : (
                 <p className="text-[11px] text-neutral-400 mt-1">
-                  Must be ≤15 characters, contain at least 1 number and 1 capital letter. Allowed: <code className="text-[#ffd700]">. @ - _</code>
+                  Must be ≤15 characters, contain at least 1 number and 1
+                  capital letter. Allowed:{" "}
+                  <code className="text-[#ffd700]">. @ - _</code>
                 </p>
               )}
             </div>
 
             {/* Enhanced Date of Birth & Calendar Picker */}
             <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3">
-              <label htmlFor="profile-birth-date" className="flex items-center gap-2 text-xs font-bold uppercase font-montserrat text-neutral-200">
+              <label
+                htmlFor="profile-birth-date"
+                className="flex items-center gap-2 text-xs font-bold uppercase font-montserrat text-neutral-200"
+              >
                 <Calendar size={16} className="text-[#ffd700]" />
                 <span>Date of Birth</span>
               </label>
@@ -849,13 +1121,22 @@ export const Profile: React.FC = () => {
                   <span className="text-[#ffd700] font-bold">
                     Verified Age: {calculatedAge} years old
                   </span>
-                  <span className={isAdult ? "text-emerald-400 font-semibold" : "text-blue-400 font-semibold"}>
-                    {isAdult ? "Eligible for Mature 18+ Anime" : "Protected Mode (Teen)"}
+                  <span
+                    className={
+                      isAdult
+                        ? "text-emerald-400 font-semibold"
+                        : "text-blue-400 font-semibold"
+                    }
+                  >
+                    {isAdult
+                      ? "Eligible for Mature 18+ Anime"
+                      : "Protected Mode (Teen)"}
                   </span>
                 </div>
               ) : (
                 <p className="text-xs text-neutral-400">
-                  Enter your birth date to calculate your age and receive personalized birthday greetings.
+                  Enter your birth date to calculate your age and receive
+                  personalized birthday greetings.
                 </p>
               )}
             </div>
@@ -864,8 +1145,16 @@ export const Profile: React.FC = () => {
             <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <label htmlFor="profile-allow-mature" className="text-sm font-bold font-montserrat text-white flex items-center gap-1.5 cursor-pointer">
-                    <ShieldAlert size={16} className={isAdult ? "text-[#ffd700]" : "text-neutral-500"} />
+                  <label
+                    htmlFor="profile-allow-mature"
+                    className="text-sm font-bold font-montserrat text-white flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ShieldAlert
+                      size={16}
+                      className={
+                        isAdult ? "text-[#ffd700]" : "text-neutral-500"
+                      }
+                    />
                     <span>Include 18+ Mature & R-17+ Content</span>
                   </label>
                   <p className="text-xs text-neutral-400 mt-0.5">
@@ -888,10 +1177,17 @@ export const Profile: React.FC = () => {
 
             {/* Favorite Genre */}
             <div>
-              <label htmlFor="profile-favorite-genre" className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2">
+              <label
+                htmlFor="profile-favorite-genre"
+                className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2"
+              >
                 Favorite genre
               </label>
-              <AppDropdown ariaLabel="Favorite genre" value={favoriteGenre} onChange={setFavoriteGenre} options={[
+              <AppDropdown
+                ariaLabel="Favorite genre"
+                value={favoriteGenre}
+                onChange={setFavoriteGenre}
+                options={[
                   "Action",
                   "Adventure",
                   "Comedy",
@@ -906,12 +1202,16 @@ export const Profile: React.FC = () => {
                   "Sports",
                   "Supernatural",
                   "Thriller",
-                ].map((genre) => ({ value: genre, label: genre }))} />
+                ].map((genre) => ({ value: genre, label: genre }))}
+              />
             </div>
 
             {/* Bio */}
             <div>
-              <label htmlFor="profile-bio" className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2">
+              <label
+                htmlFor="profile-bio"
+                className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2"
+              >
                 About You (Bio)
               </label>
               <textarea

@@ -1,6 +1,262 @@
 const ANILIST_API_URL = import.meta.env.VITE_ANILIST_API_URL || "https://graphql.anilist.co";
+const KITSU_API_URL = "https://kitsu.io/api/edge";
+const JIKAN_API_URL = "https://api.jikan.moe/v4";
 const QUERY_CACHE_MS = 5 * 60 * 1000;
 const queryCache = new Map();
+const kitsuCache = new Map();
+const jikanCache = new Map();
+const mangaMetadataCache = new Map();
+
+async function queryKitsu(path) {
+  const now = Date.now();
+  const cached = kitsuCache.get(path);
+  if (cached && cached.expiresAt > now) return cached.promise;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  const request = fetch(`${KITSU_API_URL}${path}`, {
+    signal: controller.signal,
+    headers: { Accept: "application/vnd.api+json" },
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`Kitsu API Error: ${response.status}`);
+    return response.json();
+  }).catch((error) => {
+    kitsuCache.delete(path);
+    throw error;
+  }).finally(() => clearTimeout(timeout));
+
+  kitsuCache.set(path, { expiresAt: now + QUERY_CACHE_MS, promise: request });
+  return request;
+}
+
+async function queryJikan(path) {
+  const now = Date.now();
+  const cached = jikanCache.get(path);
+  if (cached && cached.expiresAt > now) return cached.promise;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  const request = fetch(`${JIKAN_API_URL}${path}`, {
+    signal: controller.signal,
+    headers: { Accept: "application/json" },
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`Jikan API Error: ${response.status}`);
+    return response.json();
+  }).catch((error) => {
+    jikanCache.delete(path);
+    throw error;
+  }).finally(() => clearTimeout(timeout));
+
+  jikanCache.set(path, { expiresAt: now + QUERY_CACHE_MS, promise: request });
+  return request;
+}
+
+async function queryMangaMetadata(malId, title) {
+  const key = `${malId || ""}:${normaliseTitle(title)}`;
+  const now = Date.now();
+  const cached = mangaMetadataCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.promise;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+  const params = new URLSearchParams();
+  if (malId) params.set("malId", String(malId));
+  if (title) params.set("title", title);
+  const request = fetch(`/api/manga-metadata?${params.toString()}`, {
+    signal: controller.signal,
+    headers: { Accept: "application/json" },
+  }).then(async (response) => {
+    if (!response.ok) throw new Error(`Manga metadata endpoint error: ${response.status}`);
+    return response.json();
+  }).catch((error) => {
+    mangaMetadataCache.delete(key);
+    throw error;
+  }).finally(() => clearTimeout(timeout));
+  mangaMetadataCache.set(key, { expiresAt: now + QUERY_CACHE_MS, promise: request });
+  return request;
+}
+
+async function getMangaDexChapterCount(malId, title) {
+  if (!malId && !title) return 0;
+  const metadata = await queryMangaMetadata(malId, title);
+  return positiveNumber(metadata?.chapterCount);
+}
+
+async function queryKitsuGuideRange(resourceType, mediaId, childType, offset, limit) {
+  const data = [];
+  let meta = {};
+  let remaining = limit;
+  let nextOffset = offset;
+
+  // Kitsu rejects relationship requests above 20 even though the surrounding
+  // interface uses 50-item ranges. Fetch small accepted chunks and merge them.
+  while (remaining > 0) {
+    const chunkSize = Math.min(20, remaining);
+    const response = await queryKitsu(`/${resourceType}/${mediaId}/${childType}?page[limit]=${chunkSize}&page[offset]=${nextOffset}`);
+    if (!Object.keys(meta).length) meta = response?.meta || {};
+    data.push(...(response?.data || []));
+    if ((response?.data || []).length < chunkSize) break;
+    remaining -= chunkSize;
+    nextOffset += chunkSize;
+  }
+  return { data, meta };
+}
+
+async function getJikanEpisodeRange(malId, offset, limit) {
+  if (!positiveNumber(malId)) return [];
+  // Jikan exposes 100 episode records per page. Translate our 50-item UI ranges
+  // to the corresponding API page, then keep only the requested numbers.
+  const apiPage = Math.floor(offset / 100) + 1;
+  const response = await queryJikan(`/anime/${malId}/episodes?page=${apiPage}`);
+  const first = offset + 1;
+  const last = offset + limit;
+  return (response?.data || []).map((episode) => {
+    const number = positiveNumber(episode.mal_id);
+    const title = episode.title || episode.title_romanji || episode.title_japanese || "";
+    return {
+      mal_id: number,
+      number,
+      title: title || `Episode ${number}`,
+      summary: "",
+      thumbnail: "",
+      aired: episode.aired || null,
+      filler: Boolean(episode.filler),
+      recap: Boolean(episode.recap),
+      forumUrl: episode.forum_url || "",
+      metadataAvailable: Boolean(title || episode.aired),
+    };
+  }).filter((episode) => episode.number >= first && episode.number <= last);
+}
+
+function positiveNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function normaliseTitle(value = "") {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+async function resolveKitsuMedia(mediaType, malId, title, knownKitsuId) {
+  const resourceType = mediaType === "MANGA" ? "manga" : "anime";
+  if (knownKitsuId) {
+    const response = await queryKitsu(`/${resourceType}/${knownKitsuId}`);
+    return response?.data || null;
+  }
+
+  if (malId) {
+    try {
+      const externalSite = `myanimelist/${resourceType}`;
+      const response = await queryKitsu(`/mappings?filter[externalSite]=${encodeURIComponent(externalSite)}&filter[externalId]=${encodeURIComponent(malId)}&include=item`);
+      const included = response?.included?.find((item) => item.type === resourceType);
+      const relatedId = response?.data?.[0]?.relationships?.item?.data?.id;
+      if (included) return included;
+      if (relatedId) {
+        const related = await queryKitsu(`/${resourceType}/${relatedId}`);
+        if (related?.data) return related.data;
+      }
+    } catch {
+      // Some older records have no usable external mapping; exact-title search is the fallback.
+    }
+  }
+
+  if (!title) return null;
+  const response = await queryKitsu(`/${resourceType}?filter[text]=${encodeURIComponent(title)}&page[limit]=5`);
+  const candidates = response?.data || [];
+  const wanted = normaliseTitle(title);
+  return candidates.find((entry) => {
+    const attributes = entry.attributes || {};
+    return [attributes.canonicalTitle, attributes.titles?.en, attributes.titles?.en_jp]
+      .filter(Boolean)
+      .some((candidate) => normaliseTitle(candidate) === wanted);
+  }) || candidates[0] || null;
+}
+
+export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kitsuId, page = 1, perPage = 24, fallbackCount = 0 }) {
+  const normalizedType = mediaType === "MANGA" ? "MANGA" : "ANIME";
+  const resourceType = normalizedType === "MANGA" ? "manga" : "anime";
+  const childType = normalizedType === "MANGA" ? "chapters" : "episodes";
+  const safePage = Math.max(1, Number(page) || 1);
+  const safeLimit = Math.min(50, Math.max(1, Number(perPage) || 24));
+  const offset = (safePage - 1) * safeLimit;
+  let jikanItems = [];
+  let mangaDexCount = 0;
+
+  if (normalizedType === "ANIME" && malId) {
+    try {
+      jikanItems = await getJikanEpisodeRange(malId, offset, safeLimit);
+    } catch (error) {
+      console.warn("Jikan episode metadata unavailable; continuing with other sources.", error);
+    }
+  }
+  if (normalizedType === "MANGA" && !positiveNumber(fallbackCount)) {
+    try {
+      mangaDexCount = await getMangaDexChapterCount(malId, title);
+    } catch (error) {
+      console.warn("MangaDex chapter count unavailable; continuing with AniList/Kitsu.", error);
+    }
+  }
+
+  try {
+    const media = await resolveKitsuMedia(normalizedType, malId, title, kitsuId);
+    if (!media?.id) return { kitsuId: null, totalCount: positiveNumber(fallbackCount) || mangaDexCount, items: jikanItems, trailerId: null };
+
+    let guide = { data: [], meta: {} };
+    try {
+      guide = await queryKitsuGuideRange(resourceType, media.id, childType, offset, safeLimit);
+    } catch (error) {
+      console.warn(`Kitsu ${childType} unavailable; using available catalogue metadata.`, error);
+    }
+    const attributeCount = normalizedType === "MANGA"
+      ? positiveNumber(media.attributes?.chapterCount)
+      : positiveNumber(media.attributes?.episodeCount);
+    // AniList remains authoritative when it publishes a total (including the
+    // current episode inferred from nextAiringEpisode). Kitsu relationship
+    // counts can include unaired/stub records, so they are only a fallback.
+    const authoritativeCount = positiveNumber(fallbackCount);
+    const totalCount = normalizedType === "MANGA"
+      ? authoritativeCount || mangaDexCount || attributeCount
+      : authoritativeCount || Math.max(positiveNumber(guide?.meta?.count), attributeCount);
+    const kitsuItems = (guide?.data || []).map((entry) => {
+      const attributes = entry.attributes || {};
+      const number = positiveNumber(attributes.number);
+      const publishedTitle = attributes.canonicalTitle || attributes.titles?.en || attributes.titles?.en_us || attributes.titles?.en_jp || "";
+      const thumbnail = attributes.thumbnail?.original || attributes.thumbnail?.large || "";
+      return {
+        mal_id: number || entry.id,
+        number,
+        title: publishedTitle || `${normalizedType === "MANGA" ? "Chapter" : "Episode"} ${number || entry.id}`,
+        summary: attributes.synopsis || "",
+        thumbnail,
+        aired: attributes.airdate || attributes.published || null,
+        length: positiveNumber(attributes.length),
+        metadataAvailable: Boolean(publishedTitle || attributes.synopsis || thumbnail || attributes.airdate || attributes.published),
+      };
+    }).filter((item) => item.number > 0);
+
+    const itemsByNumber = new Map(jikanItems.map((item) => [item.number, item]));
+    kitsuItems.forEach((item) => {
+      const secondary = itemsByNumber.get(item.number) || {};
+      itemsByNumber.set(item.number, {
+        ...secondary,
+        ...item,
+        title: item.metadataAvailable && !/^Episode \d+$/i.test(item.title) ? item.title : secondary.title || item.title,
+        aired: item.aired || secondary.aired || null,
+        metadataAvailable: Boolean(item.metadataAvailable || secondary.metadataAvailable),
+      });
+    });
+    const items = [...itemsByNumber.values()].sort((a, b) => a.number - b.number);
+
+    return {
+      kitsuId: media.id,
+      totalCount,
+      items,
+      trailerId: normalizedType === "ANIME" ? media.attributes?.youtubeVideoId || null : null,
+    };
+  } catch (error) {
+    console.warn("Supplemental media guide unavailable; using AniList metadata.", error);
+    return { kitsuId: kitsuId || null, totalCount: positiveNumber(fallbackCount) || mangaDexCount, items: jikanItems, trailerId: null };
+  }
+}
 
 async function queryAniList(query, variables = {}) {
   const cacheKey = JSON.stringify([query, variables]);
@@ -66,6 +322,18 @@ function mapFormat(format) {
   return formats[format] || format;
 }
 
+function mapMangaFormat(format, countryOfOrigin) {
+  if (format === "NOVEL") return "Light Novel";
+  if (format === "ONE_SHOT") return "One-shot";
+  if (countryOfOrigin === "KR") return "Manhwa";
+  if (countryOfOrigin === "CN" || countryOfOrigin === "TW") return "Manhua";
+  return format === "MANGA" ? "Manga" : mapFormat(format) || "Manga";
+}
+
+function mapMediaFormat(format, countryOfOrigin, mediaType) {
+  return mediaType === "MANGA" ? mapMangaFormat(format, countryOfOrigin) : mapFormat(format);
+}
+
 // Helper: Map status
 function mapStatus(status) {
   if (!status) return "N/A";
@@ -120,6 +388,7 @@ function mapAniListAnimeToJikan(media) {
 
   return {
     mal_id: media.id,
+    malId: media.idMal || null,
     title: displayTitle,
     title_english: media.title.english || displayTitle,
     title_japanese: media.title.native || "",
@@ -240,8 +509,8 @@ function mapAniListRelationsToJikan(edges) {
     groups[relationName].push({
       mal_id: edge.node.id,
       name: edge.node.title.english || edge.node.title.romaji || edge.node.title.userPreferred || "Unknown Title",
-      type: mapFormat(edge.node.format) || edge.node.type || "N/A",
-      format: mapFormat(edge.node.format),
+      type: mapMediaFormat(edge.node.format, edge.node.countryOfOrigin, edge.node.type) || edge.node.type || "N/A",
+      format: mapMediaFormat(edge.node.format, edge.node.countryOfOrigin, edge.node.type),
       status: mapStatus(edge.node.status),
       score: edge.node.averageScore ? (edge.node.averageScore / 10).toFixed(1) : null,
       image: edge.node.coverImage?.extraLarge || edge.node.coverImage?.large || edge.node.coverImage?.medium || ""
@@ -278,7 +547,8 @@ function mapAniListEpisodesToJikan(streamingEpisodes, totalEpisodes) {
       url: stream?.url || "",
       site: stream?.site || "",
       aired: null,
-      summary: stream?.title ? `${stream.title} - Official broadcast episode.` : `Episode ${i} of the animated series.`
+      summary: stream?.title ? `${stream.title} - Official broadcast episode.` : "",
+      metadataAvailable: Boolean(stream?.title || stream?.thumbnail || stream?.url),
     });
   }
 
@@ -496,6 +766,7 @@ export async function getMangaDetailsCombined(id) {
               }
               type
               format
+              countryOfOrigin
               coverImage {
                 extraLarge
                 large
@@ -559,10 +830,21 @@ export async function getMangaDetailsCombined(id) {
       e.role.toLowerCase().includes('art')
     )?.node?.name?.full || "the original creator";
 
+    const title = m.title?.english || m.title?.romaji || m.title?.userPreferred || "Manga";
+    const chapterGuide = await getMediaGuidePage({
+      mediaType: "MANGA",
+      malId: m.idMal,
+      title,
+      fallbackCount: m.chapters,
+      page: 1,
+      perPage: 50,
+    });
+
     return {
       mal_id: m.id,
       malId: m.idMal,
-      title: m.title?.english || m.title?.romaji || m.title?.userPreferred || "Manga",
+      kitsuId: chapterGuide.kitsuId,
+      title,
       title_english: m.title?.english,
       title_japanese: m.title?.native,
       synopsis: stripHtml(m.description || ""),
@@ -579,18 +861,25 @@ export async function getMangaDetailsCombined(id) {
       favourites: m.favourites || 0,
       updatedAt: m.updatedAt,
       siteUrl: m.siteUrl,
-      chapters: m.chapters || "Publishing / Ongoing",
+      chapters: chapterGuide.totalCount || positiveNumber(m.chapters) || null,
+      chapterGuide: chapterGuide.items,
       volumes: m.volumes || "Unknown",
       status: mapStatus(m.status),
       genres: m.genres || [],
       countryOfOrigin: m.countryOfOrigin || "JP",
-      format: m.format || "MANGA",
+      format: mapMangaFormat(m.format, m.countryOfOrigin),
       source: m.source || "ORIGINAL",
       startDate: m.startDate,
       endDate: m.endDate,
       characters: m.characters?.edges || [],
       staff: m.staff?.edges || [],
-      relations: m.relations?.edges || [],
+      relations: (m.relations?.edges || []).map((edge) => ({
+        ...edge,
+        node: edge.node ? {
+          ...edge.node,
+          format: mapMediaFormat(edge.node.format, edge.node.countryOfOrigin, edge.node.type),
+        } : edge.node,
+      })),
       externalLinks: m.externalLinks || []
     };
   } catch (error) {
@@ -605,6 +894,7 @@ export async function getAnimeDetailsCombined(id) {
     query ($id: Int) {
       Media(id: $id, type: ANIME) {
         id
+        idMal
         title {
           english
           romaji
@@ -687,6 +977,7 @@ export async function getAnimeDetailsCombined(id) {
               }
               type
               format
+              countryOfOrigin
               coverImage {
                 extraLarge
                 large
@@ -749,12 +1040,44 @@ export async function getAnimeDetailsCombined(id) {
     externalLinks: media.externalLinks || []
   };
 
+  const guide = await getMediaGuidePage({
+    mediaType: "ANIME",
+    malId: media.idMal,
+    title: mappedAnime.title,
+    fallbackCount: mappedAnime.episodes,
+    page: 1,
+    perPage: 50,
+  });
+  mappedAnime.episodes = Math.max(positiveNumber(mappedAnime.episodes), guide.totalCount) || null;
+  mappedAnime.kitsuId = guide.kitsuId;
+  if (!mappedAnime.trailer && guide.trailerId) {
+    mappedAnime.trailer = {
+      youtube_id: guide.trailerId,
+      url: `https://www.youtube.com/watch?v=${guide.trailerId}`,
+      embed_url: `https://www.youtube.com/embed/${guide.trailerId}`,
+    };
+  }
+
+  const episodeList = mapAniListEpisodesToJikan(media.streamingEpisodes, mappedAnime.episodes);
+  guide.items.forEach((item) => {
+    const index = item.number - 1;
+    if (index < 0 || index >= episodeList.length) return;
+    episodeList[index] = {
+      ...episodeList[index],
+      ...item,
+      mal_id: item.number,
+      title: item.title || episodeList[index].title,
+      summary: item.summary || episodeList[index].summary,
+      thumbnail: item.thumbnail || episodeList[index].thumbnail,
+    };
+  });
+
   return {
     anime: mappedAnime,
     characters: mapAniListCharactersToJikan(media.characters?.edges),
     staff: mapAniListStaffToJikan(media.staff?.edges),
     relations: mapAniListRelationsToJikan(media.relations?.edges),
-    episodes: mapAniListEpisodesToJikan(media.streamingEpisodes, mappedAnime.episodes)
+    episodes: episodeList
   };
 }
 
@@ -1040,6 +1363,7 @@ export async function getFranchiseDetails(id) {
           averageScore
           popularity
           format
+          countryOfOrigin
           status
           episodes
           duration
@@ -1085,7 +1409,8 @@ export async function getFranchiseDetails(id) {
     image: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || "",
     score: media.averageScore ? (media.averageScore / 10).toFixed(1) : null,
     popularity: Number(media.popularity || 0),
-    format: media.format || media.type,
+    countryOfOrigin: media.countryOfOrigin,
+    format: mapMediaFormat(media.format, media.countryOfOrigin, media.type) || media.type,
     status: mapStatus(media.status),
     episodes: media.episodes || null,
     duration: media.duration || null,
@@ -1142,6 +1467,7 @@ export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY
           averageScore
           popularity
           format
+          countryOfOrigin
           chapters
           volumes
           status
@@ -1173,8 +1499,9 @@ export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY
         status: mapStatus(m.status),
         genres: m.genres || [],
         year: m.startDate?.year || m.seasonYear,
-        format: m.format || "MANGA",
-        type: "Manga"
+        countryOfOrigin: m.countryOfOrigin,
+        format: mapMangaFormat(m.format, m.countryOfOrigin),
+        type: mapMangaFormat(m.format, m.countryOfOrigin)
       })),
       pageInfo: data.Page.pageInfo
     };
@@ -1194,6 +1521,7 @@ export async function searchManga(search, perPage = 12) {
           coverImage { extraLarge large medium }
           averageScore
           format
+          countryOfOrigin
           chapters
           volumes
           status
@@ -1215,8 +1543,9 @@ export async function searchManga(search, perPage = 12) {
     status: mapStatus(m.status),
     genres: m.genres || [],
     year: m.startDate?.year,
-    format: m.format || "MANGA",
-    type: "Manga",
+    countryOfOrigin: m.countryOfOrigin,
+    format: mapMangaFormat(m.format, m.countryOfOrigin),
+    type: mapMangaFormat(m.format, m.countryOfOrigin),
   }));
 }
 
@@ -1254,6 +1583,66 @@ export async function getAnimeByGenre(genre, perPage = 24, page = 1, sort = "FAV
     };
   } catch (error) {
     console.error("Error fetching anime by genre:", error);
+    return { media: [], pageInfo: { hasNextPage: false } };
+  }
+}
+
+export async function getMangaByGenre(genre, perPage = 24, page = 1, sort = "FAVOURITES_DESC") {
+  const query = `
+    query ($genre: String, $perPage: Int, $page: Int, $sort: [MediaSort]) {
+      Page(page: $page, perPage: $perPage) {
+        pageInfo { hasNextPage }
+        media(type: MANGA, genre: $genre, sort: $sort, isAdult: false) {
+          id
+          title { english romaji userPreferred }
+          coverImage { extraLarge large medium }
+          averageScore
+          popularity
+          favourites
+          format
+          countryOfOrigin
+          chapters
+          volumes
+          status
+          genres
+          startDate { year }
+          bannerImage
+        }
+      }
+    }
+  `;
+  const sortArray = sort === "SCORE_DESC"
+    ? ["SCORE_DESC", "FAVOURITES_DESC"]
+    : sort === "POPULARITY_DESC"
+      ? ["POPULARITY_DESC", "FAVOURITES_DESC"]
+      : sort === "START_DATE_DESC"
+        ? ["START_DATE_DESC", "POPULARITY_DESC"]
+        : ["FAVOURITES_DESC", "SCORE_DESC"];
+  try {
+    const data = await queryAniList(query, { genre, perPage, page, sort: sortArray });
+    return {
+      media: (data.Page.media || []).map((manga) => ({
+        mal_id: manga.id,
+        title: manga.title?.english || manga.title?.romaji || manga.title?.userPreferred || "Manga",
+        title_english: manga.title?.english,
+        images: { jpg: { image_url: manga.coverImage?.large, large_image_url: manga.coverImage?.extraLarge || manga.coverImage?.large } },
+        banner_image: manga.bannerImage,
+        score: manga.averageScore ? (manga.averageScore / 10).toFixed(1) : null,
+        popularity: manga.popularity || 0,
+        favourites: manga.favourites || 0,
+        chapters: manga.chapters,
+        volumes: manga.volumes,
+        status: mapStatus(manga.status),
+        genres: manga.genres || [],
+        year: manga.startDate?.year,
+        countryOfOrigin: manga.countryOfOrigin,
+        format: mapMangaFormat(manga.format, manga.countryOfOrigin),
+        type: mapMangaFormat(manga.format, manga.countryOfOrigin),
+      })),
+      pageInfo: data.Page.pageInfo,
+    };
+  } catch (error) {
+    console.error("Error fetching manga by genre:", error);
     return { media: [], pageInfo: { hasNextPage: false } };
   }
 }

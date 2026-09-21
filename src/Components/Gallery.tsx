@@ -7,13 +7,14 @@ import {
   ChevronRight,
   ArrowLeft,
   Image as ImageIcon,
+  RefreshCw,
 } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { getCharacterDetails } from "../services/anilist";
 
 export const Gallery: React.FC = () => {
-  const { getAnimePictures, pictures } = useGlobalContext();
+  const { getAnimePictures, pictures, loading } = useGlobalContext();
   const { id } = useParams<{ id: string }>();
   const [characterName, setCharacterName] = useState("Loading...");
   const [index, setIndex] = useState(0);
@@ -23,6 +24,8 @@ export const Gallery: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     if (!id) return;
+    setIndex(0);
+    setOptimizedPictures([]);
 
     const fetchCharacterName = async () => {
       try {
@@ -98,11 +101,11 @@ export const Gallery: React.FC = () => {
           {characterName} Gallery
         </h1>
 
-        <span className="text-xs font-bold text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/30 px-3.5 py-1.5 rounded-full">
+        <div className="flex items-center gap-2"><button type="button" disabled={loading} onClick={() => id && void getAnimePictures(id)} className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-neutral-200 hover:border-[#ffd700]/50 hover:text-[#ffd700]"><RefreshCw size={13} className={loading ? "animate-spin" : ""} />Refresh pictures</button><span className="text-xs font-bold text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/30 px-3.5 py-1.5 rounded-full">
           {optimizedPictures.length > 0
             ? `${index + 1} / ${optimizedPictures.length}`
             : "0 Images"}
-        </span>
+        </span></div>
       </div>
 
       {/* Main Showcase Stage */}
