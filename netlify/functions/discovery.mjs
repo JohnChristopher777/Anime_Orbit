@@ -3,12 +3,25 @@ const JSON_HEADERS = {
   "cache-control": "no-store",
 };
 
+const unavailablePayload = (reason = "") => ({
+  summary: "",
+  setting: "",
+  characters: [],
+  visualDetails: [],
+  visibleText: "",
+  matches: [],
+  configured: false,
+  reason,
+});
+
 const responseSchema = {
   type: "object",
   properties: {
     summary: { type: "string" },
     setting: { type: "string" },
     characters: { type: "array", items: { type: "string" } },
+    visualDetails: { type: "array", items: { type: "string" } },
+    visibleText: { type: "string" },
     matches: {
       type: "array",
       items: {
@@ -17,6 +30,7 @@ const responseSchema = {
           title: { type: "string" },
           character: { type: "string" },
           quote: { type: "string" },
+          episode: { type: "string" },
           reason: { type: "string" },
           confidence: { type: "integer" },
         },
@@ -24,7 +38,7 @@ const responseSchema = {
       },
     },
   },
-  required: ["summary", "setting", "characters", "matches"],
+  required: ["summary", "setting", "characters", "visualDetails", "visibleText", "matches"],
 };
 
 const safeRemoteImage = async (rawUrl) => {
@@ -55,19 +69,22 @@ const safeRemoteImage = async (rawUrl) => {
 
 const promptFor = (kind, text) => {
   const shared = "Return likely canonical anime titles only. Rank at most six candidates. Confidence is 0-100. Be honest when clues are weak; never invent a title. Reasons must be brief and useful to an anime fan.";
-  if (kind === "image") return `${shared}\nAnalyze this anime-related image like a visual search tool. Identify visible characters when possible, describe the setting and distinctive objects, then return likely anime matches. Posters, fan art, manga panels and episode frames are all possible.`;
-  if (kind === "dialogue") return `${shared}\nFind the anime and speaker for this remembered or paraphrased dialogue. Correct small wording errors. Put the closest reconstructed line in quote. Query: ${text}`;
+  if (kind === "image") return `${shared}\nAnalyze this anime-related image as both an accessibility description and a visual-search request. Write a complete factual summary of the whole frame. Describe foreground and background, characters and their appearance, pose, expression, clothing, action, location, time/weather, lighting and colour, camera composition, important objects, symbols, and any readable on-screen text. Put concise individual observations in visualDetails, transcribe readable text in visibleText, and clearly mark uncertain identifications. Then return likely anime matches. Posters, fan art, manga panels and episode frames are all possible.`;
+  if (kind === "dialogue") return `${shared}\nFind the anime and speaker for this remembered or paraphrased dialogue. Correct small wording errors. Put the closest reconstructed line in quote. Include an episode only when you are reasonably certain; otherwise leave it blank. Query: ${text}`;
+  if (kind === "character") return `${shared}\nIdentify anime characters matching these remembered appearance and personality traits. Put the canonical character name in character, their canonical anime in title, and explain which traits match. Query: ${text}`;
   return `${shared}\nFind anime matching this remembered scene. Pay attention to characters, location, era, clothing, powers, objects and plot action. Query: ${text}`;
 };
 
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, headers: JSON_HEADERS, body: JSON.stringify({ error: "POST required" }) };
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { statusCode: 503, headers: JSON_HEADERS, body: JSON.stringify({ error: "AI discovery is not configured" }) };
+  // Discovery has catalogue and Trace.moe fallbacks in the client. A missing or
+  // temporarily unavailable Gemini service must not turn those searches into a 503.
+  if (!apiKey) return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(unavailablePayload("AI discovery is not configured")) };
 
   try {
     const body = JSON.parse(event.body || "{}");
-    const kind = ["image", "scene", "dialogue"].includes(body.kind) ? body.kind : "scene";
+    const kind = ["image", "scene", "dialogue", "character"].includes(body.kind) ? body.kind : "scene";
     const text = String(body.text || "").trim().slice(0, 2200);
     const parts = [{ text: promptFor(kind, text) }];
 
@@ -81,7 +98,7 @@ export const handler = async (event) => {
       throw new Error("Search text is required");
     }
 
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const model = "gemini-3.6-flash";
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 24000);
     let result;
@@ -102,9 +119,12 @@ export const handler = async (event) => {
     const payload = await result.json();
     const textResult = payload?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "";
     const parsed = JSON.parse(textResult);
+    parsed.visualDetails = Array.isArray(parsed.visualDetails) ? parsed.visualDetails.slice(0, 10).filter(Boolean) : [];
+    parsed.visibleText = String(parsed.visibleText || "").slice(0, 800);
     parsed.matches = Array.isArray(parsed.matches) ? parsed.matches.slice(0, 6).filter((match) => match?.title) : [];
+    parsed.configured = true;
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(parsed) };
   } catch (error) {
-    return { statusCode: 502, headers: JSON_HEADERS, body: JSON.stringify({ error: error?.message || "AI discovery failed" }) };
+    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(unavailablePayload(error?.message || "AI discovery failed")) };
   }
 };

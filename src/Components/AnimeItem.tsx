@@ -69,6 +69,8 @@ import { sanitizeInput, checkRateLimit } from "../utils/security";
 import ProgressiveImage from "./ProgressiveImage";
 import AppDropdown from "./AppDropdown";
 import Footer from "./Footer";
+import MediaEntryDialog from "./MediaEntryDialog";
+import ScoreSlider from "./ScoreSlider";
 
 const PLATFORM_COLORS: Record<string, string> = {
   crunchyroll: "#f47521",
@@ -147,7 +149,6 @@ export const AnimeItem: React.FC = () => {
   const [reviews, setReviews] = useState<any[]>([]);
   const [newReviewText, setNewReviewText] = useState("");
   const [newReviewRating, setNewReviewRating] = useState(10);
-  const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [postingReview, setPostingReview] = useState(false);
   const [trailerLoaded, setTrailerLoaded] = useState(false);
@@ -812,12 +813,15 @@ export const AnimeItem: React.FC = () => {
     return (
       <Container aria-busy="true" aria-label="Loading anime details">
         <div className="detail-skeleton">
-          <Skeleton
-            height="100%"
-            baseColor="#1b1b20"
-            highlightColor="#292930"
-            borderRadius={18}
-          />
+          <div className="detail-skeleton__poster">
+            <Skeleton
+              height="100%"
+              baseColor="#1b1b20"
+              highlightColor="#292930"
+              borderRadius={18}
+              containerClassName="detail-skeleton__poster-fill"
+            />
+          </div>
           <div className="detail-skeleton__copy">
             <Skeleton
               width="28%"
@@ -1468,7 +1472,6 @@ export const AnimeItem: React.FC = () => {
             malId={anime.malId}
             kitsuId={anime.kitsuId}
             fallbackImage={anime.banner_image || images?.jpg?.large_image_url || images?.jpg?.image_url}
-            onImageClick={openLightboxAt}
           />
         )}
 
@@ -2189,52 +2192,13 @@ export const AnimeItem: React.FC = () => {
             {currentUser ? (
               <ReviewForm onSubmit={handlePostReview}>
                 <ReviewFormHeader>
-                  <span className="rating-label">Your Rating:</span>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                      <Star
-                        key={star}
-                        size={20}
-                        fill={
-                          (
-                            hoverRating !== null
-                              ? star <= hoverRating
-                              : star <= newReviewRating
-                          )
-                            ? "#ffd700"
-                            : "none"
-                        }
-                        color="#ffd700"
-                        onMouseEnter={() => setHoverRating(star)}
-                        onMouseLeave={() => setHoverRating(null)}
-                        onClick={() => setNewReviewRating(star)}
-                        style={{
-                          cursor: "pointer",
-                          transition: "transform 0.15s ease",
-                          transform:
-                            hoverRating === star ? "scale(1.25)" : "scale(1)",
-                        }}
-                      />
-                    ))}
-                    <span
-                      style={{
-                        color: "#ffd700",
-                        fontWeight: 800,
-                        fontSize: "0.95rem",
-                        marginLeft: "0.5rem",
-                      }}
-                    >
-                      {hoverRating !== null ? hoverRating : newReviewRating} /
-                      10 Stars
-                    </span>
-                  </div>
+                  <section className="rating-editor-panel rating-editor-panel--review" aria-labelledby="review-rating-title">
+                    <div className="rating-editor-panel__heading">
+                      <div><span>Rating</span><h3 id="review-rating-title">Your score for this anime</h3></div>
+                      <p>Choose independently from the written review.</p>
+                    </div>
+                    <ScoreSlider id="anime-review-score" label="Personal score" value={newReviewRating} onChange={setNewReviewRating} disabled={postingReview} />
+                  </section>
                 </ReviewFormHeader>
                 <ReviewTextArea
                   id="anime-review-textarea"
@@ -2423,7 +2387,6 @@ const EpisodesView: React.FC<{
   malId?: number;
   kitsuId?: string;
   fallbackImage?: string;
-  onImageClick: (url: string) => void;
 }> = ({
   episodes,
   totalEpisodes,
@@ -2431,12 +2394,12 @@ const EpisodesView: React.FC<{
   malId,
   kitsuId,
   fallbackImage,
-  onImageClick,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBatch, setSelectedBatch] = useState(0);
   const [renderLimit, setRenderLimit] = useState(24);
   const [resolvedEpisodes, setResolvedEpisodes] = useState(episodes);
+  const [selectedEpisodeNumber, setSelectedEpisodeNumber] = useState<number | string | null>(null);
   const observerRef = useRef<HTMLDivElement>(null);
 
   const batchSize = 50;
@@ -2516,6 +2479,12 @@ const EpisodesView: React.FC<{
   const displayedEpisodes = useMemo(() => {
     return allFilteredEpisodes.slice(0, renderLimit);
   }, [allFilteredEpisodes, renderLimit]);
+
+  const selectedEpisodeIndex = useMemo(
+    () => allFilteredEpisodes.findIndex((episode) => String(episode.mal_id) === String(selectedEpisodeNumber)),
+    [allFilteredEpisodes, selectedEpisodeNumber],
+  );
+  const selectedEpisode = selectedEpisodeIndex >= 0 ? allFilteredEpisodes[selectedEpisodeIndex] : null;
 
   // Progressive Infinite Scroll Observer
   useEffect(() => {
@@ -2613,11 +2582,20 @@ const EpisodesView: React.FC<{
             {displayedEpisodes.map((episode) => {
               const episodeImage = episode.thumbnail || fallbackImage;
               return (
-              <EpisodeCard key={episode.mal_id}>
-                <EpisodeMediaWrapper
-                  onClick={() =>
-                    episodeImage && onImageClick(episodeImage)
+              <EpisodeCard
+                key={episode.mal_id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open details for episode ${episode.mal_id}`}
+                onClick={() => setSelectedEpisodeNumber(episode.mal_id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedEpisodeNumber(episode.mal_id);
                   }
+                }}
+              >
+                <EpisodeMediaWrapper
                 >
                   {episodeImage ? (
                     <ProgressiveImage
@@ -2726,6 +2704,28 @@ const EpisodesView: React.FC<{
           </p>
         </EmptyState>
       )}
+      <MediaEntryDialog
+        entry={selectedEpisode ? {
+          ...selectedEpisode,
+          number: selectedEpisode.mal_id,
+          thumbnail: selectedEpisode.thumbnail || fallbackImage,
+          externalUrl: selectedEpisode.url || null,
+        } : null}
+        kind="episode"
+        seriesTitle={animeTitle || "Episode guide"}
+        fallbackImage={fallbackImage}
+        onClose={() => setSelectedEpisodeNumber(null)}
+        hasPrevious={selectedEpisodeIndex > 0}
+        hasNext={selectedEpisodeIndex >= 0 && selectedEpisodeIndex < allFilteredEpisodes.length - 1}
+        onPrevious={() => {
+          if (selectedEpisodeIndex > 0) setSelectedEpisodeNumber(allFilteredEpisodes[selectedEpisodeIndex - 1].mal_id);
+        }}
+        onNext={() => {
+          if (selectedEpisodeIndex >= 0 && selectedEpisodeIndex < allFilteredEpisodes.length - 1) {
+            setSelectedEpisodeNumber(allFilteredEpisodes[selectedEpisodeIndex + 1].mal_id);
+          }
+        }}
+      />
     </EpisodesContent>
   );
 };
@@ -2757,11 +2757,11 @@ const BackButton = styled.button`
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(247, 246, 244, 0.05);
-  border: 1px solid rgba(237, 237, 235, 0.4);
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: #dfded8;
   padding: 0.5rem 1.1rem;
-  border-radius: 20px;
+  border-radius: 25px;
   font-family: "Montserrat", sans-serif;
   font-weight: 700;
   font-size: 0.85rem;
@@ -2771,9 +2771,9 @@ const BackButton = styled.button`
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
 
   &:hover {
-    background: #ffd700;
-    color: #141414;
-    transform: translateX(-4px);
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, .16);
+    color: #ffd700;
   }
 
   @media (max-width: 768px) {
@@ -3266,6 +3266,7 @@ const EpisodeCard = styled.div`
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
   transition:
     transform 0.3s ease,
     border-color 0.3s ease;
@@ -3273,6 +3274,12 @@ const EpisodeCard = styled.div`
   &:hover {
     transform: translateY(-4px);
     border-color: rgba(255, 215, 0, 0.4);
+  }
+
+  &:focus-visible {
+    border-color: #ffd700;
+    outline: 2px solid rgba(255, 215, 0, 0.3);
+    outline-offset: 3px;
   }
 `;
 

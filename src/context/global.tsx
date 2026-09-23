@@ -291,6 +291,19 @@ export const GlobalContextProvider: React.FC<{ children: ReactNode }> = ({ child
     }
   }, []);
 
+  React.useEffect(() => {
+    const refreshForMaturePreference = () => {
+      void getPopularAnime(1);
+      void getTrendingAnime(1);
+      void getUpcomingAnime(1);
+      void getAiringAnime(1);
+      void getTopAiringAnime();
+      if (search.trim()) void searchAnime(search);
+    };
+    window.addEventListener("orbit_mature_content_changed", refreshForMaturePreference);
+    return () => window.removeEventListener("orbit_mature_content_changed", refreshForMaturePreference);
+  }, [getPopularAnime, getTrendingAnime, getUpcomingAnime, getAiringAnime, getTopAiringAnime, search]);
+
   return (
     <GlobalContext.Provider
       value={{

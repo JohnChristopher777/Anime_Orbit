@@ -33,6 +33,7 @@ import { toast } from "react-toastify";
 import { useWatchlist } from "../context/WatchlistContext";
 import AppDropdown from "./AppDropdown";
 import { useFavourites } from "../context/FavouritesContext";
+import MediaEntryDialog from "./MediaEntryDialog";
 
 export const MangaDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -46,6 +47,7 @@ export const MangaDetails: React.FC = () => {
   const [chapterGuideItems, setChapterGuideItems] = useState<any[]>([]);
   const [chapterTotal, setChapterTotal] = useState(0);
   const [chapterGuideLoading, setChapterGuideLoading] = useState(false);
+  const [selectedChapterNumber, setSelectedChapterNumber] = useState<number | null>(null);
   const [chapterProgress, setChapterProgress] = useState(0);
   const [progressSaving, setProgressSaving] = useState(false);
   const { mangaWatchlist, addMangaToWatchlist, removeMangaFromWatchlist, updateMangaWatchlistEntry } = useWatchlist();
@@ -253,9 +255,11 @@ export const MangaDetails: React.FC = () => {
         return guideByNumber.get(number) || { number, title: `Chapter ${number}`, summary: "", aired: null, metadataAvailable: false };
       })
     : chapterGuideItems;
+  const selectedChapterIndex = visibleChapters.findIndex((chapter: any) => Number(chapter.number) === selectedChapterNumber);
+  const selectedChapter = selectedChapterIndex >= 0 ? visibleChapters[selectedChapterIndex] : null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0e] text-white font-inter flex flex-col overflow-x-hidden">
+    <div className="manga-detail-page min-h-screen bg-[#0a0a0e] text-white font-inter flex flex-col overflow-x-hidden">
       <SEO
         title={`${manga.title} - Manga Origins, Story & Chapters | Anime Orbit`}
         description={`${manga.title}: ${manga.synopsis?.slice(0, 150)}...`}
@@ -298,7 +302,7 @@ export const MangaDetails: React.FC = () => {
               <BookOpen size={13} />
               <span>{manga.format || "Manga"}</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-staatliches uppercase tracking-wide text-white drop-shadow-2xl leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-montserrat tracking-tight text-white drop-shadow-2xl leading-tight">
               {manga.title}
             </h1>
             {manga.title_japanese && (
@@ -318,7 +322,7 @@ export const MangaDetails: React.FC = () => {
       {/* Main Details Grid */}
       <div className="manga-detail-layout max-w-7xl mx-auto px-3 sm:px-8 pb-16 w-full grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-10">
         {/* Left Column: Poster & Quick Meta */}
-        <div className="lg:col-span-4 space-y-6">
+        <aside className="manga-detail-sidebar lg:col-span-4 space-y-6" aria-label="Manga cover, controls and facts">
           <div className="manga-detail-poster relative mx-auto w-full max-w-[250px] lg:max-w-none rounded-2xl overflow-hidden border-2 border-[#ffd700]/50 shadow-[0_20px_50px_rgba(0,0,0,0.9)] bg-neutral-900 group">
             {posterImg && (
               <ProgressiveImage
@@ -444,10 +448,10 @@ export const MangaDetails: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </aside>
 
         {/* Right Column: How The Story Was Born, Synopsis, Adaptations & Characters */}
-        <div className="lg:col-span-8 space-y-8">
+        <div className="manga-detail-content lg:col-span-8 space-y-8">
           {/* SPECIAL SECTION: How the Story Was Born / Origins & Creation */}
           <div className="relative bg-gradient-to-br from-[#1c1810] via-[#14141c] to-[#0e0e14] border-2 border-[#ffd700]/50 rounded-3xl p-6 sm:p-8 shadow-[0_15px_40px_rgba(255,215,0,0.15)] space-y-4">
             <div className="flex items-center gap-3">
@@ -516,9 +520,9 @@ export const MangaDetails: React.FC = () => {
                 })}
               </div>}
               <div className="manga-chapter-guide__grid">
-                {visibleChapters.map((chapter: any) => <article key={chapter.number} className={chapter.number === knownChapterCount ? "is-latest" : ""}>
+                {visibleChapters.map((chapter: any) => <button type="button" key={chapter.number} className={chapter.number === knownChapterCount ? "is-latest" : ""} onClick={() => setSelectedChapterNumber(Number(chapter.number))} aria-label={`Open details for chapter ${chapter.number}`}>
                   <span><Hash size={12} />{chapter.number}</span><div><h3>{chapter.title || `Chapter ${chapter.number}`}</h3><p>{chapter.summary || (chapter.metadataAvailable ? "No synopsis was published for this chapter." : "Chapter details are not published in the connected catalogues.")}</p>{chapter.aired && <time dateTime={chapter.aired}>{new Date(chapter.aired).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</time>}</div>
-                </article>)}
+                </button>)}
               </div>
               {chapterPageCount > 1 && <div className="manga-chapter-guide__pager"><button disabled={chapterPage === 1} onClick={() => setChapterPage((page) => Math.max(1, page - 1))}><ChevronLeft size={14} /> Previous</button><span>Page {chapterPage} of {chapterPageCount}</span><button disabled={chapterPage === chapterPageCount} onClick={() => setChapterPage((page) => Math.min(chapterPageCount, page + 1))}>Next <ChevronRight size={14} /></button></div>}
             </> : <div className="manga-chapter-guide__empty">This publishing entry does not have a confirmed chapter total yet.</div>}
@@ -656,6 +660,24 @@ export const MangaDetails: React.FC = () => {
         </div>,
         document.body
       )}
+
+      <MediaEntryDialog
+        entry={selectedChapter}
+        kind="chapter"
+        seriesTitle={manga.title || "Chapter guide"}
+        fallbackImage={bannerImg || posterImg}
+        onClose={() => setSelectedChapterNumber(null)}
+        hasPrevious={selectedChapterIndex > 0}
+        hasNext={selectedChapterIndex >= 0 && selectedChapterIndex < visibleChapters.length - 1}
+        onPrevious={() => {
+          if (selectedChapterIndex > 0) setSelectedChapterNumber(Number(visibleChapters[selectedChapterIndex - 1].number));
+        }}
+        onNext={() => {
+          if (selectedChapterIndex >= 0 && selectedChapterIndex < visibleChapters.length - 1) {
+            setSelectedChapterNumber(Number(visibleChapters[selectedChapterIndex + 1].number));
+          }
+        }}
+      />
 
       <Footer />
     </div>

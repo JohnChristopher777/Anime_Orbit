@@ -23,6 +23,7 @@ import {
   Compass,
   X,
   BookOpen,
+  Bell,
 } from "lucide-react";
 
 export const Nav: React.FC = () => {
@@ -371,6 +372,16 @@ export const Nav: React.FC = () => {
               <Search size={16} />
             </button>
 
+            <Link
+              to="/digest"
+              aria-label="Open anime digest and news"
+              title="Anime digest"
+              className={`nav-digest-bell nav-digest-bell--header ${location.pathname === "/digest" ? "is-active" : ""}`}
+            >
+              <Bell size={17} />
+              <span aria-hidden="true" />
+            </Link>
+
             {/* User Profile or Sign In Button */}
             {currentUser ? (
               <div ref={userMenuRef} className="relative flex-shrink-0">
@@ -405,6 +416,14 @@ export const Nav: React.FC = () => {
 
                 {userMenuOpen && (
                   <div className="absolute top-full right-0 mt-2 w-52 sm:w-56 bg-[#1a1a1a] border border-[#ffd700]/60 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.8),0_0_20px_rgba(255,215,0,0.15)] p-2 z-50 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <Link
+                      to="/digest"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="nav-profile-digest md:hidden flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-200 hover:text-[#ffd700] hover:bg-[#ffd700]/10 rounded-xl transition-colors"
+                    >
+                      <span className="relative"><Bell size={16} /><i aria-hidden="true" /></span>
+                      <span>Anime Digest</span>
+                    </Link>
                     <Link
                       to="/profile"
                       onClick={() => setUserMenuOpen(false)}
@@ -520,16 +539,11 @@ export const Nav: React.FC = () => {
                     anime.images?.jpg?.large_image_url;
 
                   return (
-                    <Link
+                    <button
+                      type="button"
                       key={`mob-sugg-${anime.mal_id}-${idx}`}
-                      to={`/anime/${anime.mal_id}`}
-                      onClick={() => {
-                        setShowSuggestions(false);
-                        setMobileSearchOpen(false);
-                        setSearchQuery("");
-                        setSearch("");
-                      }}
-                      className="flex items-center gap-3 bg-[#0f0f14]/95 p-2.5 hover:bg-[#ffd700]/15 cursor-pointer transition-colors"
+                      onClick={() => handleSuggestionClick(anime.mal_id)}
+                      className="flex w-full touch-manipulation items-center gap-3 bg-[#0f0f14]/95 p-3 text-left hover:bg-[#ffd700]/15 active:bg-[#ffd700]/25 cursor-pointer transition-colors"
                     >
                       <ProgressiveImage
                         src={img}
@@ -552,7 +566,7 @@ export const Nav: React.FC = () => {
                           <span>{anime.type || "TV"}</span>
                         </div>
                       </div>
-                    </Link>
+                    </button>
                   );
                 })}
               </div>

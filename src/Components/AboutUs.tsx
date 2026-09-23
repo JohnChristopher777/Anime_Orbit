@@ -10,7 +10,6 @@ import {
   Layers,
   Flame,
   ArrowRight,
-  Database,
 } from "lucide-react";
 
 export const AboutUs: React.FC = () => {
@@ -19,7 +18,7 @@ export const AboutUs: React.FC = () => {
       <SEO
         title="About Anime Orbit - The Ultimate Interactive Anime Database"
         description="Anime Orbit is a state-of-the-art anime discovery hub featuring real-time ratings, chronological relations, episode guides, community reviews, and watchlist sync across all genres."
-        keywords="about anime orbit, anime database, anime guide, anime compass, AniList GraphQL"
+        keywords="about anime orbit, anime database, anime guide, anime compass"
         url="https://animeorbit.web.app/about"
       />
       {/* Hero Section */}
@@ -43,7 +42,7 @@ export const AboutUs: React.FC = () => {
             <Zap size={24} />
           </div>
           <h3 className="font-montserrat font-bold text-lg text-white">
-            AniList GraphQL Engine
+            Rich Catalogue Insights
           </h3>
           <p className="text-xs text-neutral-400 leading-relaxed">
             Ultra-fast, rich metadata including true animation studios, production companies, airing countdowns, and character voice actors.
@@ -72,33 +71,6 @@ export const AboutUs: React.FC = () => {
           <p className="text-xs text-neutral-400 leading-relaxed">
             Secure cloud persistence for your watching status, favorite anime, reviews, and community comments across devices.
           </p>
-        </div>
-      </div>
-
-      {/* Tech Stack Badge Row */}
-      <div className="p-6 bg-neutral-900/40 border border-white/5 rounded-2xl space-y-4">
-        <h3 className="text-sm font-extrabold font-montserrat uppercase tracking-wider text-[#ffd700]">
-          Built with Modern Web Technologies
-        </h3>
-        <div className="flex flex-wrap gap-2 text-xs font-bold font-montserrat">
-          {[
-            "React 19",
-            "TypeScript",
-            "Tailwind CSS",
-            "OGL WebGL Shaders",
-            "GSAP",
-            "Firebase Firestore",
-            "AniList GraphQL API",
-            "Framer Motion",
-            "Vite",
-          ].map((tech) => (
-            <span
-              key={tech}
-              className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-neutral-200"
-            >
-              {tech}
-            </span>
-          ))}
         </div>
       </div>
 

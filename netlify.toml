@@ -4,6 +4,26 @@
   functions = "netlify/functions"
 
 [[redirects]]
+  from = "/api/anime-digest"
+  to = "/.netlify/functions/anime-digest"
+  status = 200
+
+[[redirects]]
+  from = "/api/discovery"
+  to = "/.netlify/functions/discovery"
+  status = 200
+
+[[redirects]]
+  from = "/api/anime-quotes"
+  to = "/.netlify/functions/anime-quotes"
+  status = 200
+
+[[redirects]]
+  from = "/api/characters"
+  to = "/.netlify/functions/characters"
+  status = 200
+
+[[redirects]]
   from = "/api/manga-metadata"
   to = "/.netlify/functions/manga-metadata"
   status = 200

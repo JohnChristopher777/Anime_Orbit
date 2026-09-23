@@ -6,6 +6,27 @@ const queryCache = new Map();
 const kitsuCache = new Map();
 const jikanCache = new Map();
 const mangaMetadataCache = new Map();
+const MATURE_CONTENT_KEY = "anime_orbit_allow_mature";
+
+export function getMatureContentPreference() {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(MATURE_CONTENT_KEY) === "true";
+}
+
+export function setMatureContentPreference(allowed) {
+  if (typeof window === "undefined") return;
+  const next = Boolean(allowed);
+  const previous = window.localStorage.getItem(MATURE_CONTENT_KEY);
+  window.localStorage.setItem(MATURE_CONTENT_KEY, String(next));
+  if (previous === String(next) || (previous === null && !next)) return;
+  queryCache.clear();
+  window.dispatchEvent(new CustomEvent("orbit_mature_content_changed", { detail: { allowed: next } }));
+}
+
+// AniList treats a nullable isAdult filter as unfiltered. False therefore keeps
+// normal discovery safe by default, while null explicitly honours an adult
+// user's saved opt-in across every shared catalogue/search request.
+const matureQueryValue = () => getMatureContentPreference() ? null : false;
 
 async function queryKitsu(path) {
   const now = Date.now();
@@ -51,8 +72,8 @@ async function queryJikan(path) {
   return request;
 }
 
-async function queryMangaMetadata(malId, title) {
-  const key = `${malId || ""}:${normaliseTitle(title)}`;
+async function queryMangaMetadata(malId, title, offset = 0, limit = 50) {
+  const key = `${malId || ""}:${normaliseTitle(title)}:${offset}:${limit}`;
   const now = Date.now();
   const cached = mangaMetadataCache.get(key);
   if (cached && cached.expiresAt > now) return cached.promise;
@@ -61,6 +82,8 @@ async function queryMangaMetadata(malId, title) {
   const params = new URLSearchParams();
   if (malId) params.set("malId", String(malId));
   if (title) params.set("title", title);
+  params.set("offset", String(Math.max(0, offset)));
+  params.set("limit", String(Math.min(50, Math.max(1, limit))));
   const request = fetch(`/api/manga-metadata?${params.toString()}`, {
     signal: controller.signal,
     headers: { Accept: "application/json" },
@@ -75,10 +98,13 @@ async function queryMangaMetadata(malId, title) {
   return request;
 }
 
-async function getMangaDexChapterCount(malId, title) {
-  if (!malId && !title) return 0;
-  const metadata = await queryMangaMetadata(malId, title);
-  return positiveNumber(metadata?.chapterCount);
+async function getMangaDexMetadata(malId, title, offset, limit) {
+  if (!malId && !title) return { chapterCount: 0, chapters: [] };
+  const metadata = await queryMangaMetadata(malId, title, offset, limit);
+  return {
+    chapterCount: positiveNumber(metadata?.chapterCount),
+    chapters: Array.isArray(metadata?.chapters) ? metadata.chapters : [],
+  };
 }
 
 async function queryKitsuGuideRange(resourceType, mediaId, childType, offset, limit) {
@@ -180,6 +206,7 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
   const offset = (safePage - 1) * safeLimit;
   let jikanItems = [];
   let mangaDexCount = 0;
+  let mangaDexItems = [];
 
   if (normalizedType === "ANIME" && malId) {
     try {
@@ -188,9 +215,11 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
       console.warn("Jikan episode metadata unavailable; continuing with other sources.", error);
     }
   }
-  if (normalizedType === "MANGA" && !positiveNumber(fallbackCount)) {
+  if (normalizedType === "MANGA") {
     try {
-      mangaDexCount = await getMangaDexChapterCount(malId, title);
+      const mangaDex = await getMangaDexMetadata(malId, title, offset, safeLimit);
+      mangaDexCount = mangaDex.chapterCount;
+      mangaDexItems = mangaDex.chapters;
     } catch (error) {
       console.warn("MangaDex chapter count unavailable; continuing with AniList/Kitsu.", error);
     }
@@ -198,7 +227,7 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
 
   try {
     const media = await resolveKitsuMedia(normalizedType, malId, title, kitsuId);
-    if (!media?.id) return { kitsuId: null, totalCount: positiveNumber(fallbackCount) || mangaDexCount, items: jikanItems, trailerId: null };
+    if (!media?.id) return { kitsuId: null, totalCount: positiveNumber(fallbackCount) || mangaDexCount, items: normalizedType === "MANGA" ? mangaDexItems : jikanItems, trailerId: null };
 
     let guide = { data: [], meta: {} };
     try {
@@ -233,13 +262,16 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
       };
     }).filter((item) => item.number > 0);
 
-    const itemsByNumber = new Map(jikanItems.map((item) => [item.number, item]));
+    const secondaryItems = normalizedType === "MANGA" ? mangaDexItems : jikanItems;
+    const itemsByNumber = new Map(secondaryItems.map((item) => [item.number, item]));
     kitsuItems.forEach((item) => {
       const secondary = itemsByNumber.get(item.number) || {};
       itemsByNumber.set(item.number, {
         ...secondary,
         ...item,
-        title: item.metadataAvailable && !/^Episode \d+$/i.test(item.title) ? item.title : secondary.title || item.title,
+        title: item.metadataAvailable && !/^(Episode|Chapter) \d+$/i.test(item.title) ? item.title : secondary.title || item.title,
+        summary: item.summary || secondary.summary || "",
+        thumbnail: item.thumbnail || secondary.thumbnail || "",
         aired: item.aired || secondary.aired || null,
         metadataAvailable: Boolean(item.metadataAvailable || secondary.metadataAvailable),
       });
@@ -254,7 +286,7 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
     };
   } catch (error) {
     console.warn("Supplemental media guide unavailable; using AniList metadata.", error);
-    return { kitsuId: kitsuId || null, totalCount: positiveNumber(fallbackCount) || mangaDexCount, items: jikanItems, trailerId: null };
+    return { kitsuId: kitsuId || null, totalCount: positiveNumber(fallbackCount) || mangaDexCount, items: normalizedType === "MANGA" ? mangaDexItems : jikanItems, trailerId: null };
   }
 }
 
@@ -420,6 +452,7 @@ function mapAniListAnimeToJikan(media) {
       string: formattedDate,
     },
     rating: media.isAdult ? "Rx - Hentai" : "PG-13 - Teens 13 or older",
+    isAdult: Boolean(media.isAdult),
     trailer: media.trailer && media.trailer.site === "youtube" ? {
       youtube_id: media.trailer.id,
       url: `https://www.youtube.com/watch?v=${media.trailer.id}`,
@@ -571,6 +604,7 @@ const ANIME_FIELDS = `
     medium
   }
   averageScore
+  isAdult
   popularity
   format
   episodes
@@ -592,18 +626,18 @@ const ANIME_FIELDS = `
 
 export async function getPopularAnime(perPage = 24, page = 1) {
   const query = `
-    query ($perPage: Int, $page: Int) {
+    query ($perPage: Int, $page: Int, $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo {
           hasNextPage
         }
-        media(type: ANIME, sort: POPULARITY_DESC) {
+        media(type: ANIME, sort: POPULARITY_DESC, isAdult: $isAdult) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
-  const data = await queryAniList(query, { perPage, page });
+  const data = await queryAniList(query, { perPage, page, isAdult: matureQueryValue() });
   return {
     media: (data.Page.media || []).map(mapAniListAnimeToJikan),
     pageInfo: data.Page.pageInfo
@@ -612,18 +646,18 @@ export async function getPopularAnime(perPage = 24, page = 1) {
 
 export async function getTrendingAnime(perPage = 24, page = 1) {
   const query = `
-    query ($perPage: Int, $page: Int) {
+    query ($perPage: Int, $page: Int, $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo {
           hasNextPage
         }
-        media(type: ANIME, sort: TRENDING_DESC, status: RELEASING) {
+        media(type: ANIME, sort: TRENDING_DESC, status: RELEASING, isAdult: $isAdult) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
-  const data = await queryAniList(query, { perPage, page });
+  const data = await queryAniList(query, { perPage, page, isAdult: matureQueryValue() });
   return {
     media: (data.Page.media || []).map(mapAniListAnimeToJikan),
     pageInfo: data.Page.pageInfo
@@ -632,18 +666,18 @@ export async function getTrendingAnime(perPage = 24, page = 1) {
 
 export async function getUpcomingAnime(perPage = 24, page = 1) {
   const query = `
-    query ($perPage: Int, $page: Int) {
+    query ($perPage: Int, $page: Int, $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo {
           hasNextPage
         }
-        media(type: ANIME, sort: POPULARITY_DESC, status: NOT_YET_RELEASED) {
+        media(type: ANIME, sort: POPULARITY_DESC, status: NOT_YET_RELEASED, isAdult: $isAdult) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
-  const data = await queryAniList(query, { perPage, page });
+  const data = await queryAniList(query, { perPage, page, isAdult: matureQueryValue() });
   return {
     media: (data.Page.media || []).map(mapAniListAnimeToJikan),
     pageInfo: data.Page.pageInfo
@@ -652,7 +686,7 @@ export async function getUpcomingAnime(perPage = 24, page = 1) {
 
 export async function getAiringAnime(perPage = 24, page = 1) {
   const query = `
-    query ($perPage: Int, $page: Int) {
+    query ($perPage: Int, $page: Int, $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo {
           total
@@ -661,13 +695,13 @@ export async function getAiringAnime(perPage = 24, page = 1) {
           lastPage
           hasNextPage
         }
-        media(type: ANIME, sort: POPULARITY_DESC, status: RELEASING) {
+        media(type: ANIME, sort: POPULARITY_DESC, status: RELEASING, isAdult: $isAdult) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
-  const data = await queryAniList(query, { perPage, page });
+  const data = await queryAniList(query, { perPage, page, isAdult: matureQueryValue() });
   return {
     media: (data.Page.media || []).map(mapAniListAnimeToJikan),
     pageInfo: data.Page.pageInfo
@@ -678,29 +712,29 @@ export async function searchAnime(search, perPage = 25) {
   if (!search || !search.trim()) return [];
   const cleanSearch = search.trim();
   const query = `
-    query ($search: String, $perPage: Int) {
+    query ($search: String, $perPage: Int, $isAdult: Boolean) {
       Page(page: 1, perPage: $perPage) {
-        media(type: ANIME, search: $search, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
+        media(type: ANIME, search: $search, sort: [SEARCH_MATCH, POPULARITY_DESC], isAdult: $isAdult) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
   try {
-    const data = await queryAniList(query, { search: cleanSearch, perPage });
+    const data = await queryAniList(query, { search: cleanSearch, perPage, isAdult: matureQueryValue() });
     return (data.Page.media || []).map(mapAniListAnimeToJikan);
   } catch {
     try {
       const fallbackQuery = `
-        query ($search: String, $perPage: Int) {
+        query ($search: String, $perPage: Int, $isAdult: Boolean) {
           Page(page: 1, perPage: $perPage) {
-            media(type: ANIME, search: $search, sort: POPULARITY_DESC) {
+            media(type: ANIME, search: $search, sort: POPULARITY_DESC, isAdult: $isAdult) {
               ${ANIME_FIELDS}
             }
           }
         }
       `;
-      const fallbackData = await queryAniList(fallbackQuery, { search: cleanSearch, perPage });
+      const fallbackData = await queryAniList(fallbackQuery, { search: cleanSearch, perPage, isAdult: matureQueryValue() });
       return (fallbackData.Page.media || []).map(mapAniListAnimeToJikan);
     } catch {
       return [];
@@ -1157,15 +1191,15 @@ export async function getAnimeStaff(id, page = 1, perPage = 25) {
 
 export async function getTopAiringAnime(perPage = 5) {
   const query = `
-    query ($perPage: Int) {
+    query ($perPage: Int, $isAdult: Boolean) {
       Page(page: 1, perPage: $perPage) {
-        media(type: ANIME, status: RELEASING, sort: POPULARITY_DESC) {
+        media(type: ANIME, status: RELEASING, sort: POPULARITY_DESC, isAdult: $isAdult) {
           ${ANIME_FIELDS}
         }
       }
     }
   `;
-  const data = await queryAniList(query, { perPage });
+  const data = await queryAniList(query, { perPage, isAdult: matureQueryValue() });
   return (data.Page.media || []).map(mapAniListAnimeToJikan);
 }
 
@@ -1183,6 +1217,7 @@ export async function getCharacterDetails(id) {
         }
         media(type: ANIME, sort: POPULARITY_DESC, perPage: 10) {
           nodes {
+            isAdult
             coverImage {
               extraLarge
               large
@@ -1193,7 +1228,218 @@ export async function getCharacterDetails(id) {
     }
   `;
   const data = await queryAniList(query, { id: parseInt(id) });
+  if (!getMatureContentPreference() && data.Character?.media?.nodes) {
+    data.Character.media.nodes = data.Character.media.nodes.filter((media) => !media.isAdult);
+  }
   return data.Character;
+}
+
+export async function searchCharacters(search, perPage = 3) {
+  const cleanSearch = String(search || "").trim();
+  if (!cleanSearch) return [];
+  const query = `
+    query ($search: String, $perPage: Int) {
+      Page(page: 1, perPage: $perPage) {
+        characters(search: $search, sort: SEARCH_MATCH) {
+          id
+          name { full native alternative }
+          image { large medium }
+          media(type: ANIME, sort: POPULARITY_DESC, perPage: 5) {
+            nodes { id isAdult title { english romaji } coverImage { large } }
+          }
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { search: cleanSearch, perPage: Math.min(24, Math.max(1, Number(perPage) || 3)) });
+  const characters = data.Page?.characters || [];
+  if (!getMatureContentPreference()) {
+    characters.forEach((character) => {
+      if (character.media?.nodes) character.media.nodes = character.media.nodes.filter((media) => !media.isAdult);
+    });
+    return characters.filter((character) => character.media?.nodes?.length);
+  }
+  return characters;
+}
+
+export async function getPopularCharacters(perPage = 18) {
+  const query = `
+    query ($perPage: Int) {
+      Page(page: 1, perPage: $perPage) {
+        characters(sort: FAVOURITES_DESC) {
+          id
+          name { full native alternative }
+          image { large medium }
+          favourites
+          media(type: ANIME, sort: POPULARITY_DESC, perPage: 5) {
+            nodes { id isAdult title { english romaji } coverImage { large } startDate { year } }
+          }
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { perPage: Math.min(25, Math.max(1, Number(perPage) || 18)) });
+  const characters = data.Page?.characters || [];
+  if (!getMatureContentPreference()) {
+    characters.forEach((character) => {
+      character.media.nodes = (character.media?.nodes || []).filter((media) => !media.isAdult);
+    });
+    return characters.filter((character) => character.media?.nodes?.length);
+  }
+  return characters;
+}
+
+export async function searchVoiceActors(search, perPage = 12, language = "Japanese") {
+  const cleanSearch = String(search || "").trim();
+  if (!cleanSearch) return [];
+  const query = `
+    query ($search: String, $perPage: Int) {
+      Page(page: 1, perPage: $perPage) {
+        staff(search: $search, sort: SEARCH_MATCH) {
+          id
+          name { full native alternative }
+          image { large medium }
+          languageV2
+          primaryOccupations
+          favourites
+          characterMedia(page: 1, perPage: 8, sort: START_DATE_DESC) {
+            edges {
+              characterRole
+              characters { id name { full } image { large medium } }
+              node { id isAdult title { english romaji } startDate { year } coverImage { large } }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { search: cleanSearch, perPage: Math.min(20, Math.max(1, Number(perPage) || 12)) });
+  const requestedLanguage = String(language || "").toLowerCase();
+  const staff = (data.Page?.staff || []).filter((person) =>
+    !requestedLanguage || String(person.languageV2 || "").toLowerCase().includes(requestedLanguage),
+  );
+  staff.forEach((person) => {
+    person.characterMedia.edges = (person.characterMedia?.edges || [])
+      .filter((edge) => getMatureContentPreference() || !edge.node?.isAdult)
+      .sort((left, right) => Number(right.node?.startDate?.year || 0) - Number(left.node?.startDate?.year || 0));
+  });
+  return staff.filter((person) => person.characterMedia?.edges?.length);
+}
+
+export async function getPopularVoiceActors(perPage = 12, language = "Japanese") {
+  const query = `
+    query ($page: Int, $perPage: Int) {
+      Page(page: $page, perPage: $perPage) {
+        staff(sort: FAVOURITES_DESC) {
+          id
+          name { full native alternative }
+          image { large medium }
+          languageV2
+          primaryOccupations
+          favourites
+          characterMedia(page: 1, perPage: 8, sort: START_DATE_DESC) {
+            edges {
+              characterRole
+              characters { id name { full } image { large medium } }
+              node { id isAdult title { english romaji } startDate { year } coverImage { large } }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const requestedLanguage = String(language || "").toLowerCase();
+  const wanted = Math.min(20, Math.max(1, Number(perPage) || 12));
+  const collected = [];
+  const maxPages = requestedLanguage.includes("english") ? 6 : 2;
+  for (let page = 1; page <= maxPages && collected.length < wanted; page += 1) {
+    const data = await queryAniList(query, { page, perPage: 50 });
+    const staff = (data.Page?.staff || []).filter((person) =>
+      !requestedLanguage || String(person.languageV2 || "").toLowerCase().includes(requestedLanguage),
+    );
+    staff.forEach((person) => {
+      person.characterMedia.edges = (person.characterMedia?.edges || [])
+        .filter((edge) => getMatureContentPreference() || !edge.node?.isAdult)
+        .sort((left, right) => Number(right.node?.startDate?.year || 0) - Number(left.node?.startDate?.year || 0));
+    });
+    collected.push(...staff.filter((person) => person.characterMedia?.edges?.length));
+  }
+  return collected.slice(0, wanted);
+}
+
+export async function getVoiceActorDetails(id, page = 1, perPage = 25) {
+  const query = `
+    query ($id: Int, $page: Int, $perPage: Int) {
+      Staff(id: $id) {
+        id
+        name { full native alternative }
+        image { large medium }
+        description
+        languageV2
+        primaryOccupations
+        gender
+        age
+        homeTown
+        yearsActive
+        favourites
+        siteUrl
+        characterMedia(page: $page, perPage: $perPage, sort: START_DATE_DESC) {
+          pageInfo { hasNextPage currentPage }
+          edges {
+            characterRole
+            roleNotes
+            dubGroup
+            characters { id name { full native } image { large medium } }
+            node {
+              id
+              isAdult
+              title { english romaji }
+              startDate { year month day }
+              format
+              coverImage { extraLarge large medium }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const data = await queryAniList(query, { id: Number(id), page, perPage: Math.min(25, Math.max(1, Number(perPage) || 25)) });
+  const staff = data.Staff;
+  if (!staff) return null;
+  staff.characterMedia.edges = (staff.characterMedia?.edges || [])
+    .filter((edge) => getMatureContentPreference() || !edge.node?.isAdult)
+    .sort((left, right) => Number(right.node?.startDate?.year || 0) - Number(left.node?.startDate?.year || 0));
+  return staff;
+}
+
+export async function getCharacterVoiceRoles(id, perPage = 25, language = "JAPANESE") {
+  const query = `
+    query ($id: Int, $perPage: Int, $language: StaffLanguage) {
+      Character(id: $id) {
+        id
+        name { full native }
+        image { large medium }
+        media(type: ANIME, sort: START_DATE_DESC, perPage: $perPage) {
+          edges {
+            node { id isAdult title { english romaji } startDate { year } coverImage { large medium } }
+            voiceActorRoles(language: $language) {
+              roleNotes
+              dubGroup
+              voiceActor { id name { full native } image { large medium } languageV2 }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const safeLanguage = String(language).toUpperCase() === "ENGLISH" ? "ENGLISH" : "JAPANESE";
+  const data = await queryAniList(query, { id: Number(id), perPage: Math.min(25, Math.max(1, Number(perPage) || 25)), language: safeLanguage });
+  const character = data.Character;
+  if (!character) return null;
+  character.media.edges = (character.media?.edges || [])
+    .filter((edge) => getMatureContentPreference() || !edge.node?.isAdult)
+    .sort((left, right) => Number(right.node?.startDate?.year || 0) - Number(left.node?.startDate?.year || 0));
+  return character;
 }
 
 export async function getCharacterPictures(id) {
@@ -1238,6 +1484,7 @@ export async function getAnimeListByIds(ids) {
             extraLarge
           }
           averageScore
+          isAdult
           episodes
           format
           genres
@@ -1247,7 +1494,9 @@ export async function getAnimeListByIds(ids) {
   `;
   try {
     const data = await queryAniList(query, { ids });
-    return (data.Page.media || []).map(mapAniListAnimeToJikan);
+    return (data.Page.media || [])
+      .filter((media) => getMatureContentPreference() || !media.isAdult)
+      .map(mapAniListAnimeToJikan);
   } catch (error) {
     console.error("Error fetching anime by IDs:", error);
     return [];
@@ -1447,12 +1696,12 @@ export async function getFranchiseDetails(id) {
 
 export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY_DESC") {
   const query = `
-    query ($page: Int, $perPage: Int, $sort: [MediaSort]) {
+    query ($page: Int, $perPage: Int, $sort: [MediaSort], $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo {
           hasNextPage
         }
-        media(type: MANGA, sort: $sort) {
+        media(type: MANGA, sort: $sort, isAdult: $isAdult) {
           id
           title {
             english
@@ -1481,7 +1730,7 @@ export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY
     }
   `;
   try {
-    const data = await queryAniList(query, { page, perPage, sort: [sort] });
+    const data = await queryAniList(query, { page, perPage, sort: [sort], isAdult: matureQueryValue() });
     return {
       media: (data.Page.media || []).map((m) => ({
         mal_id: m.id,
@@ -1513,9 +1762,9 @@ export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY
 
 export async function searchManga(search, perPage = 12) {
   const query = `
-    query ($search: String, $perPage: Int) {
+    query ($search: String, $perPage: Int, $isAdult: Boolean) {
       Page(page: 1, perPage: $perPage) {
-        media(type: MANGA, search: $search, sort: SEARCH_MATCH, isAdult: false) {
+        media(type: MANGA, search: $search, sort: SEARCH_MATCH, isAdult: $isAdult) {
           id
           title { english romaji userPreferred }
           coverImage { extraLarge large medium }
@@ -1531,7 +1780,7 @@ export async function searchManga(search, perPage = 12) {
       }
     }
   `;
-  const data = await queryAniList(query, { search, perPage });
+  const data = await queryAniList(query, { search, perPage, isAdult: matureQueryValue() });
   return (data.Page.media || []).map((m) => ({
     mal_id: m.id,
     title: m.title?.english || m.title?.romaji || m.title?.userPreferred || "Manga",
@@ -1551,12 +1800,12 @@ export async function searchManga(search, perPage = 12) {
 
 export async function getAnimeByGenre(genre, perPage = 24, page = 1, sort = "FAVOURITES_DESC") {
   const query = `
-    query ($genre: String, $perPage: Int, $page: Int, $sort: [MediaSort]) {
+    query ($genre: String, $perPage: Int, $page: Int, $sort: [MediaSort], $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo {
           hasNextPage
         }
-        media(type: ANIME, genre: $genre, sort: $sort, isAdult: false) {
+        media(type: ANIME, genre: $genre, sort: $sort, isAdult: $isAdult) {
           ${ANIME_FIELDS}
         }
       }
@@ -1576,7 +1825,7 @@ export async function getAnimeByGenre(genre, perPage = 24, page = 1, sort = "FAV
       sortArray = [sort, "FAVOURITES_DESC"];
     }
 
-    const data = await queryAniList(query, { genre, perPage, page, sort: sortArray });
+    const data = await queryAniList(query, { genre, perPage, page, sort: sortArray, isAdult: matureQueryValue() });
     return {
       media: (data.Page.media || []).map(mapAniListAnimeToJikan),
       pageInfo: data.Page.pageInfo
@@ -1589,10 +1838,10 @@ export async function getAnimeByGenre(genre, perPage = 24, page = 1, sort = "FAV
 
 export async function getMangaByGenre(genre, perPage = 24, page = 1, sort = "FAVOURITES_DESC") {
   const query = `
-    query ($genre: String, $perPage: Int, $page: Int, $sort: [MediaSort]) {
+    query ($genre: String, $perPage: Int, $page: Int, $sort: [MediaSort], $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo { hasNextPage }
-        media(type: MANGA, genre: $genre, sort: $sort, isAdult: false) {
+        media(type: MANGA, genre: $genre, sort: $sort, isAdult: $isAdult) {
           id
           title { english romaji userPreferred }
           coverImage { extraLarge large medium }
@@ -1619,7 +1868,7 @@ export async function getMangaByGenre(genre, perPage = 24, page = 1, sort = "FAV
         ? ["START_DATE_DESC", "POPULARITY_DESC"]
         : ["FAVOURITES_DESC", "SCORE_DESC"];
   try {
-    const data = await queryAniList(query, { genre, perPage, page, sort: sortArray });
+    const data = await queryAniList(query, { genre, perPage, page, sort: sortArray, isAdult: matureQueryValue() });
     return {
       media: (data.Page.media || []).map((manga) => ({
         mal_id: manga.id,
@@ -1649,28 +1898,28 @@ export async function getMangaByGenre(genre, perPage = 24, page = 1, sort = "FAV
 
 export async function getGenreArtworks() {
   const query = `
-    query {
-      Action: Page(page: 1, perPage: 1) { media(genre: "Action", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Adventure: Page(page: 1, perPage: 1) { media(genre: "Adventure", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Fantasy: Page(page: 1, perPage: 1) { media(genre: "Fantasy", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Romance: Page(page: 1, perPage: 1) { media(genre: "Romance", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      SciFi: Page(page: 1, perPage: 1) { media(genre: "Sci-Fi", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Supernatural: Page(page: 1, perPage: 1) { media(genre: "Supernatural", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Drama: Page(page: 1, perPage: 1) { media(genre: "Drama", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Comedy: Page(page: 1, perPage: 1) { media(genre: "Comedy", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Mystery: Page(page: 1, perPage: 1) { media(genre: "Mystery", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Sports: Page(page: 1, perPage: 1) { media(genre: "Sports", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Horror: Page(page: 1, perPage: 1) { media(genre: "Horror", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      SliceOfLife: Page(page: 1, perPage: 1) { media(genre: "Slice of Life", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Psychological: Page(page: 1, perPage: 1) { media(genre: "Psychological", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Music: Page(page: 1, perPage: 1) { media(genre: "Music", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Thriller: Page(page: 1, perPage: 1) { media(genre: "Thriller", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      Mecha: Page(page: 1, perPage: 1) { media(genre: "Mecha", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
-      MahouShoujo: Page(page: 1, perPage: 1) { media(genre: "Mahou Shoujo", sort: FAVOURITES_DESC, type: ANIME, isAdult: false) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+    query ($isAdult: Boolean) {
+      Action: Page(page: 1, perPage: 1) { media(genre: "Action", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Adventure: Page(page: 1, perPage: 1) { media(genre: "Adventure", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Fantasy: Page(page: 1, perPage: 1) { media(genre: "Fantasy", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Romance: Page(page: 1, perPage: 1) { media(genre: "Romance", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      SciFi: Page(page: 1, perPage: 1) { media(genre: "Sci-Fi", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Supernatural: Page(page: 1, perPage: 1) { media(genre: "Supernatural", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Drama: Page(page: 1, perPage: 1) { media(genre: "Drama", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Comedy: Page(page: 1, perPage: 1) { media(genre: "Comedy", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Mystery: Page(page: 1, perPage: 1) { media(genre: "Mystery", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Sports: Page(page: 1, perPage: 1) { media(genre: "Sports", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Horror: Page(page: 1, perPage: 1) { media(genre: "Horror", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      SliceOfLife: Page(page: 1, perPage: 1) { media(genre: "Slice of Life", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Psychological: Page(page: 1, perPage: 1) { media(genre: "Psychological", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Music: Page(page: 1, perPage: 1) { media(genre: "Music", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Thriller: Page(page: 1, perPage: 1) { media(genre: "Thriller", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      Mecha: Page(page: 1, perPage: 1) { media(genre: "Mecha", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
+      MahouShoujo: Page(page: 1, perPage: 1) { media(genre: "Mahou Shoujo", sort: FAVOURITES_DESC, type: ANIME, isAdult: $isAdult) { coverImage { extraLarge large } title { english romaji userPreferred } } }
     }
   `;
   try {
-    const data = await queryAniList(query);
+    const data = await queryAniList(query, { isAdult: matureQueryValue() });
     const map = {};
     const keyToGenre = {
       Action: "Action",

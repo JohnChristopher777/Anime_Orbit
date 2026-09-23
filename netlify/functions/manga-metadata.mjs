@@ -3,11 +3,13 @@ import { resolveMangaMetadata } from "../lib/manga-metadata.mjs";
 export async function handler(event) {
   const malId = String(event.queryStringParameters?.malId || "").slice(0, 20);
   const title = String(event.queryStringParameters?.title || "").trim().slice(0, 180);
+  const offset = Math.max(0, Number(event.queryStringParameters?.offset) || 0);
+  const limit = Math.min(50, Math.max(1, Number(event.queryStringParameters?.limit) || 50));
   if (!title) {
     return { statusCode: 400, body: JSON.stringify({ error: "A manga title is required." }) };
   }
   try {
-    const metadata = await resolveMangaMetadata({ malId, title });
+    const metadata = await resolveMangaMetadata({ malId, title, offset, limit });
     return {
       statusCode: 200,
       headers: {
@@ -22,7 +24,7 @@ export async function handler(event) {
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=60" },
-      body: JSON.stringify({ chapterCount: 0, mangaDexId: null, sourceUnavailable: true }),
+      body: JSON.stringify({ chapterCount: 0, mangaDexId: null, chapters: [], sourceUnavailable: true }),
     };
   }
 }

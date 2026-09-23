@@ -67,6 +67,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       const messages: Record<string, string> = {
         "auth/unauthorized-domain": `Google sign-in is not authorized for ${window.location.hostname}. Add this domain in Firebase Authentication settings.`,
         "auth/operation-not-allowed": "Google sign-in is disabled in Firebase Authentication.",
+        "auth/invalid-credential": "Google rejected this OAuth configuration. Verify the Firebase Google provider and authorized domains.",
         "auth/account-exists-with-different-credential": "This email already uses another sign-in method. Sign in with that method first.",
         "auth/popup-closed-by-user": "Google sign-in was cancelled.",
         "auth/network-request-failed": "Google sign-in could not connect. Check your network and try again.",

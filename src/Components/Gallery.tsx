@@ -1,170 +1,154 @@
-import React, { useState, useEffect, memo, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Calendar, ChevronLeft, ChevronRight, Image as ImageIcon, Mic2, Share2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useGlobalContext } from "../context/global";
+import { getCharacterDetails, getCharacterVoiceRoles } from "../services/anilist";
+import ProgressiveImage from "./ProgressiveImage";
 import SEO from "./SEO";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ArrowLeft,
-  Image as ImageIcon,
-  RefreshCw,
-} from "lucide-react";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
-import { getCharacterDetails } from "../services/anilist";
 
 export const Gallery: React.FC = () => {
   const { getAnimePictures, pictures, loading } = useGlobalContext();
   const { id } = useParams<{ id: string }>();
-  const [characterName, setCharacterName] = useState("Loading...");
+  const navigate = useNavigate();
+  const [characterName, setCharacterName] = useState("Character");
   const [index, setIndex] = useState(0);
   const [optimizedPictures, setOptimizedPictures] = useState<any[]>([]);
-  const navigate = useNavigate();
+  const [voiceRoles, setVoiceRoles] = useState<any[]>([]);
+  const [voiceLanguage, setVoiceLanguage] = useState<"JAPANESE" | "ENGLISH">("JAPANESE");
 
   useEffect(() => {
-    let isMounted = true;
+    let current = true;
     if (!id) return;
     setIndex(0);
     setOptimizedPictures([]);
-
-    const fetchCharacterName = async () => {
-      try {
-        const data = await getCharacterDetails(id);
-        if (isMounted) {
-          setCharacterName(data?.name?.full || "Unknown Character");
-        }
-      } catch {
-        if (isMounted) {
-          setCharacterName("Character Gallery");
-        }
-      }
-    };
-
-    fetchCharacterName();
-    getAnimePictures(id);
-
-    return () => {
-      isMounted = false;
-    };
+    Promise.allSettled([getCharacterDetails(id)]).then(([details]) => {
+      if (!current) return;
+      if (details.status === "fulfilled") setCharacterName(details.value?.name?.full || "Unknown character");
+      else setCharacterName("Character");
+    });
+    void getAnimePictures(id);
+    return () => { current = false; };
   }, [id, getAnimePictures]);
 
   useEffect(() => {
-    if (pictures && pictures.length > 0) {
-      setOptimizedPictures(pictures);
-    }
+    let current = true;
+    if (!id) return;
+    setVoiceRoles([]);
+    getCharacterVoiceRoles(id, 25, voiceLanguage).then((roles) => {
+      if (current) setVoiceRoles(roles?.media?.edges || []);
+    }).catch(() => {
+      if (current) setVoiceRoles([]);
+    });
+    return () => { current = false; };
+  }, [id, voiceLanguage]);
+
+  useEffect(() => {
+    if (pictures?.length) setOptimizedPictures(pictures);
   }, [pictures]);
 
   const handlePrev = useCallback(() => {
-    if (optimizedPictures.length === 0) return;
-    setIndex((prevIndex) => (prevIndex === 0 ? optimizedPictures.length - 1 : prevIndex - 1));
+    setIndex((value) => optimizedPictures.length ? (value - 1 + optimizedPictures.length) % optimizedPictures.length : 0);
   }, [optimizedPictures.length]);
-
   const handleNext = useCallback(() => {
-    if (optimizedPictures.length === 0) return;
-    setIndex((prevIndex) => (prevIndex === optimizedPictures.length - 1 ? 0 : prevIndex + 1));
+    setIndex((value) => optimizedPictures.length ? (value + 1) % optimizedPictures.length : 0);
   }, [optimizedPictures.length]);
-
-  const handleBack = () => {
-    if (window.history.length > 2) {
-      navigate(-1);
-    } else {
-      navigate("/");
+  const handleBack = () => window.history.length > 2 ? navigate(-1) : navigate("/");
+  const shareCharacter = async () => {
+    const shareData = { title: characterName, url: window.location.href };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else await navigator.clipboard.writeText(shareData.url);
+    } catch {
+      // Closing the native share sheet is not an error the page needs to surface.
     }
   };
-
-  const currentImage =
-    optimizedPictures[index]?.jpg?.image_url ||
-    optimizedPictures[index]?.image ||
-    "";
+  const currentImage = optimizedPictures[index]?.jpg?.image_url || optimizedPictures[index]?.image || "";
+  const voiceActors = [...new Map(voiceRoles.flatMap((edge: any) => (edge.voiceActorRoles || []).map((role: any) => [role.voiceActor?.id, { ...role.voiceActor, latestMedia: edge.node }])).filter(([actorId]: any) => actorId)).values()] as any[];
 
   return (
-    <div className="min-h-screen bg-[#121214] text-white pt-28 sm:pt-32 pb-12 px-6 sm:px-10 flex flex-col font-inter relative">
+    <div className="character-gallery-page">
       <SEO
         title={`${characterName} - Character Artwork & Gallery`}
-        description={`Browse official anime character artwork, illustrations, and pictures for ${characterName} on Anime Orbit.`}
+        description={`Browse character artwork and related official images for ${characterName} on Anime Orbit.`}
         keywords={`${characterName}, anime artwork, anime gallery, Anime Orbit`}
         image={currentImage || "https://animeorbit.web.app/animeorbit.jpg"}
-        url={`https://animeorbit.web.app/gallery/${id}`}
+        url={`https://animeorbit.web.app/character/${id}`}
       />
-      {/* Fixed Floating Back Button */}
-      <button
-        onClick={handleBack}
-        className="fixed top-24 left-6 z-50 flex items-center gap-2 bg-[#ffd700] hover:bg-[#ffea00] text-black px-5 py-2.5 rounded-full font-montserrat font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(255,215,0,0.5)] hover:scale-105 transition-all cursor-pointer"
-      >
-        <ArrowLeft size={18} />
-        <span>Back to Anime</span>
-      </button>
 
-      {/* Header Bar below Nav */}
-      <div className="flex items-center justify-between pb-6 border-b border-white/10 max-w-6xl mx-auto w-full pl-36 sm:pl-44">
-        <h1 className="text-xl sm:text-2xl font-black font-staatliches uppercase tracking-wide text-white truncate max-w-md">
-          {characterName} Gallery
-        </h1>
-
-        <div className="flex items-center gap-2"><button type="button" disabled={loading} onClick={() => id && void getAnimePictures(id)} className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-neutral-200 hover:border-[#ffd700]/50 hover:text-[#ffd700]"><RefreshCw size={13} className={loading ? "animate-spin" : ""} />Refresh pictures</button><span className="text-xs font-bold text-[#ffd700] bg-[#ffd700]/10 border border-[#ffd700]/30 px-3.5 py-1.5 rounded-full">
-          {optimizedPictures.length > 0
-            ? `${index + 1} / ${optimizedPictures.length}`
-            : "0 Images"}
-        </span></div>
-      </div>
-
-      {/* Main Showcase Stage */}
-      <div className="relative flex-1 flex items-center justify-center max-w-5xl mx-auto w-full py-8">
-        {optimizedPictures.length > 1 && (
-          <button
-            onClick={handlePrev}
-            className="absolute left-2 sm:left-4 z-20 w-12 h-12 rounded-full bg-black/60 border border-[#ffd700]/40 text-[#ffd700] flex items-center justify-center hover:scale-110 transition-all shadow-xl"
-          >
-            <ChevronLeft size={30} />
+      <main className="character-gallery-shell">
+        <header className="character-gallery-toolbar">
+          <button type="button" onClick={handleBack} className="character-gallery-back">
+            <ArrowLeft size={18} />
+            <span>Back</span>
           </button>
-        )}
+          <div className="character-gallery-heading">
+            <span>Character artwork</span>
+            <h1>{characterName}</h1>
+          </div>
+          <div className="character-gallery-actions">
+            <output aria-live="polite">
+              {optimizedPictures.length ? `${index + 1} / ${optimizedPictures.length}` : "0 images"}
+            </output>
+            <button type="button" onClick={shareCharacter} aria-label={`Share ${characterName}`}>
+              <Share2 size={16} />
+              <span>Share</span>
+            </button>
+          </div>
+        </header>
 
-        <div className="relative max-h-[65vh] rounded-2xl overflow-hidden border-2 border-[#ffd700]/40 shadow-2xl bg-neutral-900 flex items-center justify-center p-2">
+        <section className="character-gallery-stage" aria-label={`${characterName} image gallery`}>
           {currentImage ? (
-            <img
+            <ProgressiveImage
               src={currentImage}
-              alt={characterName}
-              className="max-h-[60vh] max-w-full object-contain rounded-xl"
+              alt={`${characterName} artwork ${index + 1}`}
+              wrapperClassName="character-gallery-image"
+              className="h-full w-full object-contain"
             />
           ) : (
-            <div className="p-20 text-center text-neutral-500">
-              <ImageIcon size={48} className="mx-auto text-neutral-600 mb-2" />
-              <p className="text-sm">Loading artwork...</p>
+            <div className="character-gallery-empty">
+              <ImageIcon size={42} />
+              <strong>{loading ? "Loading artwork…" : "No artwork available"}</strong>
+              <span>Try refreshing the character gallery.</span>
             </div>
           )}
-        </div>
+
+          {optimizedPictures.length > 1 && (
+            <div className="character-gallery-navigation">
+              <button type="button" onClick={handlePrev} aria-label="Previous picture"><ChevronLeft size={24} /></button>
+              <span>{index + 1} of {optimizedPictures.length}</span>
+              <button type="button" onClick={handleNext} aria-label="Next picture"><ChevronRight size={24} /></button>
+            </div>
+          )}
+        </section>
 
         {optimizedPictures.length > 1 && (
-          <button
-            onClick={handleNext}
-            className="absolute right-2 sm:right-4 z-20 w-12 h-12 rounded-full bg-black/60 border border-[#ffd700]/40 text-[#ffd700] flex items-center justify-center hover:scale-110 transition-all shadow-xl"
-          >
-            <ChevronRight size={30} />
-          </button>
+          <div className="character-gallery-thumbnails" aria-label="Choose character picture">
+            {optimizedPictures.map((picture, pictureIndex) => {
+              const thumbnail = picture?.jpg?.image_url || picture?.image;
+              return (
+                <button
+                  type="button"
+                  key={`${thumbnail}-${pictureIndex}`}
+                  onClick={() => setIndex(pictureIndex)}
+                  aria-label={`Show picture ${pictureIndex + 1}`}
+                  aria-current={index === pictureIndex ? "true" : undefined}
+                >
+                  <img src={thumbnail} alt="" loading="lazy" />
+                </button>
+              );
+            })}
+          </div>
         )}
-      </div>
 
-      {/* Thumbnails Row */}
-      {optimizedPictures.length > 1 && (
-        <div className="flex gap-3 overflow-x-auto max-w-5xl mx-auto w-full py-4 justify-center">
-          {optimizedPictures.map((pic, idx) => {
-            const thumb = pic?.jpg?.image_url || pic?.image;
-            return (
-              <img
-                key={idx}
-                src={thumb}
-                alt="Thumbnail"
-                onClick={() => setIndex(idx)}
-                className={`w-16 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all ${
-                  index === idx
-                    ? "border-[#ffd700] scale-105 shadow-lg shadow-[#ffd700]/30"
-                    : "border-white/20 opacity-60 hover:opacity-100"
-                }`}
-              />
-            );
-          })}
-        </div>
-      )}
+        <section className="character-voice-section">
+          <header><div><span><Mic2 size={14} />{voiceLanguage === "JAPANESE" ? "Japanese" : "English"} voice cast</span><h2>Voices behind {characterName}</h2><p>Choose a language, then open an actor to see their complete role history.</p></div><div className="character-voice-language" role="group" aria-label="Voice language"><button type="button" className={voiceLanguage === "JAPANESE" ? "is-active" : ""} onClick={() => setVoiceLanguage("JAPANESE")}>Japanese</button><button type="button" className={voiceLanguage === "ENGLISH" ? "is-active" : ""} onClick={() => setVoiceLanguage("ENGLISH")}>English</button></div><b>{voiceActors.length} actors</b></header>
+          {voiceActors.length ? <div className="character-voice-grid">{voiceActors.map((actor) => <Link to={`/voice-actor/${actor.id}`} key={actor.id}>
+            <ProgressiveImage src={actor.image?.large || actor.image?.medium} alt={actor.name?.full} wrapperClassName="character-voice-image" className="h-full w-full object-cover" />
+            <div><span>{actor.languageV2 || "Japanese"}</span><h3>{actor.name?.full}</h3><p><Calendar size={13} />{actor.latestMedia?.startDate?.year || "Year unknown"} · {actor.latestMedia?.title?.english || actor.latestMedia?.title?.romaji || "Anime role"}</p></div><ArrowRight size={17} />
+          </Link>)}</div> : <div className="finder-empty">No voice cast allowed by the current mature-content preference was returned.</div>}
+        </section>
+      </main>
     </div>
   );
 };

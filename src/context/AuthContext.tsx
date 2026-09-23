@@ -14,8 +14,21 @@ import {
     sendPasswordResetEmail,
     type User as FirebaseUser
 } from 'firebase/auth';
-import { auth } from '../firebase/config';
+import { auth, db } from '../firebase/config';
+import { doc, getDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
+import { setMatureContentPreference } from '../services/anilist';
+
+const maturePreferenceAllowed = (birthDate: unknown, enabled: unknown) => {
+    if (!enabled || typeof birthDate !== 'string') return false;
+    const birth = new Date(birthDate);
+    if (Number.isNaN(birth.getTime())) return false;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const month = today.getMonth() - birth.getMonth();
+    if (month < 0 || (month === 0 && today.getDate() < birth.getDate())) age -= 1;
+    return age >= 18;
+};
 
 interface AuthContextType {
     currentUser: FirebaseUser | null;
@@ -59,15 +72,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: "select_account" });
         await setPersistence(auth, browserLocalPersistence);
-        const prefersRedirect = typeof window !== "undefined"
-            && (window.matchMedia("(max-width: 767px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-        if (prefersRedirect) {
-            await signInWithRedirect(auth, provider);
-            return null;
-        }
         try {
             return await signInWithPopup(auth, provider);
         } catch (error: any) {
+            // Popup is the reliable default on third-party hosting because it
+            // keeps Firebase's canonical OAuth handler. Redirect is retained
+            // only for browsers that genuinely cannot open the popup.
             if (["auth/popup-blocked", "auth/operation-not-supported-in-this-environment", "auth/web-storage-unsupported"].includes(error?.code)) {
                 await signInWithRedirect(auth, provider);
                 return null;
@@ -89,11 +99,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const messages: Record<string, string> = {
                 "auth/unauthorized-domain": `Google sign-in is not authorized for ${window.location.hostname}.`,
                 "auth/operation-not-allowed": "Google sign-in is disabled for this Firebase project.",
+                "auth/invalid-credential": "Google rejected the sign-in configuration. Check the Firebase Google provider and OAuth redirect URI.",
                 "auth/network-request-failed": "Google sign-in could not connect. Check your network and try again.",
             };
             toast.error(messages[error?.code] || "Google sign-in could not be completed.");
         });
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                try {
+                    const snapshot = await getDoc(doc(db, 'users', user.uid));
+                    const profile = snapshot.exists() ? snapshot.data() : {};
+                    setMatureContentPreference(maturePreferenceAllowed(profile.birthDate, profile.allowMatureContent));
+                } catch {
+                    setMatureContentPreference(false);
+                }
+            } else {
+                setMatureContentPreference(false);
+            }
             setCurrentUser(user);
             setLoading(false);
         });

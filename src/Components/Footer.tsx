@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Compass, Heart, ListTodo, User, Flame, Calendar, Layers, BookOpen, Brain, MessageCircle, GitBranch } from "lucide-react";
+import { Sparkles, Compass, Heart, ListTodo, User, Flame, Calendar, Layers, BookOpen, Brain, MessageCircle, GitBranch, Bell } from "lucide-react";
 
 export const Footer: React.FC = () => {
   const handleScrollTop = () => {
@@ -128,6 +128,12 @@ export const Footer: React.FC = () => {
               <Link to="/discovery" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
                 <Brain size={13} className="text-[#ffd700]" />
                 <span>Anime Discovery</span>
+              </Link>
+            </li>
+            <li>
+              <Link to="/digest" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
+                <Bell size={13} className="text-[#ffd700]" />
+                <span>Anime Digest</span>
               </Link>
             </li>
             <li>

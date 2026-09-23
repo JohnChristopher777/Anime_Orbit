@@ -38,7 +38,18 @@ import AuthModal from "./AuthModal";
 import SEO from "./SEO";
 import Footer from "./Footer";
 import AppDropdown from "./AppDropdown";
-import { getAnimeListByIds } from "../services/anilist";
+import { getAnimeListByIds, setMatureContentPreference } from "../services/anilist";
+
+const isAdultBirthDate = (value: string) => {
+  if (!value) return false;
+  const birth = new Date(value);
+  if (Number.isNaN(birth.getTime())) return false;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const month = today.getMonth() - birth.getMonth();
+  if (month < 0 || (month === 0 && today.getDate() < birth.getDate())) age -= 1;
+  return age >= 18;
+};
 
 const AVATAR_PRESETS = [
   "/avatars/1.png",
@@ -145,7 +156,10 @@ export const Profile: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      setMatureContentPreference(false);
+      return;
+    }
     setDisplayName((currentUser.displayName || "").slice(0, 15));
     setAvatarUrl(currentUser.photoURL || AVATAR_PRESETS[0]);
 
@@ -163,7 +177,9 @@ export const Profile: React.FC = () => {
           if (data.bannerUrl) setBannerUrl(data.bannerUrl);
           if (data.birthDate) setBirthDate(data.birthDate);
           if (typeof data.allowMatureContent === "boolean") {
-            setAllowMatureContent(data.allowMatureContent);
+            const permitted = isAdultBirthDate(String(data.birthDate || "")) && data.allowMatureContent;
+            setAllowMatureContent(permitted);
+            setMatureContentPreference(permitted);
           }
 
           if (data.deletionScheduled) {
@@ -349,6 +365,7 @@ export const Profile: React.FC = () => {
       window.dispatchEvent(
         new CustomEvent("orbit_avatar_updated", { detail: { avatarUrl } }),
       );
+      setMatureContentPreference(finalMatureSetting);
 
       toast.success("Profile saved successfully!");
       setIsEditing(false);
@@ -771,11 +788,11 @@ export const Profile: React.FC = () => {
                   <span>Favorites</span>
                 </div>
                 <div>
-                  <strong>{totalEpisodesWatched}</strong>
+                  <strong>{totalEpisodesWatched}<span>Eps.</span></strong>
                   <span>Episodes watched</span>
                 </div>
                 <div>
-                  <strong>{Math.round(watchMinutes / 60)}</strong>
+                  <strong>{Math.round(watchMinutes / 60)}<span>Hrs.</span></strong>
                   <span>Watch hours</span>
                 </div>
               </div>

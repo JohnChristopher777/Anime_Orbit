@@ -296,3 +296,176 @@ AniList `PREQUEL`, `SEQUEL`, `PARENT`, `SIDE_STORY`, and `ALTERNATIVE` relation 
 
 - The Netlify redirect maps `/api/manga-metadata` to a serverless function; Vite exposes the identical route during local development. Supplemental MangaDex outages now fail on the server and return `{ chapterCount: 0 }` instead of surfacing browser connection-reset errors.
 - Existing saved records without country-of-origin data retain their truthful stored `Manga` label. Newly searched or saved records persist the more precise publication label.
+
+## Discovery, authentication and media-dialog correction — 2026-09-22
+
+- [x] Repair the AnimeItem loading skeleton so its mobile layout uses a centered portrait surface and vertically stacked copy instead of retaining the desktop grid.
+- [x] Keep Google sign-in popup-first on mobile and desktop, stop replacing Firebase's canonical auth domain with the current site hostname, and retain redirect only as a popup-blocked fallback.
+- [ ] In Firebase Console, confirm Google is enabled under Authentication > Sign-in method and add every deployed hostname under Authentication > Settings > Authorized domains.
+- [x] Expand Anime Discovery with a provider-isolated digest for Anime News Network headlines, AnimeChan quotes, and AnimeFacts, while preserving trace.moe scene search and visible confidence ranking.
+- [x] Rank discovery results consistently and expose news/digest content as a dedicated page mode without allowing one unavailable provider to break the others.
+- [x] Resolve MangaDex searches, aggregate totals, and chapter metadata through the same-origin server route with exact MAL/title matching, unique chapter IDs, paging, retries, and honest missing-field fallbacks.
+- [x] Fetch chapter title, publication date, page count, source, and available external link for the selected 50-chapter range; merge it with Kitsu fields without allowing generic placeholders to replace published metadata.
+- [x] Open episode and chapter cards in a shared blurred-background details dialog with responsive artwork, full available metadata, Escape/backdrop close, and previous/next navigation.
+- [x] Replace in-grid Watchlist card expansion with a responsive blurred editor dialog while reusing the existing status, dates, progress, score, notes, Save, and Cancel logic.
+- [x] Support a server-only `MANGADEX_ACCESS_TOKEN` when available and retain temporary JWT-shaped legacy-key migration; never send a MangaDex client secret to the browser or public catalogue endpoints.
+
+### Implementation notes
+
+- MangaDex public catalogue reads do not require authentication. A personal client ID and client secret are not sufficient by themselves to obtain an access token, and any `VITE_` secret is browser-visible; migrate secrets to server-only environment variables.
+- MangaDex does not publish prose chapter summaries or thumbnails for most records. The dialog shows published title/date/page metadata when present and labels unavailable text honestly rather than inventing it.
+- The discovery digest uses server-side fetches and independent fallbacks so legacy provider downtime does not blank the page.
+
+## Manga accessibility, discovery tools and scoring controls — 2026-09-22
+
+- [x] Redesign the manga catalogue hierarchy with calmer typography, clearer search/sort grouping, readable publication metadata, consistent cover crops, larger touch targets, keyboard focus rings, and less cramped mobile cards.
+- [x] Improve MangaItem mobile reading order and supporting typography; use a single-column chapter list on phones and clearer visual separation between controls, facts, story, and chapter content.
+- [x] Keep episode/chapter detail dialogs centred on desktop; on mobile, place only Previous/Next in a separate thumb-reachable dock below the content sheet.
+- [x] Remove ordinary title search from Anime Discovery; global navigation search remains the canonical title-search surface.
+- [x] Stop sending full remembered quotes to AnimeChan's character filter, which caused 404 responses. Dialogue matching now uses Gemini reconstruction plus the local verified quote index and AniList character/anime resolution.
+- [x] Show character portraits and direct character/anime destinations in resolved dialogue results.
+- [x] Expand screenshot analysis into a complete AI frame description covering foreground/background, character appearance, action, setting, composition, objects, lighting, colour, and visible text.
+- [x] Route Gemini requests through the same-origin `/api/discovery` endpoint in both Netlify and local Vite development.
+- [x] Move Anime Digest out of Discovery into the dedicated `/digest` page, add a notification bell after navigation search, and add the destination to the footer.
+- [x] Enrich the featured AnimeChan quote with AniList character artwork and a character-page link when a reliable match is available.
+- [x] Replace editable score fields and AnimeItem review stars with one accessible 1–10 spike slider using 0.25 increments and a red-to-green value colour.
+- [x] Make mobile navigation search results full-width buttons that explicitly close search state and navigate to the selected AnimeItem.
+- [ ] Configure the server-only `GEMINI_API_KEY` locally and in Netlify for AI screenshot descriptions and enhanced scene/dialogue analysis. Without it, the endpoint returns a successful empty AI result and the catalogue/quote fallbacks continue without a 503.
+
+### Implementation notes
+
+- AnimeChan supports filtering by anime or character name, not arbitrary quote full-text. Whole-line reconstruction therefore uses the AI/local matching pipeline instead of generating invalid provider requests.
+- The digest remains resilient when quote artwork, facts, or news providers fail independently; no browser request contains provider secrets.
+- Score sliders expose their current numeric value through an accessible output and retain keyboard-native range behavior.
+
+## Native home rails, responsive digest and guide presentation — 2026-09-22
+
+- [x] Remove homepage row marquee movement and custom wheel interception so trackpad gestures use native browser scrolling.
+- [x] Add a final Explore More card to every populated homepage anime row, linked to that row's full catalogue page.
+- [x] Keep the digest bell beside navigation search on desktop; move Anime Digest into the signed-in profile dropdown on mobile.
+- [x] Reflow the Anime Digest character quote into a separate portrait and readable content block on mobile; prevent headline overflow.
+- [x] Restore the centred episode/chapter details dialog on desktop and keep only mobile Previous/Next controls outside the content sheet at its bottom edge.
+- [x] Make `/api/discovery` return a non-error fallback payload when Gemini is unconfigured or unavailable, preserving scene catalogue matching and local dialogue matching.
+- [x] Remove the strict scene-rank cutoff so a valid AniList fallback response cannot be discarded into an empty result.
+- [x] Redesign the manga chapter guide as two-column readable cards on desktop and a single-column touch list on mobile, with restrained date typography.
+
+### Implementation notes
+
+- Homepage arrow buttons still provide smooth explicit movement; direct wheel, trackpad, touch, and pointer gestures are no longer rewritten by JavaScript.
+- AI-enhanced identification still requires a server-only Gemini key. Missing AI configuration no longer breaks independent catalogue, Trace.moe, or local quote fallbacks.
+
+## Watchlist search, progress editor, ratings and digest reliability — 2026-09-23
+
+- [x] Add an internal Watchlist search for the active Anime/Manga library, matching titles, alternate titles, notes, status, format, and genres.
+- [x] Display the user's personal rating on collapsed Anime, Manga, and merged-franchise Watchlist cards, independently from the catalogue score.
+- [x] Separate rating into its own labelled editor panel in both the Watchlist editor and AnimeItem review form.
+- [x] Consolidate duplicate Episode/Watching and Chapter/Reading progress controls into one panel containing the slider, exact value, and increment/decrement controls.
+- [x] Automatically mark progress Completed at the known total and return it to Watching/Reading when reduced.
+- [x] Highlight completed episode/chapter totals on collapsed Watchlist cards.
+- [x] Move the mobile Anime Digest notification destination inside the signed-in profile dropdown while retaining the standalone desktop bell.
+- [x] Pin Discovery's server request to the stable `gemini-3.6-flash` model identifier and retain non-breaking catalogue/quote fallbacks when AI is not configured.
+- [x] Make Anime Digest quote artwork resolve through AniList, then Jikan character art, then the matching anime cover; allow Refresh to bypass the server cache.
+
+### Implementation notes
+
+- Personal ratings remain private Watchlist fields (`userScore`) and are visually labelled separately from AniList community scores (`score`).
+- Gemini calls still require `GEMINI_API_KEY` as a server-only environment variable. No Gemini key is present in the local `.env`; the app therefore uses its existing non-AI fallbacks locally instead of exposing a browser key.
+
+## Character, mature-search and Discovery refinement - 2026-09-23
+
+- [x] Replace the fixed-position character gallery header with a responsive frosted toolbar, bounded artwork stage, bottom navigation controls, and horizontally scrollable thumbnails.
+- [x] Persist the age-gated mature-content preference centrally and apply it to anime search, manga search, popular, trending, airing, upcoming, genre, and related character-media requests.
+- [x] Load the saved mature preference during authentication so filtering works without first visiting Profile, clear query caches when it changes, and refresh already-loaded global catalogue sections.
+- [x] Make score-slider track, glow, thumb, value, and surrounding panel follow the live 1-10 red-to-green score colour.
+- [x] Colour Watchlist status pills from each card's status token while retaining the shared Watchlist card treatment.
+- [x] Merge screenshot and remembered-description tools into one scene workflow with an optional character clue and a larger exact trace.moe timestamp.
+- [x] Keep trace.moe limited to uploaded screenshots or direct image URLs; use Gemini 3.6 plus catalogue ranking for text scene descriptions instead of presenting text-only guesses as exact frame traces.
+- [x] Add an AnimeChan random-quote endpoint with current and legacy provider fallbacks, then resolve the returned anime and character through AniList for artwork and navigation.
+- [x] Retain partial quote matching through the local/Gemini resolver and show episode metadata only when the upstream match provides it.
+- [x] Add a dedicated `/discovery/characters` page with name, hair, eyes, gender, age, and free-form trait controls, ACDB name lookup, AI candidate matching, AniList artwork, and a full ACDB visual-search fallback.
+- [x] Merge Pick a Vibe and For You into one Find Anime destination with genre-weight sliders; automatically exclude Favorites plus Watching/Completed list entries while allowing Plan to Watch titles.
+
+### Implementation notes
+
+- ACDB's documented public endpoint supports character-name/title lookup, while its richer appearance filtering is exposed by its visual-search page. The app uses the API where available and links to the official full filter rather than inventing undocumented API parameters.
+- trace.moe requires a real image and reports anime, episode, and exact time by visual pattern matching. Described scenes therefore produce ranked candidates, not a fabricated exact timestamp.
+- AnimeChan's documented random response does not include episode metadata. The UI leaves episode blank unless a separate resolver can identify it reliably.
+
+## Discovery workspace, related characters and voice-cast graph - 2026-09-23
+
+- [x] Promote Characters to a first-class Anime Discovery tool while retaining the shareable `/discovery/characters` destination.
+- [x] Allow character discovery with no name, load popular characters initially, and append related results when descriptive or partial-name matching has no exact record.
+- [x] Rebuild Scene Finder, Quotes, Characters, Find Anime, and Voice Cast around a consistent left-input/right-results workspace that collapses cleanly on mobile.
+- [x] Remove the duplicate Find Anime result panel and keep genre, vibe, weighted preferences, library exclusions, and the ranked output synchronized in one workspace.
+- [x] Re-check trace.moe IDs through the preference-aware AniList catalogue before rendering so screenshot matches also respect the mature-content preference.
+- [x] Add two-way voice-cast discovery: character to Japanese actor, and actor to voiced characters, with actor roles ordered newest-first by release year.
+- [x] Add shareable `/voice-actor/:id` role pages with progressive loading, direct character/anime links, and mobile-responsive role cards.
+- [x] Add voice-cast trails and share controls to character pages, allowing a character result to reverse into an actor's complete available role history.
+- [x] Filter adult media at the final character, voice-role, catalogue, and trace-result boundaries whenever the saved Profile preference is disabled.
+- [x] Keep random Quotes usable when AnimeChan is unavailable by selecting from the verified local index, then resolving current character and anime artwork through AniList.
+
+### Implementation notes
+
+- AniList `Staff.characterMedia` and `MediaEdge.voiceActorRoles` provide the relationship graph used here. Role pages paginate the actor's media connection and sort every merged batch by the anime start year.
+- Rich Gemini interpretation remains optional and server-only. The catalogue, related-character, quote, and Trace workflows continue to produce usable UI when `GEMINI_API_KEY` is absent.
+
+## Discovery UX and provider correction - 2026-09-23
+
+- [x] Remove competing local/query tab state so changing Discovery sections cannot flicker back to the previous tool.
+- [x] Restore Find Anime's full-width layout and stop library hydration or personalized-refresh state from holding the main catalogue in a permanent skeleton.
+- [x] Keep existing recommendations visible while a genre, mix, or library refresh is running.
+- [x] Replace generic six-column AnimeCards in Discovery with compact ranked result cards containing title, score, format, episode count, genres, and scene-match context.
+- [x] Require an actual description, genre, or AI signal before presenting an anime as a scene match; unrelated high-scoring popular titles are no longer labelled as matches.
+- [x] Collapse optional character appearance filters, scroll mobile submissions to results, and distinguish close matches from related suggestions.
+- [x] Add a verified-name fallback when the AniList popular-character connection temporarily fails.
+- [x] Redesign quote results into bounded source cards with readable quote, character/anime attribution, and separate destinations.
+- [x] Normalize Discovery, character, gallery-cast, and voice-role typography to the same supporting-text scale used by Watchlist.
+- [x] Add newest-year, oldest-year, and character A-Z sorting to voice-actor role pages.
+
+### Verification notes
+
+- Live AniList GraphQL checks returned the popular-character feed, character-to-Japanese-actor edges, actor-to-character media edges, and Find Anime genre results successfully. The observed failures were UI state/cascade issues rather than unavailable AniList fields.
+
+## Voice-role cards, Trace scene cards and character chips - 2026-09-23
+
+- [x] Remove the duplicate top-page offset from voice-actor details and add dedicated hero and role-grid skeletons.
+- [x] Strip raw AniList Markdown from actor biographies while preserving verified profile/social URLs as usable external links.
+- [x] Replace horizontal voice-role strips with responsive character cards and label each anime destination with its actual series title.
+- [x] Keep View Character and anime-series destinations separate and keyboard accessible.
+- [x] Make Voice Cast open on Voice Actor first while retaining the two-way Character/Actor switch.
+- [x] Replace character appearance dropdowns with ACDB-style toggle chips for hair, eyes, age, gender, hair length, ears, and role; each selection automatically refreshes results while the name stays optional.
+- [x] Replace shallow Trace thumbnails with large 16:9 scene cards and rebalance match percentage, episode, timestamp, and destination hierarchy.
+- [x] Apply pointer cursors consistently to interactive Discovery, character, gallery, and voice-cast controls.
+- [x] Verify the voice-role grid against a live AniList staff record at desktop and phone widths; constrain long biography/profile content on mobile and replace invalid staff-ID fallback portraits with an explicit unavailable state.
+
+## Discovery interaction and cast-language correction - 2026-09-23
+
+- [x] Make the Discovery hero describe the currently selected Scene, Quote, Character, Find Anime, or Voice Cast tool.
+- [x] Show character appearance and story controls fully expanded and back them with deterministic attribute candidates, so selections work without a name or optional AI response (including green hair resolving Zoro and other matching characters).
+- [x] Remove provider, API, and implementation-stack names from user-facing Discovery and About copy.
+- [x] Increase small Discovery labels, example text, result tags, Trace metadata, and character filter controls to the supporting-text scale used elsewhere.
+- [x] Fetch paginated quote collections for character-name searches and merge them with resilient local matches.
+- [x] Add Japanese and English voice-cast switches to both the cast explorer and character voice-cast section.
+- [x] Resolve a character-name cast search directly into actor-detail destinations instead of stopping at a character card.
+- [x] Redesign actor role results as a responsive two-column grid with full-height portrait art on the left, details on the right, and the anime series presented as a text link rather than a button.
+- [x] Present Trace scene frames without rounded image corners or cropping and keep episode and timestamp together on one metadata line.
+
+### Verification notes
+
+- TypeScript, production build, and diff validation pass.
+- Network-enabled previews verified the expanded character interface, actor-first bilingual cast layout, and live staff-role cards.
+- A direct character quote lookup for Monkey D. Luffy returned ten distinct dialogue records from two pages.
+
+## Home discovery pulse and Trace frame sizing - 2026-09-23
+
+- [x] Replace the remaining Trace result grid container with an explicit vertical flex card so every scene wrapper spans the complete card width without a reserved right-side column.
+- [x] Keep scene artwork uncropped and square-cornered while the outer result card retains the shared interface shape.
+- [x] Add a responsive Discovery Pulse above Anime Site Guide on Home.
+- [x] Show a random quote card with a direct Quote Search destination and resilient local fallbacks.
+- [x] Build Japanese-only voice connections from real actor roles, linking the actor, both characters, both anime titles, and the complete Voice Cast explorer.
+- [x] Add a New facts control that refreshes both the quote and voice connection without leaving Home.
+
+### Verification notes
+
+- A network-enabled full-page Home render confirmed the new section's ordering, live content, link hierarchy, and two-card desktop layout.
+- TypeScript, production build, and diff validation pass.

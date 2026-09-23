@@ -67,7 +67,7 @@ export const Manga: React.FC = () => {
   const handleSortChange = (value: string) => setSearchParams({ sort: value });
 
   return (
-    <div className="min-h-screen bg-[#07070b] text-white flex flex-col font-inter">
+    <div className="manga-catalog-page min-h-screen bg-[#07070b] text-white flex flex-col font-inter">
       <SEO
         title="Manga Universe - Popular Series, Origins & Story Genesis | Anime Orbit"
         description="Explore top-rated manga masterpieces, original source stories, light novels, and character genesis across all genres on Anime Orbit."
@@ -75,19 +75,19 @@ export const Manga: React.FC = () => {
         url="https://animeorbit.web.app/manga"
       />
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-8 pt-4 sm:pt-8 pb-16 flex-1 w-full space-y-5 sm:space-y-8">
+      <main className="manga-catalog-shell max-w-7xl mx-auto px-3 sm:px-8 pt-4 sm:pt-8 pb-16 flex-1 w-full space-y-5 sm:space-y-8">
         {/* Header Title & Filter Bar */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#12121a]/90 p-4 sm:p-6 shadow-xl">
+        <header className="manga-catalog-header">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 text-xs font-bold text-[#ffd700] uppercase tracking-wider font-montserrat">
               <BookOpen size={15} />
               <span>Explore Manga</span>
             </div>
-            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black font-staatliches tracking-wide uppercase text-white drop-shadow">
+            <h1>
               Manga Library
             </h1>
-            <p className="text-xs sm:text-sm text-neutral-400">
-              Search any title or browse manga readers are enjoying now.
+            <p>
+              Browse manga, manhwa, manhua, light novels, and one-shots with publication details and chapter tracking.
             </p>
           </div>
 
@@ -103,7 +103,7 @@ export const Manga: React.FC = () => {
               <AppDropdown ariaLabel="Sort manga" className="w-52" value={sortParam} onChange={handleSortChange} options={[{ value: "POPULARITY_DESC", label: "Most Popular" }, { value: "SCORE_DESC", label: "Top Rated" }, { value: "START_DATE_DESC", label: "Newest Releases" }, { value: "FAVOURITES_DESC", label: "Most Favorited" }]} />
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Manga Card Grid */}
         {initialLoading ? (
@@ -142,11 +142,11 @@ export const Manga: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="flex items-end justify-between gap-3 border-b border-white/10 pb-3">
-              <div><span className="text-[10px] font-bold uppercase tracking-[.12em] text-[#ffd700]">{activeSearch ? "Search results" : "Manga shelf"}</span><h2 className="mt-1 font-montserrat text-lg font-bold text-white">{activeSearch ? `Matches for “${activeSearch}”` : "Popular reads"}</h2></div>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold text-neutral-400">{mangaList.length} titles</span>
+            <div className="manga-catalog-results-header">
+              <div><span>{activeSearch ? "Search results" : "Manga shelf"}</span><h2>{activeSearch ? `Matches for “${activeSearch}”` : "Popular reads"}</h2></div>
+              <strong aria-live="polite">{mangaList.length} titles loaded</strong>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-6">
+            <div className="manga-catalog-grid">
               {mangaList.map((item) => {
                 const img = item.images?.jpg?.large_image_url || item.images?.jpg?.image_url;
                 const title = item.title_english || item.title;
@@ -155,10 +155,11 @@ export const Manga: React.FC = () => {
                   <Link
                     key={`manga-${item.mal_id}`}
                     to={`/manga/${item.mal_id}`}
-                    className="group flex flex-col bg-[#12121a]/90 hover:bg-[#181824] border border-white/10 hover:border-[#ffd700]/60 rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 sm:hover:-translate-y-1 shadow-lg relative"
+                    className="manga-catalog-card group"
+                    aria-label={`Open ${title}${item.format ? `, ${item.format}` : ""}${item.score ? `, score ${item.score} out of 10` : ""}`}
                   >
                     {/* Cover Artwork */}
-                    <div className="relative aspect-[2/3] w-full overflow-hidden bg-neutral-900">
+                    <div className="manga-catalog-card__cover">
                       {img ? (
                         <ProgressiveImage src={img} alt={title} wrapperClassName="absolute inset-0" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (
@@ -169,24 +170,24 @@ export const Manga: React.FC = () => {
 
                       {/* Score Badge */}
                       {item.score && item.score !== "N/A" && (
-                        <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 bg-black/80 border border-[#ffd700]/50 text-[#ffd700] px-2 py-0.5 rounded-lg text-xs font-bold font-montserrat backdrop-blur-md shadow-md">
+                        <div className="manga-catalog-card__score">
                           <Star size={11} fill="#ffd700" />
                           <span>{item.score}</span>
                         </div>
                       )}
 
                       {/* Format Badge */}
-                      <span className="absolute bottom-2.5 right-2.5 bg-black/80 text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-md font-montserrat uppercase border border-white/20 backdrop-blur-md">
+                      <span className="manga-catalog-card__format">
                         {item.format || "Manga"}
                       </span>
                     </div>
 
                     {/* Metadata */}
-                    <div className="flex flex-1 flex-col justify-between space-y-2 border-t border-white/[0.06] p-2.5 sm:p-3.5">
-                      <h3 className="font-montserrat font-bold text-xs sm:text-sm text-white group-hover:text-[#ffd700] transition-colors line-clamp-2 leading-snug">
+                    <div className="manga-catalog-card__body">
+                      <h3>
                         {title}
                       </h3>
-                      <div className="flex items-center justify-between gap-2 text-[10px] sm:text-[11px] text-neutral-400 font-mono">
+                      <div>
                         <span className="truncate">{item.status || "Manga"}</span>
                         {item.year && <span>{item.year}</span>}
                       </div>
@@ -211,7 +212,7 @@ export const Manga: React.FC = () => {
             )}
           </>
         )}
-      </div>
+      </main>
 
       <Footer />
     </div>

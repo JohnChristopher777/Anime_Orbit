@@ -27,6 +27,9 @@ const Genres = lazy(() => import("./Components/Genres"));
 const Manga = lazy(() => import("./Components/Manga"));
 const MangaItem = lazy(() => import("./Components/MangaItem"));
 const NeuralDiscovery = lazy(() => import("./Components/NeuralDiscovery"));
+const CharacterFinder = lazy(() => import("./Components/CharacterFinder"));
+const VoiceActorDetails = lazy(() => import("./Components/VoiceActorDetails"));
+const AnimeDigest = lazy(() => import("./Components/AnimeDigest"));
 const FranchiseExplorer = lazy(() => import("./Components/FranchiseExplorer"));
 const FranchiseDetails = lazy(() => import("./Components/FranchiseDetails"));
 const NotFound = lazy(() => import("./Components/NotFound"));
@@ -318,6 +321,22 @@ export function App() {
           }
         />
         <Route
+          path="/discovery/characters"
+          element={<Layout><CharacterFinder /></Layout>}
+        />
+        <Route
+          path="/voice-actor/:id"
+          element={<Layout><VoiceActorDetails /></Layout>}
+        />
+        <Route
+          path="/digest"
+          element={
+            <Layout>
+              <AnimeDigest />
+            </Layout>
+          }
+        />
+        <Route
           path="/franchises"
           element={<Layout><FranchiseExplorer /></Layout>}
         />
@@ -336,15 +355,9 @@ export function App() {
         <Route
           path="/character/:id"
           element={
-            <Suspense
-              fallback={
-                <div className="min-h-screen bg-[#141414] flex items-center justify-center">
-                  <div className="w-8 h-8 border-2 border-[#ffd700] border-t-transparent rounded-full animate-spin" />
-                </div>
-              }
-            >
+            <Layout>
               <Gallery />
-            </Suspense>
+            </Layout>
           }
         />
         <Route
