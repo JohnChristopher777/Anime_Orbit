@@ -2,10 +2,19 @@
   "hosting": {
     "site": "animeorbit",
     "public": "build",
+    "cleanUrls": true,
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "redirects": [
+      {
+        "source": "/index.html",
+        "destination": "/",
+        "type": 301
+      }
     ],
     "rewrites": [
       {
@@ -14,6 +23,15 @@
       }
     ],
     "headers": [
+      {
+        "source": "/about",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, follow, noarchive"
+          }
+        ]
+      },
       {
         "source": "**",
         "headers": [

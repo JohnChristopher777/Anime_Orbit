@@ -9,21 +9,21 @@
     <meta name="format-detection" content="telephone=no" />
 
     <!-- Primary Meta Tags for Search Engines & SEO -->
-    <title>Anime Orbit - Your Ultimate Anime Compass & Universal Guide</title>
+    <title>Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking</title>
     <meta
       name="title"
-      content="Anime Orbit - Your Ultimate Anime Compass & Universal Guide"
+      content="Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking"
     />
     <meta
       name="description"
-      content="Lost in the vast anime universe? Anime Orbit is your cosmic compass guiding you through all genres: Action, Fantasy, Sci-Fi, Romance, Drama, and legendary sagas like One Piece, Bleach, Naruto, Vinland Saga, Jujutsu Kaisen, and Attack on Titan. Explore episode guides, character archives, user reviews, and personalized watchlists."
+      content="Anime Orbit helps you discover anime and manga, browse episode and chapter guides, track watchlists, build tier lists, and join community discussions."
     />
     <meta
       name="keywords"
       content="Anime Orbit, anime database, all genre anime, anime compass, One Piece, Naruto Shippuden, Bleach Thousand-Year Blood War, Vinland Saga, Jujutsu Kaisen, Attack on Titan, Solo Leveling, Demon Slayer, Frieren, anime episode guide, anime characters, anime reviews, anime watchlist"
     />
     <meta name="robots" content="index, follow" />
-    <meta name="author" content="Anime Orbit Universe" />
+    <meta name="author" content="Anime Orbit" />
     <link rel="canonical" href="https://animeorbit.web.app/" />
 
     <!-- Open Graph / Facebook / Discord SEO -->
@@ -31,11 +31,11 @@
     <meta property="og:url" content="https://animeorbit.web.app/" />
     <meta
       property="og:title"
-      content="Anime Orbit - Your Ultimate Anime Compass & Universal Guide"
+      content="Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking"
     />
     <meta
       property="og:description"
-      content="Navigate legendary anime worlds across all genres. Detailed episode databases, character artwork, tier rankings, and personalized community tracking for One Piece, Bleach, Naruto, Vinland Saga, and all top anime."
+      content="Discover anime and manga, browse episode and chapter guides, track watchlists, build tier lists, and join community discussions."
     />
     <meta property="og:image" content="https://animeorbit.web.app/animeorbit.jpg" />
     <meta property="og:image:alt" content="Anime Orbit - Anime Compass Logo" />
@@ -46,11 +46,11 @@
     <meta name="twitter:url" content="https://animeorbit.web.app/" />
     <meta
       name="twitter:title"
-      content="Anime Orbit - Your Ultimate Anime Compass & Universal Guide"
+      content="Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking"
     />
     <meta
       name="twitter:description"
-      content="Your compass in the anime universe. Explore episode lists, character galleries, community reviews, and tier lists for all anime genres."
+      content="Discover anime and manga, browse guides, track watchlists, build tier lists, and join the Anime Orbit community."
     />
     <meta name="twitter:image" content="https://animeorbit.web.app/animeorbit.jpg" />
 
@@ -76,23 +76,32 @@
       rel="stylesheet"
     />
 
-    <!-- Structured Data (JSON-LD) for Google Search Compass Indexing -->
+    <!-- Root-level identity data used by search engines for the site name. -->
     <script id="schema-structured-data" type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Anime Orbit",
-        "alternateName": "Anime Orbit - Universal Anime Compass",
-        "url": "https://animeorbit.web.app/",
-        "description": "Your compass in the anime galaxy featuring comprehensive episode guides, character archives, and reviews across all genres including One Piece, Bleach, Naruto, Vinland Saga, and top anime series.",
-        "potentialAction": {
-          "@type": "SearchAction",
-          "target": {
-            "@type": "EntryPoint",
-            "urlTemplate": "https://animeorbit.web.app/?q={search_term_string}"
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://animeorbit.web.app/#website",
+            "url": "https://animeorbit.web.app/",
+            "name": "Anime Orbit",
+            "alternateName": ["AnimeOrbit", "animeorbit.web.app"],
+            "description": "Anime and manga discovery, episode and chapter guides, watchlists, tier lists, and community discussions.",
+            "inLanguage": "en",
+            "publisher": { "@id": "https://animeorbit.web.app/#organization" }
           },
-          "query-input": "required name=search_term_string"
-        }
+          {
+            "@type": "Organization",
+            "@id": "https://animeorbit.web.app/#organization",
+            "name": "Anime Orbit",
+            "url": "https://animeorbit.web.app/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://animeorbit.web.app/icon.png"
+            }
+          }
+        ]
       }
     </script>
   </head>

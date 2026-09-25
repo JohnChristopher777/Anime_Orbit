@@ -16,10 +16,11 @@ export const AboutUs: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col"><main className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-10 sm:space-y-12 flex-1">
       <SEO
-        title="About Anime Orbit - The Ultimate Interactive Anime Database"
+        title="About Anime Orbit"
         description="Anime Orbit is a state-of-the-art anime discovery hub featuring real-time ratings, chronological relations, episode guides, community reviews, and watchlist sync across all genres."
         keywords="about anime orbit, anime database, anime guide, anime compass"
         url="https://animeorbit.web.app/about"
+        noIndex
       />
       {/* Hero Section */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">

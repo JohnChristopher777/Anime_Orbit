@@ -632,10 +632,10 @@ export function Homepage() {
           aria-labelledby="feature-guide-title"
         >
           <header className="home-feature-stories__intro">
-            <h2 id="feature-guide-title">Anime site guide</h2>
+            <h2 id="feature-guide-title">Explore Anime Orbit</h2>
             <p>
-              Discovery, tracking, manga, genres, reviews, and community—all in
-              one place.
+              Discover anime and manga, follow episode and chapter guides, and
+              keep your watchlists, reviews, and community activity together.
             </p>
           </header>
           {FEATURE_LINKS.map(
@@ -696,9 +696,9 @@ export function Homepage() {
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col relative">
       <SEO
-        title="Anime Orbit - Your Cosmic Anime Compass & Universal Guide"
-        description="Lost in the vast anime universe? Anime Orbit is your cosmic compass guiding you through all genres: Action, Fantasy, Romance, Sci-Fi, and timeless masterpieces like One Piece, Bleach, Naruto, and Vinland Saga."
-        keywords="Anime Orbit, anime database, anime compass, all genres anime, One Piece, Bleach, Naruto, Vinland Saga, Attack on Titan, Jujutsu Kaisen"
+        title="Anime Orbit | Anime & Manga Discovery, Guides & Tracking"
+        description="Anime Orbit helps you discover anime and manga, browse episode and chapter guides, track watchlists, build tier lists, and join community discussions."
+        keywords="Anime Orbit, anime and manga discovery, anime database, manga database, episode guides, chapter guides, anime watchlist, manga tracker, anime tier lists"
         url="https://animeorbit.web.app/"
       />
       {!search && (

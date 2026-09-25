@@ -47,8 +47,8 @@ export const SEO: React.FC<SEOProps> = ({
     updateMetaTag('meta[name="description"]', 'name', 'description', description);
     updateMetaTag('meta[name="keywords"]', 'name', 'keywords', keywords);
     updateMetaTag('meta[name="title"]', 'name', 'title', fullTitle);
-    updateMetaTag('meta[name="robots"]', 'name', 'robots', noIndex ? 'noindex, nofollow, noarchive' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
-    updateMetaTag('meta[name="googlebot"]', 'name', 'googlebot', noIndex ? 'noindex, nofollow, noarchive' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
+    updateMetaTag('meta[name="robots"]', 'name', 'robots', noIndex ? 'noindex, follow, noarchive' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
+    updateMetaTag('meta[name="googlebot"]', 'name', 'googlebot', noIndex ? 'noindex, follow, noarchive' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
     updateMetaTag('meta[name="author"]', 'name', 'author', 'Anime Orbit');
     updateMetaTag('meta[name="application-name"]', 'name', 'application-name', 'Anime Orbit');
 
@@ -95,19 +95,13 @@ export const SEO: React.FC<SEOProps> = ({
       name: fullTitle,
       description: description,
       url: canonicalUrl,
+      inLanguage: "en",
       mainEntityOfPage: canonicalUrl,
       isPartOf: {
-        "@type": "WebSite",
-        name: "Anime Orbit",
-        url: "https://animeorbit.web.app/",
+        "@id": "https://animeorbit.web.app/#website",
       },
       publisher: {
-        "@type": "Organization",
-        name: "Anime Orbit",
-        logo: {
-          "@type": "ImageObject",
-          url: "https://animeorbit.web.app/icon.png",
-        },
+        "@id": "https://animeorbit.web.app/#organization",
       },
     };
 
