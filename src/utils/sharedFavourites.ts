@@ -23,6 +23,7 @@ export interface SharedFavouriteItem {
 
 export interface SharedFavouritesPayload {
   version: 1;
+  title?: string;
   mediaType: SharedFavouriteMediaType;
   createdAt: string;
   owner: SharedOwner | null;
@@ -66,6 +67,7 @@ export const createSharedFavouritesPayload = (
   mediaType: SharedFavouriteMediaType,
   userScores: Map<number, number>,
   owner: SharedOwner | null,
+  title = "My tier list",
 ): SharedFavouritesPayload => {
   const safeFavourites = favourites.slice(0, 250);
   const availableIds = new Set(safeFavourites.map((item) => Number(item.mal_id)));
@@ -95,6 +97,7 @@ export const createSharedFavouritesPayload = (
 
   return {
     version: 1,
+    title: String(title || "My tier list").trim().slice(0, 40),
     mediaType,
     createdAt: new Date().toISOString(),
     owner: sanitizeSharedOwner(owner),
@@ -151,6 +154,7 @@ export const decodeSharedFavourites = (encoded: string): SharedFavouritesPayload
     }));
     return {
       version: 1,
+      title: String(parsed.title || "Shared tier list").trim().slice(0, 40),
       mediaType: parsed.mediaType,
       createdAt: String(parsed.createdAt || "").slice(0, 40),
       owner: sanitizeSharedOwner(parsed.owner),

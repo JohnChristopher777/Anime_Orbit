@@ -15,9 +15,10 @@ import {
     type User as FirebaseUser
 } from 'firebase/auth';
 import { auth, db } from '../firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import { setMatureContentPreference } from '../services/anilist';
+import { safeImageUrl, sanitizeInput } from '../utils/security';
 
 const maturePreferenceAllowed = (birthDate: unknown, enabled: unknown) => {
     if (!enabled || typeof birthDate !== 'string') return false;
@@ -110,6 +111,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     const snapshot = await getDoc(doc(db, 'users', user.uid));
                     const profile = snapshot.exists() ? snapshot.data() : {};
                     setMatureContentPreference(maturePreferenceAllowed(profile.birthDate, profile.allowMatureContent));
+
+                    try {
+                        const publicReference = doc(db, 'publicProfiles', user.uid);
+                        const publicSnapshot = await getDoc(publicReference);
+                        if (!publicSnapshot.exists()) {
+                            const now = new Date().toISOString();
+                            await setDoc(publicReference, {
+                                displayName: sanitizeInput(profile.displayName || user.displayName || user.email?.split('@')[0] || 'Anime Fan', 15),
+                                userId: '',
+                                bio: '',
+                                avatarUrl: safeImageUrl(profile.avatarUrl || user.photoURL),
+                                bannerUrl: safeImageUrl(profile.bannerUrl),
+                                favoriteGenre: sanitizeInput(profile.favoriteGenre, 40) || 'Action',
+                                createdAt: user.metadata.creationTime || now,
+                                updatedAt: now,
+                            });
+                        }
+                    } catch {
+                        // Authentication still succeeds if the public profile
+                        // projection is temporarily unavailable.
+                    }
                 } catch {
                     setMatureContentPreference(false);
                 }

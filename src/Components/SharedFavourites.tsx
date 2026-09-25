@@ -45,7 +45,7 @@ const SharedFavourites: React.FC = () => {
         <header className="shared-list-hero shared-favourites-hero">
           <div>
             <span>Community tier board</span>
-            <h1>Shared {isManga ? "manga" : "anime"} favourites</h1>
+            <h1>{payload?.title || `Shared ${isManga ? "manga" : "anime"} favourites`}</h1>
             <p>A full-size copy of the sender's tier arrangement. Hover or focus a cover for scores and details; tap it to open the title.</p>
           </div>
           {payload && <b>{payload.items.length} favourites</b>}

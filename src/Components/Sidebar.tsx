@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useGlobalContext } from "../context/global";
+import { useProfileIdentity } from "../hooks/useProfileIdentity";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAuth,
 }) => {
   const { currentUser, logout } = useAuth();
+  const profileIdentity = useProfileIdentity();
   const { searchAnime, setSearch } = useGlobalContext();
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
@@ -231,14 +233,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="flex items-center gap-2">
               <Link to="/profile" onClick={() => handleLinkClick("/profile")} className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl border p-2 transition-colors ${location.pathname.startsWith("/profile") ? "border-[#ffd700] bg-[#ffd700]/10" : "border-transparent hover:bg-white/5"}`} aria-label="Open profile">
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#ffd700] bg-neutral-800 flex items-center justify-center text-[#ffd700]">
-                  {currentUser.photoURL ? (
-                    <img src={currentUser.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                  {profileIdentity.avatarUrl ? (
+                    <img src={profileIdentity.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
-                    <User size={20} />
+                    <span className="font-montserrat text-sm font-bold">
+                      {profileIdentity.displayName[0]?.toUpperCase() || "A"}
+                    </span>
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-montserrat font-bold text-sm text-white truncate">{currentUser.displayName || currentUser.email?.split("@")[0] || "User"}</p>
+                  <p className="font-montserrat font-bold text-sm text-white truncate">{profileIdentity.displayName}</p>
                   <span className="text-[11px] text-neutral-500">View profile</span>
                 </div>
               </Link>

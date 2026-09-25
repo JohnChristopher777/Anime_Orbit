@@ -38,6 +38,7 @@ import {
   searchManga,
 } from "../services/anilist";
 import AppDropdown from "./AppDropdown";
+import { statusAtKnownTotal } from "../utils/trackingStatus";
 import Footer from "./Footer";
 import ScoreSlider from "./ScoreSlider";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
@@ -117,7 +118,8 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({
   const changeProgress = (rawValue: number) => {
     const next = Math.max(0, progressTotal > 0 ? Math.min(progressTotal, rawValue) : rawValue);
     setProgress(next);
-    if (progressTotal > 0 && next >= progressTotal) setStatus("Completed");
+    if (progressTotal > 0 && next >= progressTotal)
+      setStatus(statusAtKnownTotal(item.releaseStatus));
     else if (status === "Completed" || status === "Caught Up") setStatus(mediaType === "manga" ? "Reading" : "Watching");
   };
 
@@ -130,7 +132,7 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({
     try {
       const normalizedStatus =
         progressTotal > 0 && progress >= progressTotal
-          ? "Completed"
+          ? statusAtKnownTotal(item.releaseStatus)
           : (status === "Completed" || status === "Caught Up") &&
               progress < progressTotal
             ? mediaType === "manga"
@@ -160,7 +162,7 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({
             value={status}
             onChange={(nextStatus) => {
               setStatus(nextStatus);
-              if (nextStatus === "Completed" && progressTotal > 0)
+              if ((nextStatus === "Completed" || nextStatus === "Caught Up") && progressTotal > 0)
                 setProgress(progressTotal);
             }}
             options={(mediaType === "manga"

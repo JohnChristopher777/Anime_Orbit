@@ -17,7 +17,8 @@ export const usePublicShareOwner = () => {
     setOwner(sanitizeSharedOwner({
       displayName: currentUser.displayName || "Anime fan",
       avatarUrl: currentUser.photoURL || "",
-      profileHandle: "",
+      bannerUrl: "",
+      profileHandle: currentUser.uid,
     }));
     getDoc(doc(db, "publicProfiles", currentUser.uid)).then((snapshot) => {
       if (!active || !snapshot.exists()) return;
@@ -25,7 +26,8 @@ export const usePublicShareOwner = () => {
       setOwner(sanitizeSharedOwner({
         displayName: profile.displayName || currentUser.displayName,
         avatarUrl: profile.avatarUrl || currentUser.photoURL,
-        profileHandle: profile.userId,
+        bannerUrl: profile.bannerUrl,
+        profileHandle: profile.userId || currentUser.uid,
       }));
     }).catch(() => undefined);
     return () => { active = false; };

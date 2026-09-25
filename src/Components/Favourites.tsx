@@ -39,6 +39,8 @@ import {
 import { toast } from "react-toastify";
 import { createSharedFavouritesPayload, encodeSharedFavourites } from "../utils/sharedFavourites";
 import { usePublicShareOwner } from "../hooks/usePublicShareOwner";
+import { collection, doc, onSnapshot, setDoc } from "firebase/firestore";
+import { db } from "../firebase/config";
 
 interface Tier {
   id: string;
@@ -46,6 +48,13 @@ interface Tier {
   color: string;
   textColor: string;
   animeIds: number[];
+}
+
+interface TierSheet {
+  id: `slot-${1 | 2 | 3 | 4 | 5}`;
+  name: string;
+  animeTiers: Tier[];
+  mangaTiers: Tier[];
 }
 
 const DEFAULT_TIERS: Tier[] = [
@@ -68,6 +77,25 @@ const PRESET_COLORS = [
 ];
 
 const freshMediaTiers = (): Tier[] => DEFAULT_TIERS.map((tier) => ({ ...tier, animeIds: [] }));
+const cloneTiers = (tiers: Tier[]) => tiers.map((tier) => ({ ...tier, animeIds: [...(tier.animeIds || [])] }));
+const createTierSheets = (): TierSheet[] => {
+  let legacyAnime = freshMediaTiers();
+  let legacyManga = freshMediaTiers();
+  try {
+    const anime = JSON.parse(localStorage.getItem("anime_orbit_tierlist") || "null");
+    const manga = JSON.parse(localStorage.getItem("anime_orbit_manga_tierlist") || "null");
+    if (Array.isArray(anime)) legacyAnime = cloneTiers(anime);
+    if (Array.isArray(manga)) legacyManga = cloneTiers(manga);
+  } catch {
+    // The default sheet safely replaces invalid legacy data.
+  }
+  return ([1, 2, 3, 4, 5] as const).map((slot) => ({
+    id: `slot-${slot}`,
+    name: slot === 1 ? "Default" : `Tier Sheet ${slot}`,
+    animeTiers: slot === 1 ? legacyAnime : freshMediaTiers(),
+    mangaTiers: slot === 1 ? legacyManga : freshMediaTiers(),
+  }));
+};
 
 const FavouriteTierBoard: React.FC<{ items: any[]; mediaType: "anime" | "manga"; onAdd: () => void; onTiersChange?: (tiers: Tier[]) => void }> = ({ items, mediaType, onAdd, onTiersChange }) => {
   const storageKey = mediaType === "manga" ? "anime_orbit_manga_tierlist" : "anime_orbit_tierlist";
@@ -174,25 +202,23 @@ export const Favourites: React.FC = () => {
   const publicShareOwner = usePublicShareOwner();
 
   const [viewMode, setViewMode] = useState<"grid" | "tier">("tier");
-  const [tiers, setTiers] = useState<Tier[]>(() => {
-    const saved = localStorage.getItem("anime_orbit_tierlist");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        // Use default
-      }
-    }
-    return DEFAULT_TIERS;
-  });
-  const [mangaTiers, setMangaTiers] = useState<Tier[]>(() => {
-    try {
-      const saved = localStorage.getItem("anime_orbit_manga_tierlist");
-      return saved ? JSON.parse(saved) : freshMediaTiers();
-    } catch {
-      return freshMediaTiers();
-    }
-  });
+  const [tierSheets, setTierSheets] = useState<TierSheet[]>(createTierSheets);
+  const [activeSheetId, setActiveSheetId] = useState<TierSheet["id"]>("slot-1");
+  const [tierSheetsHydrated, setTierSheetsHydrated] = useState(false);
+  const activeSheet = tierSheets.find((sheet) => sheet.id === activeSheetId) || tierSheets[0];
+  const tiers = activeSheet?.animeTiers || freshMediaTiers();
+  const mangaTiers = activeSheet?.mangaTiers || freshMediaTiers();
+
+  const updateSheetTiers = (key: "animeTiers" | "mangaTiers", updater: React.SetStateAction<Tier[]>) => {
+    setTierSheets((current) => current.map((sheet) => {
+      if (sheet.id !== activeSheetId) return sheet;
+      const previous = sheet[key];
+      const next = typeof updater === "function" ? updater(previous) : updater;
+      return { ...sheet, [key]: cloneTiers(next) };
+    }));
+  };
+  const setTiers = (updater: React.SetStateAction<Tier[]>) => updateSheetTiers("animeTiers", updater);
+  const setMangaTiers = (updater: React.SetStateAction<Tier[]>) => updateSheetTiers("mangaTiers", updater);
 
   // Custom user notes and nicknames for ranked anime
   const [customNotes, setCustomNotes] = useState<Record<number, string>>(() => {
@@ -248,12 +274,69 @@ export const Favourites: React.FC = () => {
   const autoScrollTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    localStorage.setItem("anime_orbit_tierlist", JSON.stringify(tiers));
-  }, [tiers]);
+    if (!currentUser) {
+      setTierSheetsHydrated(false);
+      return;
+    }
+    const storageKey = `anime_orbit_tier_sheets_${currentUser.uid}`;
+    const activeStorageKey = `${storageKey}_active`;
+    let seed = createTierSheets();
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+      if (Array.isArray(saved) && saved.length) {
+        seed = createTierSheets().map((base) => {
+          const match = saved.find((entry: any) => entry?.id === base.id);
+          return match ? {
+            ...base,
+            name: String(match.name || base.name).trim().slice(0, 40) || base.name,
+            animeTiers: Array.isArray(match.animeTiers) ? cloneTiers(match.animeTiers) : base.animeTiers,
+            mangaTiers: Array.isArray(match.mangaTiers) ? cloneTiers(match.mangaTiers) : base.mangaTiers,
+          } : base;
+        });
+      }
+      const savedActive = localStorage.getItem(activeStorageKey);
+      if (/^slot-[1-5]$/.test(savedActive || "")) setActiveSheetId(savedActive as TierSheet["id"]);
+    } catch {
+      // A malformed local snapshot is replaced by the safe five-sheet model.
+    }
+    setTierSheets(seed);
+    setTierSheetsHydrated(false);
+
+    const unsubscribe = onSnapshot(collection(db, "users", currentUser.uid, "tierSheets"), (snapshot) => {
+      if (!snapshot.empty) {
+        const remote = new Map(snapshot.docs.map((entry) => [entry.id, entry.data()]));
+        const next = createTierSheets().map((base) => {
+          const match: any = remote.get(base.id);
+          return match ? {
+            ...base,
+            name: String(match.name || base.name).trim().slice(0, 40) || base.name,
+            animeTiers: Array.isArray(match.animeTiers) ? cloneTiers(match.animeTiers) : base.animeTiers,
+            mangaTiers: Array.isArray(match.mangaTiers) ? cloneTiers(match.mangaTiers) : base.mangaTiers,
+          } : base;
+        });
+        setTierSheets((current) => JSON.stringify(current) === JSON.stringify(next) ? current : next);
+      }
+      setTierSheetsHydrated(true);
+    }, () => setTierSheetsHydrated(true));
+    return unsubscribe;
+  }, [currentUser]);
 
   useEffect(() => {
+    if (!currentUser || !tierSheetsHydrated) return;
+    const storageKey = `anime_orbit_tier_sheets_${currentUser.uid}`;
+    localStorage.setItem(storageKey, JSON.stringify(tierSheets));
+    localStorage.setItem(`${storageKey}_active`, activeSheetId);
+    localStorage.setItem("anime_orbit_tierlist", JSON.stringify(tiers));
     localStorage.setItem("anime_orbit_manga_tierlist", JSON.stringify(mangaTiers));
-  }, [mangaTiers]);
+    const timer = window.setTimeout(() => {
+      void Promise.all(tierSheets.slice(0, 5).map((sheet) => setDoc(
+        doc(db, "users", currentUser.uid, "tierSheets", sheet.id),
+        { name: sheet.name, animeTiers: sheet.animeTiers, mangaTiers: sheet.mangaTiers, updatedAt: new Date().toISOString() },
+        { merge: true },
+      ))).catch(() => toast.error("Tier sheets could not sync. Your local copy is still saved."));
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [tierSheets, activeSheetId, currentUser, tierSheetsHydrated, tiers, mangaTiers]);
 
   useEffect(() => {
     localStorage.setItem("anime_orbit_tier_notes", JSON.stringify(customNotes));
@@ -736,6 +819,7 @@ export const Favourites: React.FC = () => {
       favoriteMedia,
       activeUserScores,
       publicShareOwner,
+      activeSheet.name,
     );
     return `${window.location.origin}/shared-favourites#${encodeSharedFavourites(payload)}`;
   };
@@ -759,7 +843,7 @@ export const Favourites: React.FC = () => {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `My ${mediaLabel} Favourites Tier List`,
+          title: `${activeSheet.name} - ${mediaLabel} Favourites`,
           text: `${activeFavourites.length} ranked favourites from Anime Orbit`,
           url,
         });
@@ -797,6 +881,16 @@ export const Favourites: React.FC = () => {
 
   // Filter pool candidates for Add Anime to Pool modal
   const poolCandidates = animeCandidates;
+  const renameActiveSheet = () => {
+    const nextName = window.prompt("Name this tier sheet", activeSheet.name)?.trim();
+    if (!nextName) return;
+    setTierSheets((current) => current.map((sheet) => sheet.id === activeSheetId ? { ...sheet, name: nextName.slice(0, 40) } : sheet));
+  };
+  const selectTierSheet = (sheetId: TierSheet["id"]) => {
+    setSelectedAnimeId(null);
+    setDraggedAnimeId(null);
+    setActiveSheetId(sheetId);
+  };
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
@@ -888,6 +982,30 @@ export const Favourites: React.FC = () => {
 
           </div>
         </div>
+
+        {viewMode === "tier" && (
+          <section className="tier-sheet-switcher" aria-label="Saved tier sheets">
+            <div className="tier-sheet-switcher__heading">
+              <div><span>Saved tier sheets</span><h2>{activeSheet.name}</h2><p>Keep up to five separate boards. Anime and manga placements remain independent inside every sheet.</p></div>
+              <button type="button" onClick={renameActiveSheet}><Edit3 size={15} />Rename heading</button>
+            </div>
+            <div className="tier-sheet-switcher__slots" role="tablist" aria-label="Choose a tier sheet">
+              {tierSheets.map((sheet, index) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={sheet.id === activeSheetId}
+                  className={sheet.id === activeSheetId ? "is-active" : ""}
+                  onClick={() => selectTierSheet(sheet.id)}
+                  key={sheet.id}
+                >
+                  <small>{index === 0 ? "Default" : `Slot ${index + 1}`}</small>
+                  <strong>{sheet.name}</strong>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {trashOpen && (
           <section className="favorite-trash">

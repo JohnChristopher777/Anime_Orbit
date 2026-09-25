@@ -12,11 +12,23 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
-import { AlertCircle, MessageSquare, Trash2, LogIn, ExternalLink, RefreshCw } from "lucide-react";
+import { AlertCircle, BookOpen, MessageSquare, Trash2, LogIn, ExternalLink, RefreshCw, Tv } from "lucide-react";
 import { toast } from "react-toastify";
 import AuthModal from "./AuthModal";
 import ProgressiveImage from "./ProgressiveImage";
 import Footer from "./Footer";
+
+const commentMedia = (comment: any) => {
+  const isManga = comment.mediaType === "MANGA" || Boolean(comment.mangaId);
+  const mediaId = String((isManga ? comment.mangaId : comment.animeId) || comment.mediaId || "");
+  return {
+    isManga,
+    id: mediaId,
+    title: comment.mangaTitle || comment.animeTitle || comment.title || (isManga ? "Manga details" : "Anime details"),
+    image: comment.mangaImage || comment.animeImage || "",
+    route: isManga ? `/manga/${mediaId}` : `/anime/${mediaId}`,
+  };
+};
 
 export const MyComments: React.FC = () => {
   const { currentUser } = useAuth();
@@ -77,13 +89,45 @@ export const MyComments: React.FC = () => {
     }
   };
 
+  const animeComments = comments.filter((comment) => !commentMedia(comment).isManga);
+  const mangaComments = comments.filter((comment) => commentMedia(comment).isManga);
+
+  const renderSection = (mediaType: "anime" | "manga", entries: any[]) => (
+    <section className="community-history-section">
+      <header>
+        <div>{mediaType === "manga" ? <BookOpen size={21} /> : <Tv size={21} />}<div><span>{mediaType} activity</span><h2>{mediaType === "manga" ? "Manga comments" : "Anime comments"}</h2></div></div>
+        <b>{entries.length}</b>
+      </header>
+      {entries.length ? <div className="space-y-4">
+        {entries.map((comm) => {
+          const media = commentMedia(comm);
+          return <article key={comm.id} className="p-5 bg-neutral-900/60 border border-white/10 hover:border-[#ffd700]/30 rounded-2xl flex flex-col sm:flex-row gap-5 items-start justify-between transition-all">
+            <div className="flex gap-4 items-start flex-1 min-w-0">
+              {media.image && <ProgressiveImage src={media.image} alt={`${media.title} cover`} wrapperClassName="w-16 h-24 rounded-xl border border-white/10 flex-shrink-0" className="h-full w-full object-cover" />}
+              <div className="space-y-2 flex-1 min-w-0">
+                <Link to={media.route} className="font-montserrat font-bold text-base text-white hover:text-[#ffd700] transition-colors inline-flex items-center gap-1">
+                  <span>{media.title}</span><ExternalLink size={14} />
+                </Link>
+                <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">{comm.text || comm.content}</p>
+                <p className="text-[11px] text-neutral-500">Posted on: {comm.createdAt?.toDate ? comm.createdAt.toDate().toLocaleDateString() : "Recently"}</p>
+              </div>
+            </div>
+            <button onClick={() => handleDeleteComment(comm.id)} className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-xl border border-red-500/20 text-xs font-bold flex items-center gap-1.5 transition-colors self-end sm:self-start flex-shrink-0">
+              <Trash2 size={15} /><span>Delete</span>
+            </button>
+          </article>;
+        })}
+      </div> : <p className="community-history-section__empty">No {mediaType} comments yet.</p>}
+    </section>
+  );
+
   if (!currentUser) {
     return (
       <div className="min-h-screen flex flex-col"><main className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 flex-1">
         <SEO
           title="My Comments - Anime Community Discussions"
-          description="View, monitor, and manage all your discussions and comments across anime titles on Anime Orbit."
-          keywords="my anime comments, anime discussions, Anime Orbit"
+          description="View and manage your anime and manga community comments on Anime Orbit."
+          keywords="my anime comments, manga comments, community discussions, Anime Orbit"
           url="https://animeorbit.web.app/my-comments"
           noIndex
         />
@@ -92,7 +136,7 @@ export const MyComments: React.FC = () => {
           My Comments
         </h2>
         <p className="text-neutral-400 text-sm max-w-md mx-auto">
-          Sign in to view, monitor, and manage all your discussions and comments across anime titles.
+          Sign in to view and manage your anime and manga discussions.
         </p>
         <button
           onClick={() => setAuthModalOpen(true)}
@@ -110,8 +154,8 @@ export const MyComments: React.FC = () => {
     <div className="min-h-screen flex flex-col"><main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6 sm:space-y-8 w-full flex-1">
       <SEO
         title="My Comments - Anime Community Discussions"
-        description="View, monitor, and manage all your discussions and comments across anime titles on Anime Orbit."
-        keywords="my anime comments, anime discussions, Anime Orbit"
+        description="View and manage your anime and manga community comments on Anime Orbit."
+        keywords="my anime comments, manga comments, community discussions, Anime Orbit"
         url="https://animeorbit.web.app/my-comments"
         noIndex
       />
@@ -138,50 +182,14 @@ export const MyComments: React.FC = () => {
           <span>Loading comments...</span>
         </div>
       ) : comments.length > 0 ? (
-        <div className="space-y-4">
-          {comments.map((comm) => (
-            <div
-              key={comm.id}
-              className="p-5 bg-neutral-900/60 border border-white/10 hover:border-[#ffd700]/30 rounded-2xl flex flex-col sm:flex-row gap-5 items-start justify-between transition-all"
-            >
-              <div className="flex gap-4 items-start flex-1 min-w-0">
-                {comm.animeImage && <ProgressiveImage src={comm.animeImage} alt={comm.animeTitle || "Anime cover"} wrapperClassName="w-16 h-24 rounded-xl border border-white/10 flex-shrink-0" className="h-full w-full object-cover" />}
-                <div className="space-y-2 flex-1 min-w-0">
-                  <Link
-                    to={`/anime/${comm.animeId}`}
-                    className="font-montserrat font-bold text-base text-white hover:text-[#ffd700] transition-colors inline-flex items-center gap-1"
-                  >
-                    <span>{comm.animeTitle || "Anime Details"}</span>
-                    <ExternalLink size={14} />
-                  </Link>
-
-                  <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
-                    {comm.text || comm.content}
-                  </p>
-
-                  <p className="text-[11px] text-neutral-500">
-                    Posted on: {comm.createdAt?.toDate ? comm.createdAt.toDate().toLocaleDateString() : "Recently"}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => handleDeleteComment(comm.id)}
-                className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-xl border border-red-500/20 text-xs font-bold flex items-center gap-1.5 transition-colors self-end sm:self-start flex-shrink-0"
-              >
-                <Trash2 size={15} />
-                <span>Delete</span>
-              </button>
-            </div>
-          ))}
-        </div>
+        <div className="space-y-8">{renderSection("anime", animeComments)}{renderSection("manga", mangaComments)}</div>
       ) : (
         <div className="text-center py-20 bg-neutral-900/40 rounded-2xl border border-white/5 space-y-2">
           <p className="font-montserrat font-bold text-lg text-white">
             You haven't posted any comments yet
           </p>
           <p className="text-xs text-neutral-400">
-            Join the conversation on any anime details page!
+            Join the conversation on any anime or manga details page!
           </p>
         </div>
       )}

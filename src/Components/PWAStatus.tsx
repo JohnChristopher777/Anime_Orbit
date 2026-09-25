@@ -6,6 +6,29 @@ interface InstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+const INSTALL_PROMPT_SEEN_KEY = "anime_orbit_install_prompt_seen_v1";
+
+const isInstalledApp = () =>
+  window.matchMedia?.("(display-mode: standalone)").matches ||
+  Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+
+const hasSeenInstallPrompt = () => {
+  try {
+    return localStorage.getItem(INSTALL_PROMPT_SEEN_KEY) === "1";
+  } catch {
+    return true;
+  }
+};
+
+const rememberInstallPrompt = () => {
+  try {
+    localStorage.setItem(INSTALL_PROMPT_SEEN_KEY, "1");
+  } catch {
+    // Storage can be unavailable in a locked-down browser. Avoid repeatedly
+    // prompting during this mounted session through the state below.
+  }
+};
+
 const PWAStatus: React.FC = () => {
   const [installPrompt, setInstallPrompt] = React.useState<InstallPromptEvent | null>(null);
   const [updateRegistration, setUpdateRegistration] = React.useState<ServiceWorkerRegistration | null>(null);
@@ -13,7 +36,9 @@ const PWAStatus: React.FC = () => {
 
   React.useEffect(() => {
     const captureInstall = (event: Event) => {
+      if (isInstalledApp() || hasSeenInstallPrompt()) return;
       event.preventDefault();
+      rememberInstallPrompt();
       setInstallPrompt(event as InstallPromptEvent);
       setDismissed(false);
     };
@@ -21,7 +46,10 @@ const PWAStatus: React.FC = () => {
       setUpdateRegistration((event as CustomEvent<ServiceWorkerRegistration>).detail);
       setDismissed(false);
     };
-    const installed = () => setInstallPrompt(null);
+    const installed = () => {
+      rememberInstallPrompt();
+      setInstallPrompt(null);
+    };
     window.addEventListener("beforeinstallprompt", captureInstall);
     window.addEventListener("orbit_pwa_update_ready", captureUpdate);
     window.addEventListener("appinstalled", installed);
@@ -36,9 +64,15 @@ const PWAStatus: React.FC = () => {
 
   const install = async () => {
     if (!installPrompt) return;
-    await installPrompt.prompt();
-    await installPrompt.userChoice;
-    setInstallPrompt(null);
+    try {
+      await installPrompt.prompt();
+      await installPrompt.userChoice;
+    } catch {
+      // The browser may withdraw install eligibility between the event and
+      // the user's click. The control simply disappears in that case.
+    } finally {
+      setInstallPrompt(null);
+    }
   };
 
   const update = () => {

@@ -8,6 +8,7 @@ import { searchAnime as getSuggestions } from "../services/anilist";
 import { db } from "../firebase/config";
 import { doc, getDoc } from "firebase/firestore";
 import ProgressiveImage from "./ProgressiveImage";
+import { useNotifications } from "../hooks/useNotifications";
 import {
   User,
   LogOut,
@@ -38,6 +39,7 @@ export const Nav: React.FC = () => {
   const [userPhoto, setUserPhoto] = useState<string>("");
 
   const { currentUser, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const { searchAnime, setSearch } = useGlobalContext();
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,15 +73,15 @@ export const Nav: React.FC = () => {
       })
       .catch(() => {});
 
-    const handleAvatarUpdated = (e: any) => {
-      if (e.detail?.avatarUrl) {
-        setUserPhoto(e.detail.avatarUrl);
+    const handleProfileUpdated = (e: any) => {
+      if (e.detail && "avatarUrl" in e.detail) {
+        setUserPhoto(e.detail.avatarUrl || "");
         setAvatarImgError(false);
       }
     };
 
-    window.addEventListener("orbit_avatar_updated", handleAvatarUpdated);
-    return () => window.removeEventListener("orbit_avatar_updated", handleAvatarUpdated);
+    window.addEventListener("orbit_profile_updated", handleProfileUpdated);
+    return () => window.removeEventListener("orbit_profile_updated", handleProfileUpdated);
   }, [currentUser]);
 
   useEffect(() => {
@@ -379,12 +381,12 @@ export const Nav: React.FC = () => {
 
             <Link
               to="/digest"
-              aria-label="Open anime digest and news"
-              title="Anime digest"
+              aria-label={unreadCount ? `Open notifications, ${unreadCount} unread` : "Open notifications and anime digest"}
+              title={unreadCount ? `${unreadCount} unread notifications` : "Notifications and anime digest"}
               className={`nav-digest-bell nav-digest-bell--header ${location.pathname === "/digest" ? "is-active" : ""}`}
             >
               <Bell size={17} />
-              <span aria-hidden="true" />
+              {unreadCount > 0 && <span aria-hidden="true">{unreadCount > 9 ? "9+" : unreadCount}</span>}
             </Link>
 
             {/* User Profile or Sign In Button */}
@@ -426,8 +428,8 @@ export const Nav: React.FC = () => {
                       onClick={() => setUserMenuOpen(false)}
                       className="nav-profile-digest md:hidden flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-200 hover:text-[#ffd700] hover:bg-[#ffd700]/10 rounded-xl transition-colors"
                     >
-                      <span className="relative"><Bell size={16} /><i aria-hidden="true" /></span>
-                      <span>Anime Digest</span>
+                      <span className="relative"><Bell size={16} />{unreadCount > 0 && <i aria-hidden="true" />}</span>
+                      <span>{unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications & Digest"}</span>
                     </Link>
                     <Link
                       to="/profile"

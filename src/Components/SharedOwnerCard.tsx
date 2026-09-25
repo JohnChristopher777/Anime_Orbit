@@ -1,13 +1,13 @@
 import React from "react";
-import { ExternalLink, UserRound } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { SharedOwner } from "../utils/shareOwner";
 import ProgressiveImage from "./ProgressiveImage";
 
 const SharedOwnerCard: React.FC<{ owner: SharedOwner | null }> = ({ owner }) => {
   if (!owner) return null;
-  return (
-    <section className="shared-owner-card" aria-label="Shared by">
+  const content = (
+    <>
       {owner.avatarUrl ? (
         <ProgressiveImage
           src={owner.avatarUrl}
@@ -18,7 +18,7 @@ const SharedOwnerCard: React.FC<{ owner: SharedOwner | null }> = ({ owner }) => 
         />
       ) : (
         <span className="shared-owner-avatar shared-owner-avatar--fallback">
-          <UserRound size={24} />
+          {owner.displayName[0]?.toUpperCase() || "A"}
         </span>
       )}
       <div>
@@ -27,12 +27,33 @@ const SharedOwnerCard: React.FC<{ owner: SharedOwner | null }> = ({ owner }) => 
         <p>This is the sender's published Anime Orbit identity.</p>
       </div>
       {owner.profileHandle ? (
-        <Link to={`/user/${owner.profileHandle}`}>
+        <span className="shared-owner-action">
           View profile <ExternalLink size={15} />
-        </Link>
+        </span>
       ) : (
         <small>Public profile link unavailable</small>
       )}
+    </>
+  );
+
+  const style = owner.bannerUrl
+    ? {
+        backgroundImage: `linear-gradient(90deg, rgba(8,8,12,.94), rgba(12,12,18,.82)), url("${owner.bannerUrl}")`,
+      }
+    : undefined;
+
+  return owner.profileHandle ? (
+    <Link
+      to={`/user/${owner.profileHandle}`}
+      className="shared-owner-card shared-owner-card--linked"
+      aria-label={`View ${owner.displayName}'s public profile`}
+      style={style}
+    >
+      {content}
+    </Link>
+  ) : (
+    <section className="shared-owner-card" aria-label="Shared by" style={style}>
+      {content}
     </section>
   );
 };

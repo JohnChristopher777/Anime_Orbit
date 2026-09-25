@@ -34,6 +34,8 @@ import { useWatchlist } from "../context/WatchlistContext";
 import AppDropdown from "./AppDropdown";
 import { useFavourites } from "../context/FavouritesContext";
 import MediaEntryDialog from "./MediaEntryDialog";
+import MangaCommunity from "./MangaCommunity";
+import { statusAtKnownTotal } from "../utils/trackingStatus";
 
 export const MangaDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -59,9 +61,9 @@ export const MangaDetails: React.FC = () => {
   }, [trackedMangaEntry?.mal_id, trackedMangaEntry?.progress]);
 
   useEffect(() => {
-    if (!trackedMangaEntry || !chapterTotal || Number(trackedMangaEntry.chapters || 0) === chapterTotal) return;
-    void updateMangaWatchlistEntry(trackedMangaEntry.mal_id, { chapters: chapterTotal });
-  }, [trackedMangaEntry?.mal_id, trackedMangaEntry?.chapters, chapterTotal]);
+    if (!trackedMangaEntry || !chapterTotal || (Number(trackedMangaEntry.chapters || 0) === chapterTotal && trackedMangaEntry.releaseStatus === (manga?.status || ""))) return;
+    void updateMangaWatchlistEntry(trackedMangaEntry.mal_id, { chapters: chapterTotal, releaseStatus: manga?.status || "" });
+  }, [trackedMangaEntry?.mal_id, trackedMangaEntry?.chapters, trackedMangaEntry?.releaseStatus, chapterTotal, manga?.status]);
 
   useEffect(() => {
     if (!lightboxOpen) return;
@@ -170,16 +172,11 @@ export const MangaDetails: React.FC = () => {
         <div className="max-w-md mx-auto px-4 py-32 text-center space-y-4 flex-1">
           <BookOpen size={56} className="mx-auto text-neutral-600" />
           <h2 className="text-2xl font-bold font-montserrat text-white">Manga Details Not Found</h2>
-          <p className="text-xs text-neutral-400">
-            We couldn't load this manga right now. Please try again shortly.
-          </p>
-          <button
-            onClick={handleBack}
-            className="inline-flex items-center gap-2 bg-[#ffd700] text-black font-bold px-6 py-2 rounded-full text-xs font-montserrat shadow-md hover:scale-105 transition-all cursor-pointer"
-          >
-            <ArrowLeft size={14} />
-            <span>Go Back</span>
-          </button>
+          <p className="text-sm text-neutral-400">This ID may belong to anime, or the manga catalogue may be temporarily unavailable.</p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button onClick={handleBack} className="inline-flex items-center gap-2 bg-[#ffd700] text-black font-bold px-6 py-2.5 rounded-full text-sm font-montserrat shadow-md hover:scale-105 transition-all cursor-pointer"><ArrowLeft size={14} /><span>Go back</span></button>
+            <Link to={`/anime/${id}`} className="inline-flex items-center gap-2 rounded-full border border-[#ffd700]/35 bg-[#ffd700]/10 px-5 py-2.5 text-sm font-bold text-[#ffd700]"><Tv size={15} />Try as anime</Link>
+          </div>
         </div>
         <Footer />
       </div>
@@ -200,7 +197,10 @@ export const MangaDetails: React.FC = () => {
       } else {
         if (!isInMangaWatchlist) await addMangaToWatchlist(manga);
         const total = chapterTotal || Number(manga.chapters || 0);
-        await updateMangaWatchlistEntry(manga.mal_id, { status, ...(status === "Completed" && total ? { progress: total } : {}) });
+        const normalizedStatus = status === "Completed"
+          ? statusAtKnownTotal(manga.status)
+          : status;
+        await updateMangaWatchlistEntry(manga.mal_id, { status: normalizedStatus, releaseStatus: manga.status || "", ...((normalizedStatus === "Completed" || normalizedStatus === "Caught Up") && total ? { progress: total } : {}) });
       }
     } finally {
       setTrackerBusy(false);
@@ -212,14 +212,14 @@ export const MangaDetails: React.FC = () => {
     const total = chapterTotal || Number(manga.chapters || 0);
     const normalized = Math.max(0, Math.min(total || Infinity, nextProgress));
     const nextStatus = total && normalized >= total
-      ? "Completed"
+      ? statusAtKnownTotal(manga.status)
       : (trackedManga.status === "Completed" || trackedManga.status === "Caught Up" || (normalized > 0 && trackedManga.status === "Plan to Read"))
         ? "Reading"
         : trackedManga.status;
     setChapterProgress(normalized);
     setProgressSaving(true);
     try {
-      await updateMangaWatchlistEntry(manga.mal_id, { status: nextStatus, progress: normalized });
+      await updateMangaWatchlistEntry(manga.mal_id, { status: nextStatus, progress: normalized, releaseStatus: manga.status || "" });
     } finally {
       setProgressSaving(false);
     }
@@ -526,6 +526,8 @@ export const MangaDetails: React.FC = () => {
               {chapterPageCount > 1 && <div className="manga-chapter-guide__pager"><button disabled={chapterPage === 1} onClick={() => setChapterPage((page) => Math.max(1, page - 1))}><ChevronLeft size={14} /> Previous</button><span>Page {chapterPage} of {chapterPageCount}</span><button disabled={chapterPage === chapterPageCount} onClick={() => setChapterPage((page) => Math.min(chapterPageCount, page + 1))}>Next <ChevronRight size={14} /></button></div>}
             </> : <div className="manga-chapter-guide__empty">This publishing entry does not have a confirmed chapter total yet.</div>}
           </section>
+
+          <MangaCommunity mangaId={id || String(manga.mal_id)} title={manga.title} image={posterImg || ""} />
 
           {/* Related Anime Adaptations (Clickable Link Back to AnimeItem) */}
           {animeAdaptations.length > 0 && (

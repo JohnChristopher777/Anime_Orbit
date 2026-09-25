@@ -35,6 +35,63 @@ service cloud.firestore {
       match /trash/{itemId} {
         allow read, write: if isOwner(userId);
       }
+
+      match /tierSheets/{sheetId} {
+        allow read, write: if isOwner(userId)
+          && sheetId in ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5']
+          && request.resource.data.keys().hasOnly(['name', 'animeTiers', 'mangaTiers', 'updatedAt'])
+          && isValidString(request.resource.data.name, 1, 40)
+          && request.resource.data.animeTiers is list
+          && request.resource.data.animeTiers.size() <= 20
+          && request.resource.data.mangaTiers is list
+          && request.resource.data.mangaTiers.size() <= 20
+          && isValidString(request.resource.data.updatedAt, 1, 100);
+      }
+
+      match /notifications/{notificationId} {
+        allow read, delete: if isOwner(userId);
+        allow update: if isOwner(userId)
+          || (isAuthenticated()
+            && resource.data.actorId == request.auth.uid
+            && request.resource.data.actorId == request.auth.uid
+            && request.resource.data.recipientId == userId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'actorName', 'actorAvatar', 'preview', 'createdAt', 'read', 'mediaType'
+            ]));
+        allow create: if isAuthenticated()
+          && request.resource.data.recipientId == userId
+          && request.resource.data.actorId == request.auth.uid
+          && request.auth.uid != userId
+          && request.resource.data.type in ['reply', 'like', 'controversial']
+          && request.resource.data.keys().hasOnly([
+            'type', 'mediaType', 'recipientId', 'actorId', 'actorName', 'actorAvatar',
+            'animeId', 'animeTitle', 'commentId', 'parentId',
+            'sourceCommentId', 'preview', 'read', 'createdAt'
+          ])
+          && isValidString(request.resource.data.actorName, 1, 30)
+          && isValidString(request.resource.data.preview, 0, 240)
+          && isValidString(request.resource.data.animeId, 1, 30)
+          && isValidString(request.resource.data.animeTitle, 1, 180)
+          && request.resource.data.mediaType in ['ANIME', 'MANGA']
+          && request.resource.data.read == false
+          && (
+            (request.resource.data.type == 'like'
+              && exists(/databases/$(database)/documents/comments/$(request.resource.data.commentId))
+              && get(/databases/$(database)/documents/comments/$(request.resource.data.commentId)).data.userId == userId)
+            ||
+            (request.resource.data.type == 'reply'
+              && exists(/databases/$(database)/documents/comments/$(request.resource.data.commentId))
+              && get(/databases/$(database)/documents/comments/$(request.resource.data.commentId)).data.userId == request.auth.uid
+              && exists(/databases/$(database)/documents/comments/$(request.resource.data.sourceCommentId))
+              && get(/databases/$(database)/documents/comments/$(request.resource.data.sourceCommentId)).data.userId == userId)
+            ||
+            (request.resource.data.type == 'controversial'
+              && exists(/databases/$(database)/documents/comments/$(request.resource.data.sourceCommentId))
+              && get(/databases/$(database)/documents/comments/$(request.resource.data.sourceCommentId)).data.userId == userId
+              && get(/databases/$(database)/documents/comments/$(request.resource.data.sourceCommentId)).data.dislikes is list
+              && get(/databases/$(database)/documents/comments/$(request.resource.data.sourceCommentId)).data.dislikes.size() >= 10)
+          );
+      }
     }
 
     // Deliberately public profile projection. Sensitive account preferences
@@ -44,7 +101,8 @@ service cloud.firestore {
       allow create, update: if isOwner(userId)
         && request.resource.data.keys().hasOnly([
           'displayName', 'userId', 'bio', 'avatarUrl', 'bannerUrl',
-          'favoriteGenre', 'createdAt', 'updatedAt'
+          'favoriteGenre', 'createdAt', 'updatedAt', 'libraryUpdatedAt',
+          'watchlist', 'favourites', 'stats'
         ])
         && isValidString(request.resource.data.displayName, 1, 15)
         && isValidString(request.resource.data.userId, 0, 24)
@@ -53,7 +111,13 @@ service cloud.firestore {
         && isValidString(request.resource.data.bannerUrl, 0, 2048)
         && isValidString(request.resource.data.favoriteGenre, 1, 40)
         && isValidString(request.resource.data.createdAt, 1, 100)
-        && isValidString(request.resource.data.updatedAt, 1, 100);
+        && isValidString(request.resource.data.updatedAt, 1, 100)
+        && request.resource.data.get('libraryUpdatedAt', '') is string
+        && request.resource.data.get('watchlist', []) is list
+        && request.resource.data.get('watchlist', []).size() <= 100
+        && request.resource.data.get('favourites', []) is list
+        && request.resource.data.get('favourites', []).size() <= 100
+        && request.resource.data.get('stats', {}) is map;
       allow delete: if isOwner(userId);
     }
 
@@ -90,6 +154,10 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated() 
         && request.resource.data.userId == request.auth.uid
+        && request.resource.data.mediaType in ['ANIME', 'MANGA']
+        && reviewId == request.resource.data.mediaType + '_'
+          + (request.resource.data.mediaType == 'MANGA' ? request.resource.data.mangaId : request.resource.data.animeId)
+          + '_' + request.auth.uid
         && isValidString(request.resource.data.content, 1, 3000);
       allow update: if isAuthenticated() 
         && resource.data.userId == request.auth.uid

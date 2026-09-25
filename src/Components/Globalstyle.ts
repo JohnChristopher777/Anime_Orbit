@@ -33,7 +33,7 @@ export const GlobalStyle = createGlobalStyle`
     }
 
     &::-webkit-scrollbar {
-      width: 12px;
+      width: 7px;
     }
     &::-webkit-scrollbar-thumb {
       background: linear-gradient(180deg, #ffd700 0%, #ff8c00 100%);
@@ -52,7 +52,7 @@ export const GlobalStyle = createGlobalStyle`
 
   .logo-text, .brand-text {
     font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
+    font-weight: 900;
   }
 
   a, button {

@@ -1,8 +1,13 @@
-const CACHE_VERSION = "anime-orbit-shell-v1";
+const CACHE_VERSION = "anime-orbit-shell-v2";
 const APP_SHELL = ["/", "/manifest.json", "/pwa-icon-192.png", "/pwa-icon-512.png"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(
+    caches
+      .open(CACHE_VERSION)
+      .then((cache) => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -28,8 +33,12 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          if (response.ok) caches.open(CACHE_VERSION).then((cache) => cache.put("/", response.clone()));
+        .then(async (response) => {
+          if (response.ok) {
+            const cacheCopy = response.clone();
+            const cache = await caches.open(CACHE_VERSION);
+            await cache.put("/", cacheCopy);
+          }
           return response;
         })
         .catch(() => caches.match("/").then((response) => response || Response.error())),
@@ -39,8 +48,12 @@ self.addEventListener("fetch", (event) => {
 
   if (["script", "style", "font", "image"].includes(request.destination)) {
     event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-        if (response.ok && response.type === "basic") caches.open(CACHE_VERSION).then((cache) => cache.put(request, response.clone()));
+      caches.match(request).then((cached) => cached || fetch(request).then(async (response) => {
+        if (response.ok && response.type === "basic") {
+          const cacheCopy = response.clone();
+          const cache = await caches.open(CACHE_VERSION);
+          await cache.put(request, cacheCopy);
+        }
         return response;
       })),
     );

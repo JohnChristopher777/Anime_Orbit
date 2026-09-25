@@ -8,6 +8,7 @@ import { useGlobalContext } from "./context/global";
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
 import PWAStatus from "./Components/PWAStatus";
+import PublicProfileSync from "./Components/PublicProfileSync";
 
 // Route-level code splitting keeps the first mobile load small.
 const Homepage = lazy(() => import("./Components/Homepage"));
@@ -171,6 +172,7 @@ function Layout({ children }: { children: ReactNode }) {
 export function App() {
   return (
     <BrowserRouter>
+      <PublicProfileSync />
       <ToastContainer
         position="bottom-right"
         autoClose={2200}

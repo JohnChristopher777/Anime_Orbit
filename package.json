@@ -4,8 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "profile-assets": "node scripts/generate-profile-assets.mjs",
+    "predev": "npm run profile-assets",
     "dev": "vite",
+    "prestart": "npm run profile-assets",
     "start": "vite",
+    "prebuild": "npm run profile-assets",
     "build": "vite build",
     "preview": "vite preview"
   },

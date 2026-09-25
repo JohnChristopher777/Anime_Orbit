@@ -1,9 +1,11 @@
 import React from "react";
-import { Bell, ExternalLink, Lightbulb, Newspaper, Quote, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, Bell, CheckCheck, ExternalLink, Heart, Lightbulb, MessageSquareReply, Newspaper, Quote, RefreshCw, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import Footer from "./Footer";
 import ProgressiveImage from "./ProgressiveImage";
 import SEO from "./SEO";
+import { useAuth } from "../context/AuthContext";
+import { useNotifications } from "../hooks/useNotifications";
 
 interface DigestData {
   quote: { content: string; anime: string; character: string; characterImage?: string; characterId?: number; source: string } | null;
@@ -13,6 +15,9 @@ interface DigestData {
 }
 
 const AnimeDigest: React.FC = () => {
+  const { currentUser } = useAuth();
+  const { notifications, unreadCount, loading: notificationsLoading, markRead, markAllRead } = useNotifications();
+  const [notificationFilter, setNotificationFilter] = React.useState<"all" | "unread">("all");
   const [digest, setDigest] = React.useState<DigestData>({ quote: null, facts: [], news: [] });
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -47,9 +52,30 @@ const AnimeDigest: React.FC = () => {
       <main className="digest-shell">
         <header className="digest-hero">
           <div className="digest-hero__signal"><Bell size={18} /><span>Anime desk</span><i /></div>
-          <div className="digest-hero__copy"><h1>Your anime briefing</h1><p>Industry headlines, a featured character quote, and fan notes gathered from dedicated anime sources.</p></div>
+          <div className="digest-hero__copy"><h1>Notifications & anime briefing</h1><p>Replies and reactions to your discussions, followed by industry headlines, quotes and fan notes.</p></div>
           <button type="button" onClick={() => void loadDigest(true)} disabled={loading}><RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh briefing</button>
         </header>
+
+        <section className="digest-notifications" aria-labelledby="digest-notifications-title">
+          <header>
+            <div><span><Bell size={15} /> Community activity</span><h2 id="digest-notifications-title">Your notifications</h2><p>Replies, likes and important activity from anime and manga discussions appear here.</p></div>
+            {currentUser && <div className="digest-notifications__actions"><button type="button" className={notificationFilter === "all" ? "is-active" : ""} onClick={() => setNotificationFilter("all")}>All</button><button type="button" className={notificationFilter === "unread" ? "is-active" : ""} onClick={() => setNotificationFilter("unread")}>Unread {unreadCount > 0 && <b>{unreadCount}</b>}</button><button type="button" onClick={() => void markAllRead()} disabled={!unreadCount}><CheckCheck size={14} />Mark all read</button></div>}
+          </header>
+          {!currentUser ? <div className="digest-notifications__empty"><Bell size={24} /><div><strong>Sign in for community notifications</strong><p>Replies, likes and important discussion activity will remain synced to your account.</p></div><Link to="/profile">Sign in</Link></div> : notificationsLoading ? <div className="digest-notifications__loading"><span /><span /><span /></div> : (() => {
+            const visible = notificationFilter === "unread" ? notifications.filter((item) => !item.read) : notifications;
+            return visible.length ? <div className="digest-notifications__list">{visible.map((item) => {
+              const target = item.mediaType === "MANGA"
+                ? `/manga/${item.animeId}#comment-${item.parentId || item.commentId}`
+                : `/anime/${item.animeId}?tab=discussion#comment-${item.parentId || item.commentId}`;
+              const created = item.createdAt?.toDate?.();
+              return <article key={item.id} className={item.read ? "" : "is-unread"}>
+                {item.type === "controversial" ? <div className="digest-notifications__avatar is-warning"><AlertTriangle size={20} /></div> : <Link to={`/user/${item.actorId}`} className="digest-notifications__avatar" aria-label={`View ${item.actorName}'s profile`}>{item.actorAvatar ? <ProgressiveImage src={item.actorAvatar} alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover" /> : <span>{item.actorName?.[0]?.toUpperCase() || "A"}</span>}</Link>}
+                <Link to={target} className="digest-notifications__content" onClick={() => void markRead(item.id)}><span>{item.type === "reply" ? <MessageSquareReply size={14} /> : item.type === "like" ? <Heart size={14} fill="currentColor" /> : <AlertTriangle size={14} />}{item.type === "reply" ? "New reply" : item.type === "like" ? "Comment liked" : "Discussion activity"}</span><p>{item.type === "controversial" ? <>Your comment might be controversial on <b>{item.animeTitle}</b>.</> : <><strong>{item.actorName}</strong>{item.type === "reply" ? " replied to your discussion" : " liked your comment"} on <b>{item.animeTitle}</b>.</>}</p>{item.preview && <blockquote>{item.preview}</blockquote>}<small>{created ? created.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Just now"}</small></Link>
+                {!item.read && <button type="button" onClick={() => void markRead(item.id)} aria-label="Mark notification as read"><span /></button>}
+              </article>;
+            })}</div> : <div className="digest-notifications__empty"><CheckCheck size={24} /><div><strong>{notificationFilter === "unread" ? "You're all caught up" : "No community activity yet"}</strong><p>{notificationFilter === "unread" ? "There are no unread notifications." : "New replies and likes will appear here."}</p></div></div>;
+          })()}
+        </section>
 
         {error && <div className="digest-error">{error}</div>}
         {loading && !digest.news.length ? <div className="digest-loading"><span /><span /><span /></div> : (

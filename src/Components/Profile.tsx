@@ -26,7 +26,6 @@ import {
   Calendar,
   AlertTriangle,
   RotateCcw,
-  Upload,
   Camera,
   Share2,
   Copy,
@@ -40,6 +39,7 @@ import Footer from "./Footer";
 import AppDropdown from "./AppDropdown";
 import { getAnimeListByIds, setMatureContentPreference } from "../services/anilist";
 import { safeImageUrl, sanitizeHandle, sanitizeInput } from "../utils/security";
+import { AVATAR_PRESETS, BANNER_PRESETS } from "../generated/profileAssets";
 
 const isAdultBirthDate = (value: string) => {
   if (!value) return false;
@@ -52,25 +52,6 @@ const isAdultBirthDate = (value: string) => {
   return age >= 18;
 };
 
-const AVATAR_PRESETS = [
-  "/avatars/1.png",
-  "/avatars/2.png",
-  "/avatars/3.png",
-  "/avatars/4.png",
-  "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=150&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1563089145-599997674d42?w=150&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=150&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=150&auto=format&fit=crop&q=80",
-];
-
-const BANNER_PRESETS = [
-  "/banners/1.jpg",
-  "/banners/2.jpg",
-  "/banners/3.jpg",
-  "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1200&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&auto=format&fit=crop&q=80",
-];
-
 export const Profile: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const { favourites } = useFavourites();
@@ -81,8 +62,8 @@ export const Profile: React.FC = () => {
   const [userId, setUserId] = useState("");
   const [userIdError, setUserIdError] = useState("");
   const [bio, setBio] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState(AVATAR_PRESETS[0]);
-  const [bannerUrl, setBannerUrl] = useState(BANNER_PRESETS[3]);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
   const [favoriteGenre, setFavoriteGenre] = useState("Action");
   const [birthDate, setBirthDate] = useState("");
   const [allowMatureContent, setAllowMatureContent] = useState(false);
@@ -103,37 +84,6 @@ export const Profile: React.FC = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
-
-  // Custom File Upload Handlers for Local Avatar & Banner
-  const handleAvatarFileUpload = (file: File) => {
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Avatar image must be under 5MB");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setAvatarUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleBannerFileUpload = (file: File) => {
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("Banner image must be under 8MB");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setBannerUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleOpenEditSection = () => {
     setIsEditing(true);
@@ -162,7 +112,7 @@ export const Profile: React.FC = () => {
       return;
     }
     setDisplayName((currentUser.displayName || "").slice(0, 15));
-    setAvatarUrl(currentUser.photoURL || AVATAR_PRESETS[0]);
+    setAvatarUrl(currentUser.photoURL || "");
 
     const fetchUserProfile = async () => {
       try {
@@ -376,7 +326,7 @@ export const Profile: React.FC = () => {
       // to have failed.
       let publicProfileSynced = true;
       try {
-        await setDoc(doc(db, "publicProfiles", currentUser.uid), {
+      await setDoc(doc(db, "publicProfiles", currentUser.uid), {
           displayName: safeDisplayName,
           userId: safeUserId,
           bio: safeBio,
@@ -384,14 +334,21 @@ export const Profile: React.FC = () => {
           bannerUrl: safeBannerUrl,
           favoriteGenre: safeGenre,
           createdAt: currentUser.metadata.creationTime || updatedAt,
-          updatedAt,
-        });
+        updatedAt,
+      }, { merge: true });
       } catch {
         publicProfileSynced = false;
       }
 
       window.dispatchEvent(
-        new CustomEvent("orbit_avatar_updated", { detail: { avatarUrl: safeAvatarUrl } }),
+        new CustomEvent("orbit_profile_updated", {
+          detail: {
+            displayName: safeDisplayName,
+            avatarUrl: safeAvatarUrl,
+            bannerUrl: safeBannerUrl,
+            profileHandle: safeUserId || currentUser.uid,
+          },
+        }),
       );
       setMatureContentPreference(finalMatureSetting);
 
@@ -667,14 +624,16 @@ export const Profile: React.FC = () => {
         <div className="profile-card relative bg-[#15151a] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
           {/* Custom Header Cover Banner */}
           <div className="profile-cover relative h-36 sm:h-48 w-full overflow-hidden bg-neutral-900">
-            <img
-              src={bannerUrl || BANNER_PRESETS[3]}
-              alt="Profile Cover Banner"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = BANNER_PRESETS[3];
-              }}
-            />
+            {bannerUrl ? (
+              <img
+                src={bannerUrl}
+                alt="Profile cover banner"
+                className="w-full h-full object-cover"
+                onError={() => setBannerUrl("")}
+              />
+            ) : (
+              <div className="h-full w-full bg-[radial-gradient(circle_at_25%_30%,rgba(255,215,0,0.18),transparent_35%),linear-gradient(135deg,#19191f,#08080b)]" />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#12121c] via-[#12121c]/40 to-black/30" />
             <button
               onClick={handleOpenEditSection}
@@ -695,12 +654,12 @@ export const Profile: React.FC = () => {
                       src={avatarUrl}
                       alt="Profile Avatar"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
+                      onError={() => setAvatarUrl("")}
                     />
                   ) : (
-                    <User size={52} className="text-[#ffd700]" />
+                    <span className="font-montserrat text-3xl font-bold text-[#ffd700]">
+                      {(displayName || currentUser.email || "A")[0].toUpperCase()}
+                    </span>
                   )}
                   <button
                     onClick={handleOpenEditSection}
@@ -1001,76 +960,87 @@ export const Profile: React.FC = () => {
               </button>
             </div>
 
-            {/* Custom Avatar Picker & Upload */}
+            {/* Packaged avatar picker */}
             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold uppercase font-montserrat text-neutral-200">
-                  Profile Avatar Image
+                  Profile avatar
                 </label>
-                <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#ffd700] hover:text-[#ffea00] cursor-pointer bg-[#ffd700]/10 border border-[#ffd700]/30 px-3 py-1 rounded-full transition-all">
-                  <Upload size={13} />
-                  <span>Upload Custom Avatar</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleAvatarFileUpload(e.target.files[0]);
-                      }
-                    }}
-                    className="hidden"
-                  />
-                </label>
+                <span className="text-xs font-semibold text-[#ffd700]">
+                  {AVATAR_PRESETS.length} choices
+                </span>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="grid max-h-72 grid-cols-4 gap-3 overflow-y-auto p-1 sm:grid-cols-7 md:grid-cols-9">
+                <button
+                  type="button"
+                  onClick={() => setAvatarUrl("")}
+                  aria-label="Use name initial instead of an avatar"
+                  aria-pressed={!avatarUrl}
+                  className={`grid h-14 w-14 place-items-center rounded-full border-2 bg-neutral-900 font-montserrat text-lg font-bold text-[#ffd700] transition-all cursor-pointer ${
+                    !avatarUrl
+                      ? "border-[#ffd700] ring-4 ring-[#ffd700]/40"
+                      : "border-white/20 opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  {(displayName || currentUser.email || "A")[0].toUpperCase()}
+                </button>
                 {AVATAR_PRESETS.map((preset, idx) => (
-                  <img
-                    key={idx}
-                    src={preset}
-                    alt={`Avatar Option ${idx + 1}`}
+                  <button
+                    type="button"
+                    key={preset}
                     onClick={() => setAvatarUrl(preset)}
-                    className={`w-14 h-14 rounded-full object-cover cursor-pointer border-2 transition-all hover:scale-110 ${
+                    aria-label={`Select avatar ${idx + 1}`}
+                    aria-pressed={avatarUrl === preset}
+                    className={`h-14 w-14 overflow-hidden rounded-full border-2 transition-all cursor-pointer hover:scale-105 ${
                       avatarUrl === preset
                         ? "border-[#ffd700] ring-4 ring-[#ffd700]/40 scale-105"
                         : "border-white/20 opacity-70 hover:opacity-100"
                     }`}
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src =
-                        AVATAR_PRESETS[4];
-                    }}
-                  />
+                  >
+                    <img
+                      src={preset}
+                      alt=""
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
                 ))}
               </div>
             </div>
 
-            {/* Custom Banner Picker & Upload */}
+            {/* Packaged banner picker */}
             <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold uppercase font-montserrat text-neutral-200">
-                  Header Cover Banner Image
+                  Header cover banner
                 </label>
-                <label className="inline-flex items-center gap-1.5 text-xs font-bold text-[#ffd700] hover:text-[#ffea00] cursor-pointer bg-[#ffd700]/10 border border-[#ffd700]/30 px-3 py-1 rounded-full transition-all">
-                  <Upload size={13} />
-                  <span>Upload Custom Banner</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        handleBannerFileUpload(e.target.files[0]);
-                      }
-                    }}
-                    className="hidden"
-                  />
-                </label>
+                <span className="text-xs font-semibold text-[#ffd700]">
+                  {BANNER_PRESETS.length} choices
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid max-h-72 grid-cols-2 gap-3 overflow-y-auto p-1 sm:grid-cols-4">
+                <button
+                  type="button"
+                  onClick={() => setBannerUrl("")}
+                  aria-label="Use no profile banner"
+                  aria-pressed={!bannerUrl}
+                  className={`grid h-20 place-items-center rounded-xl border-2 bg-[linear-gradient(135deg,#19191f,#08080b)] text-xs font-bold text-neutral-300 transition-all cursor-pointer ${
+                    !bannerUrl
+                      ? "border-[#ffd700] ring-4 ring-[#ffd700]/40"
+                      : "border-white/20 opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  No banner
+                </button>
                 {BANNER_PRESETS.map((preset, idx) => (
-                  <div
-                    key={idx}
+                  <button
+                    type="button"
+                    key={preset}
                     onClick={() => setBannerUrl(preset)}
+                    aria-label={`Select banner ${idx + 1}`}
+                    aria-pressed={bannerUrl === preset}
                     className={`h-20 rounded-xl overflow-hidden cursor-pointer border-2 transition-all relative ${
                       bannerUrl === preset
                         ? "border-[#ffd700] ring-4 ring-[#ffd700]/40 scale-105"
@@ -1079,14 +1049,11 @@ export const Profile: React.FC = () => {
                   >
                     <img
                       src={preset}
-                      alt={`Banner Option ${idx + 1}`}
+                      alt=""
+                      loading="lazy"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src =
-                          BANNER_PRESETS[3];
-                      }}
                     />
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

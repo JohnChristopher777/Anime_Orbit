@@ -28,6 +28,7 @@ import {
   getDocs,
   serverTimestamp,
   updateDoc,
+  setDoc,
   doc,
   arrayUnion,
   arrayRemove,
@@ -43,7 +44,6 @@ import {
   Award,
   ExternalLink,
   Film,
-  UserCheck,
   Image as ImageIcon,
   Maximize2,
   X,
@@ -70,7 +70,10 @@ import ProgressiveImage from "./ProgressiveImage";
 import AppDropdown from "./AppDropdown";
 import Footer from "./Footer";
 import MediaEntryDialog from "./MediaEntryDialog";
+import { statusAtKnownTotal } from "../utils/trackingStatus";
 import ScoreSlider from "./ScoreSlider";
+import { useProfileIdentity } from "../hooks/useProfileIdentity";
+import { resolveCommunityIdentity, usePublicCommunityIdentities } from "../hooks/usePublicCommunityIdentities";
 
 const PLATFORM_COLORS: Record<string, string> = {
   crunchyroll: "#f47521",
@@ -155,10 +158,37 @@ export const AnimeItem: React.FC = () => {
   const { addToFavourites, removeFromFavourites, isFavourite } =
     useFavourites();
   const { currentUser } = useAuth();
+  const profileIdentity = useProfileIdentity();
+  const publicCommunityIdentities = usePublicCommunityIdentities([...comments, ...reviews]);
+  const currentUserReview = useMemo(
+    () => currentUser ? reviews.find((review) => review.userId === currentUser.uid) : null,
+    [currentUser, reviews],
+  );
+  const loadedReviewDraft = useRef("");
   const { watchlist, updateAnimeStatus, getAnimeStatus, updateWatchlistEntry } =
     useWatchlist();
   const [detailProgress, setDetailProgress] = useState(0);
   const [progressSaving, setProgressSaving] = useState(false);
+
+  useEffect(() => {
+    if (!currentUserReview) {
+      loadedReviewDraft.current = "";
+      return;
+    }
+    if (loadedReviewDraft.current === currentUserReview.id) return;
+    loadedReviewDraft.current = currentUserReview.id;
+    setNewReviewText(currentUserReview.text || currentUserReview.content || "");
+    setNewReviewRating(Number(currentUserReview.rating || 10));
+  }, [currentUserReview]);
+
+  useEffect(() => {
+    if (commentsLoading || activeTab !== "discussion" || !window.location.hash) return;
+    const targetId = decodeURIComponent(window.location.hash.slice(1));
+    const timer = window.setTimeout(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [commentsLoading, activeTab, comments.length]);
 
   const {
     title,
@@ -198,13 +228,15 @@ export const AnimeItem: React.FC = () => {
     if (
       !trackedAnime ||
       !totalEpisodes ||
-      Number(trackedAnime.episodes || 0) === Number(totalEpisodes)
+      (Number(trackedAnime.episodes || 0) === Number(totalEpisodes) &&
+        trackedAnime.releaseStatus === (status || ""))
     )
       return;
     void updateWatchlistEntry(trackedAnime.mal_id, {
       episodes: Number(totalEpisodes),
+      releaseStatus: status || "",
     });
-  }, [trackedAnime?.mal_id, trackedAnime?.episodes, totalEpisodes]);
+  }, [trackedAnime?.mal_id, trackedAnime?.episodes, trackedAnime?.releaseStatus, totalEpisodes, status]);
 
   const saveDetailProgress = async (nextProgress: number) => {
     if (!trackedAnime) return;
@@ -214,7 +246,7 @@ export const AnimeItem: React.FC = () => {
     );
     const nextStatus =
       totalEpisodes && normalized >= totalEpisodes
-        ? "Completed"
+        ? statusAtKnownTotal(status)
         : trackedAnime.status === "Completed" ||
             trackedAnime.status === "Caught Up" ||
             (normalized > 0 && trackedAnime.status === "Plan to Watch")
@@ -226,6 +258,7 @@ export const AnimeItem: React.FC = () => {
       await updateWatchlistEntry(trackedAnime.mal_id, {
         status: nextStatus,
         progress: normalized,
+        releaseStatus: status || "",
       });
     } finally {
       setProgressSaving(false);
@@ -496,7 +529,13 @@ export const AnimeItem: React.FC = () => {
             const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
             return tB - tA;
           });
-        setReviews(fetched);
+        const seenReviewers = new Set<string>();
+        setReviews(fetched.filter((review: any) => {
+          const reviewer = String(review.userId || review.id);
+          if (seenReviewers.has(reviewer)) return false;
+          seenReviewers.add(reviewer);
+          return true;
+        }));
         setReviewsLoading(false);
       };
       const unsubscribe = onSnapshot(q, applySnapshot, async () => {
@@ -541,11 +580,9 @@ export const AnimeItem: React.FC = () => {
       await addDoc(collection(db, "comments"), {
         animeId: id?.toString(),
         userId: currentUser.uid,
-        userName:
-          currentUser.displayName ||
-          currentUser.email?.split("@")[0] ||
-          "Anonymous",
-        userAvatar: currentUser.photoURL || "",
+        userName: profileIdentity.displayName,
+        userAvatar: profileIdentity.avatarUrl,
+        profileHandle: profileIdentity.profileHandle,
         text: cleanText,
         content: cleanText,
         isSpoiler: isCommentSpoiler,
@@ -579,20 +616,65 @@ export const AnimeItem: React.FC = () => {
     const liked = (comment.likes || []).includes(currentUser.uid);
     const disliked = (comment.dislikes || []).includes(currentUser.uid);
     try {
-      if (reaction === "like")
+      if (reaction === "like") {
         await updateDoc(reference, {
           likes: liked
             ? arrayRemove(currentUser.uid)
             : arrayUnion(currentUser.uid),
           dislikes: arrayRemove(currentUser.uid),
         });
+        if (!liked && comment.userId && comment.userId !== currentUser.uid) {
+          void setDoc(
+            doc(db, "users", comment.userId, "notifications", `like-${comment.id}-${currentUser.uid}`),
+            {
+              type: "like",
+              mediaType: "ANIME",
+              recipientId: comment.userId,
+              actorId: currentUser.uid,
+              actorName: profileIdentity.displayName,
+              actorAvatar: profileIdentity.avatarUrl,
+              animeId: id?.toString() || "",
+              animeTitle: displayTitle,
+              commentId: comment.id,
+              parentId: comment.parentId || comment.id,
+              preview: sanitizeInput(comment.text || comment.content || "", 240),
+              read: false,
+              createdAt: serverTimestamp(),
+            },
+            { merge: true },
+          ).catch(() => {});
+        }
+      }
       if (reaction === "dislike")
-        await updateDoc(reference, {
+        {
+          const nextDislikeCount = disliked
+            ? Math.max(0, (comment.dislikes || []).length - 1)
+            : (comment.dislikes || []).length + 1;
+          await updateDoc(reference, {
           dislikes: disliked
             ? arrayRemove(currentUser.uid)
             : arrayUnion(currentUser.uid),
           likes: arrayRemove(currentUser.uid),
-        });
+          });
+          if (!disliked && nextDislikeCount >= 10 && comment.userId && comment.userId !== currentUser.uid) {
+            void setDoc(doc(db, "users", comment.userId, "notifications", `controversial-${comment.id}`), {
+              type: "controversial",
+              mediaType: "ANIME",
+              recipientId: comment.userId,
+              actorId: currentUser.uid,
+              actorName: "Anime Orbit",
+              actorAvatar: "/icon.png",
+              animeId: id?.toString() || "",
+              animeTitle: displayTitle,
+              commentId: comment.id,
+              parentId: comment.parentId || comment.id,
+              sourceCommentId: comment.id,
+              preview: sanitizeInput(comment.text || comment.content || "", 240),
+              read: false,
+              createdAt: serverTimestamp(),
+            }).catch(() => {});
+          }
+        }
       if (reaction === "report") {
         await updateDoc(reference, { reports: arrayUnion(currentUser.uid) });
         toast.info("Report received. Thank you for helping the community.");
@@ -608,15 +690,13 @@ export const AnimeItem: React.FC = () => {
     if (!cleanReply) return;
     setPostingReply(true);
     try {
-      await addDoc(collection(db, "comments"), {
+      const replyReference = await addDoc(collection(db, "comments"), {
         animeId: id?.toString(),
         parentId: parent.parentId || parent.id,
         userId: currentUser.uid,
-        userName:
-          currentUser.displayName ||
-          currentUser.email?.split("@")[0] ||
-          "Anonymous",
-        userAvatar: currentUser.photoURL || "",
+        userName: profileIdentity.displayName,
+        userAvatar: profileIdentity.avatarUrl,
+        profileHandle: profileIdentity.profileHandle,
         text: cleanReply,
         content: cleanReply,
         animeTitle: displayTitle,
@@ -627,6 +707,24 @@ export const AnimeItem: React.FC = () => {
         reports: [],
         createdAt: serverTimestamp(),
       });
+      if (parent.userId && parent.userId !== currentUser.uid) {
+        void addDoc(collection(db, "users", parent.userId, "notifications"), {
+          type: "reply",
+          mediaType: "ANIME",
+          recipientId: parent.userId,
+          actorId: currentUser.uid,
+          actorName: profileIdentity.displayName,
+          actorAvatar: profileIdentity.avatarUrl,
+          animeId: id?.toString() || "",
+          animeTitle: displayTitle,
+          commentId: replyReference.id,
+          parentId: parent.parentId || parent.id,
+          sourceCommentId: parent.id,
+          preview: cleanReply.slice(0, 240),
+          read: false,
+          createdAt: serverTimestamp(),
+        }).catch(() => {});
+      }
       setReplyText("");
       setReplyingTo(null);
     } catch {
@@ -654,25 +752,37 @@ export const AnimeItem: React.FC = () => {
 
     try {
       setPostingReview(true);
-      await addDoc(collection(db, "reviews"), {
+      const reviewPayload = {
         animeId: id?.toString(),
+        mediaType: "ANIME",
         userId: currentUser.uid,
-        userName:
-          currentUser.displayName ||
-          currentUser.email?.split("@")[0] ||
-          "Anonymous",
-        userAvatar: currentUser.photoURL || "",
+        userName: profileIdentity.displayName,
+        userAvatar: profileIdentity.avatarUrl,
+        profileHandle: profileIdentity.profileHandle,
         rating: Number(newReviewRating),
         text: cleanReview,
         content: cleanReview,
         animeTitle: displayTitle,
         animeImage:
           images?.jpg?.large_image_url || images?.jpg?.image_url || "",
-        createdAt: serverTimestamp(),
-      });
-      setNewReviewText("");
-      setNewReviewRating(10);
-      toast.success("Review posted successfully!");
+      };
+      if (currentUserReview) {
+        await updateDoc(doc(db, "reviews", currentUserReview.id), {
+          text: cleanReview,
+          content: cleanReview,
+          rating: Number(newReviewRating),
+          updatedAt: serverTimestamp(),
+        });
+        toast.success("Your review was updated.");
+      } else {
+        const reviewId = `ANIME_${id}_${currentUser.uid}`;
+        await setDoc(doc(db, "reviews", reviewId), {
+          ...reviewPayload,
+          createdAt: serverTimestamp(),
+        });
+        loadedReviewDraft.current = reviewId;
+        toast.success("Review posted successfully!");
+      }
     } catch {
       toast.error("Failed to post review. Try again!");
     } finally {
@@ -882,23 +992,20 @@ export const AnimeItem: React.FC = () => {
             <ProgressiveImage
               src="/lost.jpg"
               alt="Page not found"
-              wrapperClassName="w-40 h-40 mx-auto rounded-full bg-white mb-6"
-              className="w-full h-full object-contain p-4"
+              wrapperClassName="w-60 h-60 mx-auto rounded-xl bg-white m-10"
+              className="w-full h-full object-contain"
               loading="eager"
             />
             <h1 className="font-montserrat text-2xl font-bold">
               This title is off orbit
             </h1>
             <p className="text-neutral-400 text-sm mt-2">
-              The anime could not be found or the data service is temporarily
-              unavailable.
+              This ID may belong to manga, or the anime catalogue may be temporarily unavailable.
             </p>
-            <button
-              onClick={handleBack}
-              className="mt-6 rounded-full bg-[#ffd700] px-5 py-2.5 text-sm font-bold text-black"
-            >
-              Go back
-            </button>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <button onClick={handleBack} className="rounded-full bg-[#ffd700] px-5 py-2.5 text-sm font-bold text-black">Go back</button>
+              <Link to={`/manga/${id}`} className="inline-flex items-center gap-2 rounded-full border border-[#bd82ff]/40 bg-[#bd82ff]/10 px-5 py-2.5 text-sm font-bold text-[#d7b5ff]"><BookOpen size={15} />Try as manga</Link>
+            </div>
           </div>
         </div>
       </Container>
@@ -1150,8 +1257,8 @@ export const AnimeItem: React.FC = () => {
             id: "related",
             label: `Related ${relations.length ? `(${relations.length})` : ""}`,
           },
-          { id: "discussion", label: "Discussion" },
-          { id: "reviews", label: "Reviews" },
+          { id: "discussion", label: "Discussion", count: comments.length },
+          { id: "reviews", label: "Reviews", count: reviews.length },
         ].map((tab) => (
           <TabButton
             key={tab.id}
@@ -1159,6 +1266,7 @@ export const AnimeItem: React.FC = () => {
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
+            {typeof tab.count === "number" && <span>{tab.count}</span>}
           </TabButton>
         ))}
       </TabsBar>
@@ -1885,6 +1993,7 @@ export const AnimeItem: React.FC = () => {
                 comments
                   .filter((entry) => !entry.parentId)
                   .map((comment) => {
+                    const commentIdentity = resolveCommunityIdentity(comment, publicCommunityIdentities);
                     const isSpoiler = comment.isSpoiler;
                     const isRevealed = revealedSpoilers[comment.id];
                     const replies = comments.filter(
@@ -1900,20 +2009,24 @@ export const AnimeItem: React.FC = () => {
                     );
 
                     return (
-                      <CommentCard key={comment.id}>
-                        <UserAvatarSmall>
-                          {comment.userAvatar ? (
+                      <CommentCard key={comment.id} id={`comment-${comment.id}`}>
+                        <UserAvatarSmall
+                          to={`/user/${encodeURIComponent(commentIdentity.profileHandle)}`}
+                          aria-label={`View ${commentIdentity.displayName}'s profile`}
+                        >
+                          <span className="font-montserrat text-sm font-bold text-[#ffd700]">
+                            {commentIdentity.displayName[0]?.toUpperCase() || "A"}
+                          </span>
+                          {commentIdentity.avatarUrl && (
                             <img
-                              src={comment.userAvatar}
+                              src={commentIdentity.avatarUrl}
                               alt="Avatar"
                               loading="lazy"
                               decoding="async"
                               onError={(event) => {
-                                event.currentTarget.src = "/lost.jpg";
+                                event.currentTarget.style.display = "none";
                               }}
                             />
-                          ) : (
-                            <UserCheck size={18} color="#ffd700" />
                           )}
                         </UserAvatarSmall>
                         <CommentBody>
@@ -1925,7 +2038,12 @@ export const AnimeItem: React.FC = () => {
                                 gap: "0.5rem",
                               }}
                             >
-                              <span className="author">{comment.userName}</span>
+                              <Link
+                                className="author"
+                                to={`/user/${encodeURIComponent(commentIdentity.profileHandle)}`}
+                              >
+                                {commentIdentity.displayName}
+                              </Link>
                               {isSpoiler && (
                                 <span
                                   style={{
@@ -2093,7 +2211,7 @@ export const AnimeItem: React.FC = () => {
                                     void handlePostReply(comment);
                                   }
                                 }}
-                                placeholder={`Reply to ${comment.userName}...`}
+                                placeholder={`Reply to ${commentIdentity.displayName}...`}
                                 className="min-w-0 flex-1 bg-transparent px-2 text-xs text-white outline-none placeholder:text-neutral-600"
                               />
                               <button
@@ -2110,6 +2228,7 @@ export const AnimeItem: React.FC = () => {
                           {replies.length > 0 && (
                             <div className="mt-4 space-y-2 border-l border-white/10 pl-3 sm:pl-4">
                               {replies.map((reply) => {
+                                const replyIdentity = resolveCommunityIdentity(reply, publicCommunityIdentities);
                                 const replyLiked = Boolean(
                                   currentUser &&
                                   (reply.likes || []).includes(currentUser.uid),
@@ -2117,12 +2236,16 @@ export const AnimeItem: React.FC = () => {
                                 return (
                                   <div
                                     key={reply.id}
+                                    id={`comment-${reply.id}`}
                                     className="rounded-xl bg-white/[0.035] p-3"
                                   >
                                     <div className="flex items-center justify-between gap-3">
-                                      <span className="text-xs font-bold text-white">
-                                        {reply.userName}
-                                      </span>
+                                      <Link
+                                        to={`/user/${encodeURIComponent(replyIdentity.profileHandle)}`}
+                                        className="text-xs font-bold text-white transition-colors hover:text-[#ffd700]"
+                                      >
+                                        {replyIdentity.displayName}
+                                      </Link>
                                       <span className="text-[10px] text-neutral-600">
                                         {reply.createdAt?.toDate
                                           ? reply.createdAt
@@ -2150,7 +2273,7 @@ export const AnimeItem: React.FC = () => {
                                         type="button"
                                         onClick={() => {
                                           setReplyingTo(comment.id);
-                                          setReplyText(`@${reply.userName} `);
+                                          setReplyText(`@${replyIdentity.displayName} `);
                                         }}
                                         className="comment-action-label is-small"
                                       >
@@ -2192,8 +2315,8 @@ export const AnimeItem: React.FC = () => {
                 <ReviewFormHeader>
                   <section className="rating-editor-panel rating-editor-panel--review" aria-labelledby="review-rating-title">
                     <div className="rating-editor-panel__heading">
-                      <div><span>Rating</span><h3 id="review-rating-title">Your score for this anime</h3></div>
-                      <p>Choose independently from the written review.</p>
+                      <div><span>{currentUserReview ? "Edit review" : "Rating"}</span><h3 id="review-rating-title">Your score for this anime</h3></div>
+                      <p>{currentUserReview ? "Each member has one review. Saving updates your existing post." : "Choose independently from the written review."}</p>
                     </div>
                     <ScoreSlider id="anime-review-score" label="Personal score" value={newReviewRating} onChange={setNewReviewRating} disabled={postingReview} />
                   </section>
@@ -2209,7 +2332,7 @@ export const AnimeItem: React.FC = () => {
                   type="submit"
                   disabled={postingReview || !newReviewText.trim()}
                 >
-                  {postingReview ? "Posting..." : "Post Review"}
+                  {postingReview ? "Saving..." : currentUserReview ? "Update Review" : "Post Review"}
                 </ReviewSubmitButton>
               </ReviewForm>
             ) : (
@@ -2222,17 +2345,20 @@ export const AnimeItem: React.FC = () => {
               {reviewsLoading ? (
                 <LoadingText>Loading reviews...</LoadingText>
               ) : reviews.length > 0 ? (
-                reviews.map((rev) => (
-                  <ReviewItemCard key={rev.id}>
+                reviews.map((rev) => {
+                  const reviewIdentity = resolveCommunityIdentity(rev, publicCommunityIdentities);
+                  return <ReviewItemCard key={rev.id}>
                     <ReviewItemHeader>
-                      <ReviewAuthorMeta>
-                        <span className="name">{rev.userName}</span>
-                        <span className="date">
-                          {rev.createdAt?.toDate
-                            ? rev.createdAt.toDate().toLocaleDateString()
-                            : "Recently"}
-                        </span>
-                      </ReviewAuthorMeta>
+                      <ReviewIdentity>
+                        <ReviewAvatar to={`/user/${encodeURIComponent(reviewIdentity.profileHandle)}`} aria-label={`View ${reviewIdentity.displayName}'s profile`}>
+                          <span>{reviewIdentity.displayName[0]?.toUpperCase() || "A"}</span>
+                          {reviewIdentity.avatarUrl && <img src={reviewIdentity.avatarUrl} alt="" loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
+                        </ReviewAvatar>
+                        <ReviewAuthorMeta>
+                          <Link className="name" to={`/user/${encodeURIComponent(reviewIdentity.profileHandle)}`}>{reviewIdentity.displayName}</Link>
+                          <span className="date">{rev.updatedAt?.toDate ? `Edited ${rev.updatedAt.toDate().toLocaleDateString()}` : rev.createdAt?.toDate ? rev.createdAt.toDate().toLocaleDateString() : "Recently"}</span>
+                        </ReviewAuthorMeta>
+                      </ReviewIdentity>
                       <ReviewScoreBadge>
                         <Star
                           size={12}
@@ -2244,8 +2370,8 @@ export const AnimeItem: React.FC = () => {
                       </ReviewScoreBadge>
                     </ReviewItemHeader>
                     <ReviewBodyText>{rev.text || rev.content}</ReviewBodyText>
-                  </ReviewItemCard>
-                ))
+                  </ReviewItemCard>;
+                })
               ) : (
                 <EmptyState>No reviews yet. Be the first to review!</EmptyState>
               )}
@@ -3090,6 +3216,24 @@ const TabButton = styled.button<{ $active: boolean }>`
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+
+  > span {
+    display: inline-grid;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    place-items: center;
+    border: 1px solid ${({ $active }) => ($active ? "rgba(255, 215, 0, 0.55)" : "rgba(255, 255, 255, 0.14)")};
+    border-radius: 999px;
+    background: ${({ $active }) => ($active ? "rgba(255, 215, 0, 0.13)" : "rgba(255, 255, 255, 0.055)")};
+    color: ${({ $active }) => ($active ? "#ffd700" : "rgba(255, 255, 255, 0.72)")};
+    padding: 0 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+  }
 
   &:hover {
     color: #ffd700;
@@ -3712,7 +3856,8 @@ const CommentCard = styled.div`
   border-radius: 12px;
 `;
 
-const UserAvatarSmall = styled.div`
+const UserAvatarSmall = styled(Link)`
+  position: relative;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -3723,8 +3868,19 @@ const UserAvatarSmall = styled.div`
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: #ffd700;
+    transform: translateY(-1px);
+    outline: none;
+  }
 
   img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -3748,6 +3904,14 @@ const CommentHeader = styled.div`
     font-weight: 700;
     font-size: 0.85rem;
     color: white;
+    cursor: pointer;
+    transition: color 160ms ease;
+
+    &:hover,
+    &:focus-visible {
+      color: #ffd700;
+      outline: none;
+    }
   }
 
   .date {
@@ -3862,6 +4026,38 @@ const ReviewItemHeader = styled.div`
   align-items: center;
 `;
 
+const ReviewIdentity = styled.div`
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.7rem;
+`;
+
+const ReviewAvatar = styled(Link)`
+  position: relative;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 0.75rem;
+  background: rgba(255, 215, 0, 0.08);
+  color: #ffd700;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
 const ReviewAuthorMeta = styled.div`
   display: flex;
   flex-direction: column;
@@ -3871,6 +4067,14 @@ const ReviewAuthorMeta = styled.div`
     font-weight: 700;
     font-size: 0.85rem;
     color: white;
+    cursor: pointer;
+    transition: color 160ms ease;
+
+    &:hover,
+    &:focus-visible {
+      color: #ffd700;
+      outline: none;
+    }
   }
 
   .date {
