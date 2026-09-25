@@ -7,6 +7,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { useGlobalContext } from "./context/global";
 import { useScrollRestoration } from "./hooks/useScrollRestoration";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
+import PWAStatus from "./Components/PWAStatus";
 
 // Route-level code splitting keeps the first mobile load small.
 const Homepage = lazy(() => import("./Components/Homepage"));
@@ -17,6 +18,8 @@ const Gallery = lazy(() => import("./Components/Gallery"));
 const Favourites = lazy(() => import("./Components/Favourites"));
 const AboutUs = lazy(() => import("./Components/AboutUs"));
 const Watchlist = lazy(() => import("./Components/Watchlist"));
+const SharedWatchlist = lazy(() => import("./Components/SharedWatchlist"));
+const SharedFavourites = lazy(() => import("./Components/SharedFavourites"));
 const MyReviews = lazy(() => import("./Components/MyReviews"));
 const MyComments = lazy(() => import("./Components/MyComments"));
 const Profile = lazy(() => import("./Components/Profile"));
@@ -257,10 +260,26 @@ export function App() {
           }
         />
         <Route
+          path="/shared-favourites"
+          element={
+            <Layout>
+              <SharedFavourites />
+            </Layout>
+          }
+        />
+        <Route
           path="/watchlist"
           element={
             <Layout>
               <Watchlist />
+            </Layout>
+          }
+        />
+        <Route
+          path="/shared-list"
+          element={
+            <Layout>
+              <SharedWatchlist />
             </Layout>
           }
         />
@@ -369,6 +388,7 @@ export function App() {
           }
         />
       </Routes>
+      <PWAStatus />
     </BrowserRouter>
   );
 }

@@ -52,7 +52,7 @@ export const GlobalStyle = createGlobalStyle`
 
   .logo-text, .brand-text {
     font-family: 'Montserrat', sans-serif;
-    font-weight: 900;
+    font-weight: 700;
   }
 
   a, button {

@@ -43,6 +43,7 @@ export const Nav: React.FC = () => {
   const location = useLocation();
 
   const searchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const suggestionRequest = useRef(0);
 
@@ -126,10 +127,10 @@ export const Nav: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      const insideDesktopSearch = searchRef.current?.contains(target);
+      const insideMobileSearch = mobileSearchRef.current?.contains(target);
+      if (!insideDesktopSearch && !insideMobileSearch) {
         setShowSuggestions(false);
       }
       if (
@@ -154,11 +155,15 @@ export const Nav: React.FC = () => {
     }
   };
 
-  const handleSuggestionClick = (animeId: number) => {
+  const closeSearchAfterNavigation = () => {
     setShowSuggestions(false);
     setMobileSearchOpen(false);
     setSearchQuery("");
+  };
+
+  const handleSuggestionClick = (animeId: number) => {
     navigate(`/anime/${animeId}`);
+    closeSearchAfterNavigation();
   };
 
   const handleLogout = async () => {
@@ -200,7 +205,7 @@ export const Nav: React.FC = () => {
             <Link
               to="/"
               onClick={() => setSearch("")}
-              className="flex items-center gap-1 font-montserrat font-black text-lg sm:text-2xl tracking-tight transition-transform hover:scale-105 whitespace-nowrap flex-shrink-0"
+              className="flex items-center gap-1 font-montserrat font-bold text-lg sm:text-2xl tracking-tight transition-transform hover:scale-105 whitespace-nowrap flex-shrink-0"
             >
               <span className="text-[#ffd700] drop-shadow-[0_0_15px_rgba(255,215,0,0.6)]">
                 ANIME
@@ -398,7 +403,7 @@ export const Nav: React.FC = () => {
                         onError={() => setAvatarImgError(true)}
                       />
                     ) : (
-                      <span className="font-montserrat font-extrabold text-[11px] text-[#ffd700]">
+                      <span className="font-montserrat font-bold text-[11px] text-[#ffd700]">
                         {(currentUser.displayName || currentUser.email || "U")[0].toUpperCase()}
                       </span>
                     )}
@@ -488,7 +493,7 @@ export const Nav: React.FC = () => {
 
         {/* Compact mobile search below the navbar */}
         {mobileSearchOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 z-[60] border-b border-white/10 bg-[#141414]/95 px-3 py-2.5 shadow-[0_16px_35px_rgba(0,0,0,.65)] backdrop-blur-xl animate-in fade-in slide-in-from-top-1 duration-150" role="search" aria-label="Search anime">
+          <div ref={mobileSearchRef} className="md:hidden absolute top-full left-0 right-0 z-[60] border-b border-white/10 bg-[#141414]/95 px-3 py-2.5 shadow-[0_16px_35px_rgba(0,0,0,.65)] backdrop-blur-xl animate-in fade-in slide-in-from-top-1 duration-150" role="search" aria-label="Search anime">
             <div className="w-full max-w-xl mx-auto">
             <div className="flex items-center gap-2">
             <form onSubmit={handleSearchSubmit} className="relative flex flex-1 items-center">
@@ -539,10 +544,14 @@ export const Nav: React.FC = () => {
                     anime.images?.jpg?.large_image_url;
 
                   return (
-                    <button
-                      type="button"
+                    <Link
+                      to={`/anime/${anime.mal_id}`}
                       key={`mob-sugg-${anime.mal_id}-${idx}`}
-                      onClick={() => handleSuggestionClick(anime.mal_id)}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        handleSuggestionClick(Number(anime.mal_id));
+                      }}
                       className="flex w-full touch-manipulation items-center gap-3 bg-[#0f0f14]/95 p-3 text-left hover:bg-[#ffd700]/15 active:bg-[#ffd700]/25 cursor-pointer transition-colors"
                     >
                       <ProgressiveImage
@@ -566,7 +575,7 @@ export const Nav: React.FC = () => {
                           <span>{anime.type || "TV"}</span>
                         </div>
                       </div>
-                    </button>
+                    </Link>
                   );
                 })}
               </div>

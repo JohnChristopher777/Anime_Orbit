@@ -211,8 +211,7 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
   if (normalizedType === "ANIME" && malId) {
     try {
       jikanItems = await getJikanEpisodeRange(malId, offset, safeLimit);
-    } catch (error) {
-      console.warn("Jikan episode metadata unavailable; continuing with other sources.", error);
+    } catch {
     }
   }
   if (normalizedType === "MANGA") {
@@ -220,8 +219,7 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
       const mangaDex = await getMangaDexMetadata(malId, title, offset, safeLimit);
       mangaDexCount = mangaDex.chapterCount;
       mangaDexItems = mangaDex.chapters;
-    } catch (error) {
-      console.warn("MangaDex chapter count unavailable; continuing with AniList/Kitsu.", error);
+    } catch {
     }
   }
 
@@ -232,8 +230,7 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
     let guide = { data: [], meta: {} };
     try {
       guide = await queryKitsuGuideRange(resourceType, media.id, childType, offset, safeLimit);
-    } catch (error) {
-      console.warn(`Kitsu ${childType} unavailable; using available catalogue metadata.`, error);
+    } catch {
     }
     const attributeCount = normalizedType === "MANGA"
       ? positiveNumber(media.attributes?.chapterCount)
@@ -284,8 +281,7 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
       items,
       trailerId: normalizedType === "ANIME" ? media.attributes?.youtubeVideoId || null : null,
     };
-  } catch (error) {
-    console.warn("Supplemental media guide unavailable; using AniList metadata.", error);
+  } catch {
     return { kitsuId: kitsuId || null, totalCount: positiveNumber(fallbackCount) || mangaDexCount, items: normalizedType === "MANGA" ? mangaDexItems : jikanItems, trailerId: null };
   }
 }
@@ -916,8 +912,7 @@ export async function getMangaDetailsCombined(id) {
       })),
       externalLinks: m.externalLinks || []
     };
-  } catch (error) {
-    console.error("Error fetching manga details:", error);
+  } catch {
     return null;
   }
 }
@@ -1395,6 +1390,7 @@ export async function getVoiceActorDetails(id, page = 1, perPage = 25) {
               isAdult
               title { english romaji }
               startDate { year month day }
+              popularity
               format
               coverImage { extraLarge large medium }
             }
@@ -1497,8 +1493,7 @@ export async function getAnimeListByIds(ids) {
     return (data.Page.media || [])
       .filter((media) => getMatureContentPreference() || !media.isAdult)
       .map(mapAniListAnimeToJikan);
-  } catch (error) {
-    console.error("Error fetching anime by IDs:", error);
+  } catch {
     return [];
   }
 }
@@ -1754,8 +1749,7 @@ export async function getPopularManga(page = 1, perPage = 24, sort = "POPULARITY
       })),
       pageInfo: data.Page.pageInfo
     };
-  } catch (error) {
-    console.error("Error fetching popular manga:", error);
+  } catch {
     return { media: [], pageInfo: { hasNextPage: false } };
   }
 }
@@ -1830,8 +1824,7 @@ export async function getAnimeByGenre(genre, perPage = 24, page = 1, sort = "FAV
       media: (data.Page.media || []).map(mapAniListAnimeToJikan),
       pageInfo: data.Page.pageInfo
     };
-  } catch (error) {
-    console.error("Error fetching anime by genre:", error);
+  } catch {
     return { media: [], pageInfo: { hasNextPage: false } };
   }
 }
@@ -1890,8 +1883,7 @@ export async function getMangaByGenre(genre, perPage = 24, page = 1, sort = "FAV
       })),
       pageInfo: data.Page.pageInfo,
     };
-  } catch (error) {
-    console.error("Error fetching manga by genre:", error);
+  } catch {
     return { media: [], pageInfo: { hasNextPage: false } };
   }
 }
@@ -1951,8 +1943,7 @@ export async function getGenreArtworks() {
       }
     });
     return map;
-  } catch (err) {
-    console.error("Error fetching genre artworks:", err);
+  } catch {
     return {};
   }
 }

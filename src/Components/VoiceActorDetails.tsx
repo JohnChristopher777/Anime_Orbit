@@ -33,6 +33,16 @@ const extractLinks = (value: string) =>
     )
     .slice(0, 5);
 
+const profileLinkTone = (label: string, url = "") => {
+  const value = `${label} ${url}`.toLowerCase();
+  if (value.includes("twitter") || value.includes("x.com")) return "twitter";
+  if (value.includes("instagram")) return "instagram";
+  if (value.includes("youtube")) return "youtube";
+  if (value.includes("facebook")) return "facebook";
+  if (value.includes("website") || value.includes("official")) return "website";
+  return "profile";
+};
+
 const VoiceActorDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -120,6 +130,12 @@ const VoiceActorDetails: React.FC = () => {
         String(left.character?.name?.full || "").localeCompare(
           String(right.character?.name?.full || ""),
         ),
+      );
+    if (roleSort === "popular")
+      return copy.sort(
+        (left, right) =>
+          Number(right.edge.node?.popularity || 0) -
+          Number(left.edge.node?.popularity || 0),
       );
     return copy.sort(
       (left, right) =>
@@ -213,7 +229,7 @@ const VoiceActorDetails: React.FC = () => {
               {(actor?.siteUrl || profileLinks.length > 0) && (
                 <div className="voice-profile-links">
                   {actor?.siteUrl && (
-                    <a href={actor.siteUrl} target="_blank" rel="noreferrer">
+                    <a href={actor.siteUrl} target="_blank" rel="noreferrer" data-link-tone="profile">
                       Full profile <ExternalLink size={12} />
                     </a>
                   )}
@@ -223,6 +239,7 @@ const VoiceActorDetails: React.FC = () => {
                       target="_blank"
                       rel="noreferrer"
                       key={link.url}
+                      data-link-tone={profileLinkTone(link.label, link.url)}
                     >
                       {link.label} <ExternalLink size={12} />
                     </a>
@@ -248,6 +265,7 @@ const VoiceActorDetails: React.FC = () => {
                 onChange={setRoleSort}
                 options={[
                   { value: "newest", label: "Newest year" },
+                  { value: "popular", label: "Most popular" },
                   { value: "oldest", label: "Oldest year" },
                   { value: "character", label: "Character A-Z" },
                 ]}

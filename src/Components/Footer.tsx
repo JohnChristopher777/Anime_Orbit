@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
           <Link
             to="/"
             onClick={handleScrollTop}
-            className="flex items-center gap-1.5 font-montserrat font-black text-2xl tracking-tight"
+            className="flex items-center gap-1.5 font-montserrat font-bold text-2xl tracking-tight"
           >
             <span className="text-[#ffd700] drop-shadow-[0_0_18px_rgba(255,215,0,0.7)]">
               ANIME

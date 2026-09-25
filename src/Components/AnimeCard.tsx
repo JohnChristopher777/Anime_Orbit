@@ -67,7 +67,7 @@ export const AnimeCard = React.forwardRef<HTMLDivElement, AnimeCardProps>(
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
             {score && (
-              <div className="absolute top-2.5 left-2.5 bg-[#0e0e12]/90 backdrop-blur-md border border-[#ffd700]/70 text-[#ffd700] px-2 py-0.5 rounded-lg text-xs font-black flex items-center gap-1 z-10 shadow-lg">
+              <div className="absolute top-2.5 left-2.5 bg-[#0e0e12]/90 backdrop-blur-md border border-[#ffd700]/70 text-[#ffd700] px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1 z-10 shadow-lg">
                 <Star size={11} fill="#ffd700" color="#ffd700" />
                 <span>{score}</span>
               </div>

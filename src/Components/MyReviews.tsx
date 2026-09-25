@@ -85,9 +85,10 @@ export const MyReviews: React.FC = () => {
           description="View, edit, and manage all your written anime ratings and reviews across all genres on Anime Orbit."
           keywords="my anime reviews, anime ratings, Anime Orbit"
           url="https://animeorbit.web.app/my-reviews"
+          noIndex
         />
         <MessageCircle size={56} className="mx-auto text-[#ffd700]" />
-        <h2 className="text-3xl font-extrabold font-montserrat text-white">
+        <h2 className="text-3xl font-bold font-montserrat text-white">
           My Anime Reviews
         </h2>
         <p className="text-neutral-400 text-sm max-w-md mx-auto">
@@ -112,12 +113,13 @@ export const MyReviews: React.FC = () => {
         description="View, edit, and manage all your written anime ratings and reviews across all genres on Anime Orbit."
         keywords="my anime reviews, anime ratings, Anime Orbit"
         url="https://animeorbit.web.app/my-reviews"
+        noIndex
       />
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div className="flex items-center gap-3 flex-wrap">
           <MessageCircle size={30} className="text-[#ffd700]" />
-          <h1 className="text-2xl sm:text-3xl font-extrabold font-montserrat text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold font-montserrat text-white">
             My Reviews
           </h1>
           <span className="text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">{reviews.length} {reviews.length === 1 ? "Review" : "Reviews"}</span>
@@ -153,7 +155,7 @@ export const MyReviews: React.FC = () => {
                       <span>{rev.animeTitle || "Anime Details"}</span>
                       <ExternalLink size={14} />
                     </Link>
-                    <div className="flex items-center gap-1 bg-[#ffd700]/20 border border-[#ffd700]/40 text-[#ffd700] px-2.5 py-0.5 rounded-full text-xs font-extrabold font-montserrat">
+                    <div className="flex items-center gap-1 bg-[#ffd700]/20 border border-[#ffd700]/40 text-[#ffd700] px-2.5 py-0.5 rounded-full text-xs font-bold font-montserrat">
                       <Star size={12} fill="#ffd700" />
                       <span>{rev.rating} / 10</span>
                     </div>

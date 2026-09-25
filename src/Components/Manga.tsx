@@ -36,8 +36,7 @@ export const Manga: React.FC = () => {
         setMangaList(res.media);
       }
       setHasNextPage(res.pageInfo?.hasNextPage || false);
-    } catch (err) {
-      console.error("Error fetching manga catalog:", err);
+    } catch {
     } finally {
       if (version === requestVersion.current) {
         setLoading(false);

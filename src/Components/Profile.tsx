@@ -39,6 +39,7 @@ import SEO from "./SEO";
 import Footer from "./Footer";
 import AppDropdown from "./AppDropdown";
 import { getAnimeListByIds, setMatureContentPreference } from "../services/anilist";
+import { safeImageUrl, sanitizeHandle, sanitizeInput } from "../utils/security";
 
 const isAdultBirthDate = (value: string) => {
   if (!value) return false;
@@ -336,11 +337,18 @@ export const Profile: React.FC = () => {
     setSaving(true);
     try {
       const finalMatureSetting = isAdult ? allowMatureContent : false;
+      const safeDisplayName = sanitizeInput(displayName, 15) || "Anime Fan";
+      const safeUserId = sanitizeHandle(userId);
+      const safeBio = sanitizeInput(bio, 500);
+      const safeAvatarUrl = safeImageUrl(avatarUrl);
+      const safeBannerUrl = safeImageUrl(bannerUrl);
+      const safeGenre = sanitizeInput(favoriteGenre, 40) || "Action";
+      const updatedAt = new Date().toISOString();
 
       try {
         await updateProfile(currentUser, {
-          displayName: displayName.slice(0, 15),
-          photoURL: avatarUrl,
+          displayName: safeDisplayName,
+          photoURL: safeAvatarUrl || null,
         });
       } catch {
         // Handled
@@ -349,28 +357,62 @@ export const Profile: React.FC = () => {
       await setDoc(
         doc(db, "users", currentUser.uid),
         {
-          displayName: displayName.slice(0, 15),
-          userId: userId.trim(),
-          bio,
-          avatarUrl,
-          bannerUrl,
-          favoriteGenre,
+          displayName: safeDisplayName,
+          userId: safeUserId,
+          bio: safeBio,
+          avatarUrl: safeAvatarUrl,
+          bannerUrl: safeBannerUrl,
+          favoriteGenre: safeGenre,
           birthDate,
           allowMatureContent: finalMatureSetting,
-          updatedAt: new Date().toISOString(),
+          updatedAt,
         },
         { merge: true },
       );
 
+      // Public pages read only this intentionally small document. Keep this
+      // projection separate from the private save so a temporary rules or
+      // network failure cannot make successfully saved account details appear
+      // to have failed.
+      let publicProfileSynced = true;
+      try {
+        await setDoc(doc(db, "publicProfiles", currentUser.uid), {
+          displayName: safeDisplayName,
+          userId: safeUserId,
+          bio: safeBio,
+          avatarUrl: safeAvatarUrl,
+          bannerUrl: safeBannerUrl,
+          favoriteGenre: safeGenre,
+          createdAt: currentUser.metadata.creationTime || updatedAt,
+          updatedAt,
+        });
+      } catch {
+        publicProfileSynced = false;
+      }
+
       window.dispatchEvent(
-        new CustomEvent("orbit_avatar_updated", { detail: { avatarUrl } }),
+        new CustomEvent("orbit_avatar_updated", { detail: { avatarUrl: safeAvatarUrl } }),
       );
       setMatureContentPreference(finalMatureSetting);
 
-      toast.success("Profile saved successfully!");
+      if (publicProfileSynced) {
+        toast.success("Profile saved successfully!");
+      } else {
+        toast.warning(
+          "Profile saved. The public profile preview could not sync yet; retry after the connection is restored.",
+        );
+      }
       setIsEditing(false);
-    } catch {
-      toast.error("Unable to save profile changes.");
+    } catch (error: unknown) {
+      const code =
+        typeof error === "object" && error && "code" in error
+          ? String((error as { code?: unknown }).code || "")
+          : "";
+      toast.error(
+        code.includes("permission-denied") || code.includes("unauthenticated")
+          ? "Your session cannot save profile changes. Sign in again and retry."
+          : "Unable to save profile changes. Check your connection and retry.",
+      );
     } finally {
       setSaving(false);
     }
@@ -453,13 +495,14 @@ export const Profile: React.FC = () => {
           description="Manage your anime profile, account settings, watchlist, and personalized tier list on Anime Orbit."
           keywords="anime profile, anime watchlist, anime account, Anime Orbit"
           url="https://animeorbit.web.app/profile"
+          noIndex
         />
         <div className="bg-[#12121c]/90 border border-white/10 p-8 rounded-3xl text-center max-w-md w-full backdrop-blur-xl shadow-2xl space-y-6">
           <div className="w-16 h-16 rounded-full bg-[#ffd700]/10 border border-[#ffd700]/30 flex items-center justify-center text-[#ffd700] mx-auto">
             <User size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-black font-montserrat text-white mb-2">
+            <h1 className="text-2xl font-bold font-montserrat text-white mb-2">
               Sign In to Your Orbit
             </h1>
             <p className="text-neutral-400 text-sm">
@@ -563,6 +606,7 @@ export const Profile: React.FC = () => {
         description={`Explore ${displayName || "User"}'s anime watchlist, favorite tier list, and activity on Anime Orbit.`}
         keywords="anime profile, anime favorites, user watchlist, Anime Orbit"
         url="https://animeorbit.web.app/profile"
+        noIndex
       />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-16 space-y-6 flex-1 w-full">
@@ -570,7 +614,7 @@ export const Profile: React.FC = () => {
         {isBirthdayToday && (
           <div className="relative bg-[#18181d] border border-[#ffd700]/35 rounded-2xl p-5 sm:p-6 text-center shadow-lg">
             <Cake size={44} className="mx-auto text-[#ffd700] mb-2" />
-            <h2 className="text-2xl sm:text-3xl font-black font-montserrat text-white drop-shadow-md">
+            <h2 className="text-2xl sm:text-3xl font-bold font-montserrat text-white drop-shadow-md">
               Happy birthday, {displayName || "Anime Fan"}
             </h2>
             <p className="text-sm text-neutral-200 mt-2 max-w-lg mx-auto leading-relaxed">
@@ -669,7 +713,7 @@ export const Profile: React.FC = () => {
 
                 <div className="profile-identity-panel space-y-2 min-w-0 sm:pb-2">
                   <div className="flex items-center gap-2.5 justify-center sm:justify-start flex-wrap">
-                    <h1 className="text-2xl sm:text-3xl font-black font-montserrat text-white truncate">
+                    <h1 className="text-2xl sm:text-3xl font-bold font-montserrat text-white truncate">
                       {displayName || currentUser.email?.split("@")[0]}
                     </h1>
                     <span className="inline-flex items-center gap-1 bg-[#ffd700]/15 border border-[#ffd700]/30 text-[#ffd700] text-xs font-bold font-montserrat px-2.5 py-0.5 rounded-full">
@@ -944,7 +988,7 @@ export const Profile: React.FC = () => {
             className="bg-[#12121c]/95 border border-[#ffd700]/30 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl backdrop-blur-2xl animate-fadeIn scroll-mt-24"
           >
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <h2 className="text-xl font-extrabold font-montserrat text-[#ffd700] flex items-center gap-2">
+              <h2 className="text-xl font-bold font-montserrat text-[#ffd700] flex items-center gap-2">
                 <Sparkles size={20} />
                 <span>Edit profile</span>
               </h2>
@@ -1253,7 +1297,7 @@ export const Profile: React.FC = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-2.5 rounded-full bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-black text-xs transition-all shadow-[0_0_15px_rgba(255,215,0,0.3)] hover:scale-105 cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-2.5 rounded-full bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs transition-all shadow-[0_0_15px_rgba(255,215,0,0.3)] hover:scale-105 cursor-pointer disabled:opacity-50 flex items-center gap-2"
               >
                 <Save size={16} />
                 <span>{saving ? "Saving Changes..." : "Save Profile"}</span>

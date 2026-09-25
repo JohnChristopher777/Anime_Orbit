@@ -104,7 +104,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <Sparkles size={14} />
             <span>Anime Orbit</span>
           </div>
-          <h2 id="auth-dialog-title" className="text-2xl font-black font-staatliches uppercase tracking-wide text-white">
+          <h2 id="auth-dialog-title" className="text-2xl font-bold font-staatliches uppercase tracking-wide text-white">
             {mode === "login"
               ? "Welcome Back"
               : mode === "signup"
@@ -197,6 +197,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 name="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

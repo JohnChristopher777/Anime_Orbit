@@ -28,12 +28,11 @@ export const PublicProfile: React.FC = () => {
       setLoading(true);
       try {
         // Try looking up directly by document UID first
-        const userDocRef = doc(db, "users", id);
+        const userDocRef = doc(db, "publicProfiles", id);
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists()) {
           const d = userDoc.data();
-          // STRICT CYBER-DEFENSE & PRIVACY: Only extract safe public fields, NEVER age, birthDate, deletion status or email
           setUserData({
             displayName: d.displayName || "Anime Fan",
             avatarUrl: d.avatarUrl,
@@ -43,7 +42,7 @@ export const PublicProfile: React.FC = () => {
           });
         } else {
           // If not matching doc ID, query by userId field
-          const q = query(collection(db, "users"), where("userId", "==", id));
+          const q = query(collection(db, "publicProfiles"), where("userId", "==", id));
           const querySnap = await getDocs(q);
           if (!querySnap.empty) {
             const d = querySnap.docs[0].data();
@@ -144,7 +143,7 @@ export const PublicProfile: React.FC = () => {
               {/* User Identity (NEVER LEAKS EMAIL OR BIRTHDAY) */}
               <div className="space-y-1.5 min-w-0">
                 <div className="flex items-center gap-2.5 justify-center sm:justify-start flex-wrap">
-                  <h1 className="text-2xl sm:text-3xl font-black font-montserrat text-white truncate max-w-xs">
+                  <h1 className="text-2xl sm:text-3xl font-bold font-montserrat text-white truncate max-w-xs">
                     {userData.displayName}
                   </h1>
                   <span className="inline-flex items-center gap-1 bg-[#ffd700]/15 border border-[#ffd700]/30 text-[#ffd700] text-xs font-bold font-montserrat px-2.5 py-0.5 rounded-full">

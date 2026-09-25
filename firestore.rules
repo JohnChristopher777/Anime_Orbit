@@ -16,24 +16,20 @@ service cloud.firestore {
       return val is string && val.size() >= minLen && val.size() <= maxLen;
     }
 
-    // User Profile Documents & Nested Subcollections
+    // Private account documents and personal media collections.
     match /users/{userId} {
-      allow read: if true;
-      allow write: if isOwner(userId);
+      allow read, write: if isOwner(userId);
 
       match /watchlist/{animeId} {
-        allow read: if true;
-        allow write: if isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
 
       match /watched/{animeId} {
-        allow read: if true;
-        allow write: if isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
 
       match /favourites/{animeId} {
-        allow read: if true;
-        allow write: if isOwner(userId);
+        allow read, write: if isOwner(userId);
       }
 
       match /trash/{itemId} {
@@ -41,15 +37,33 @@ service cloud.firestore {
       }
     }
 
+    // Deliberately public profile projection. Sensitive account preferences
+    // remain in /users and cannot be queried by other visitors.
+    match /publicProfiles/{userId} {
+      allow read: if true;
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasOnly([
+          'displayName', 'userId', 'bio', 'avatarUrl', 'bannerUrl',
+          'favoriteGenre', 'createdAt', 'updatedAt'
+        ])
+        && isValidString(request.resource.data.displayName, 1, 15)
+        && isValidString(request.resource.data.userId, 0, 24)
+        && isValidString(request.resource.data.bio, 0, 500)
+        && isValidString(request.resource.data.avatarUrl, 0, 2048)
+        && isValidString(request.resource.data.bannerUrl, 0, 2048)
+        && isValidString(request.resource.data.favoriteGenre, 1, 40)
+        && isValidString(request.resource.data.createdAt, 1, 100)
+        && isValidString(request.resource.data.updatedAt, 1, 100);
+      allow delete: if isOwner(userId);
+    }
+
     // Root collections for atomic user data (Watchlists, Tierlists, Favourites)
     match /favourites/{userId} {
-      allow read: if true;
-      allow write: if isOwner(userId);
+      allow read, write: if isOwner(userId);
     }
 
     match /watchlists/{userId} {
-      allow read: if true;
-      allow write: if isOwner(userId);
+      allow read, write: if isOwner(userId);
     }
 
     // One authenticated vote per user and weekly poll.
@@ -58,10 +72,12 @@ service cloud.firestore {
 
       match /votes/{userId} {
         allow read: if true;
-        allow create: if request.resource.data.voterKey == userId
+        allow create: if isOwner(userId)
+          && request.resource.data.voterKey == userId
           && request.resource.data.animeId is int
           && request.resource.data.keys().hasOnly(['animeId', 'voterKey', 'updatedAt']);
-        allow update: if request.resource.data.voterKey == userId
+        allow update: if isOwner(userId)
+          && request.resource.data.voterKey == userId
           && resource.data.voterKey == userId
           && request.resource.data.animeId is int
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['animeId', 'updatedAt']);
@@ -78,6 +94,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() 
         && resource.data.userId == request.auth.uid
         && request.resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'text', 'rating', 'updatedAt'])
         && isValidString(request.resource.data.content, 1, 3000);
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
@@ -91,6 +108,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() 
         && ((resource.data.userId == request.auth.uid
           && request.resource.data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'text', 'isSpoiler', 'updatedAt'])
           && isValidString(request.resource.data.content, 1, 2000))
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'dislikes', 'reports'])
             && request.resource.data.get('likes', []) is list
@@ -100,6 +118,10 @@ service cloud.firestore {
             && request.resource.data.get('dislikes', []).size() <= 10000
             && request.resource.data.get('reports', []).size() <= 1000));
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

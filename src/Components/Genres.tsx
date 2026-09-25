@@ -351,7 +351,7 @@ export const Genres: React.FC = () => {
               <div className="relative z-10">
                 <span className="text-xs font-bold text-[#ffd700]">Fan favorite: {featuredTitle}</span>
 
-                <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold font-montserrat text-white">
+                <h1 className="mt-2 text-3xl sm:text-4xl font-bold font-montserrat text-white">
                   {activeGenre} {activeMedia === "manga" ? "Manga" : "Anime"}
                 </h1>
 
@@ -479,7 +479,7 @@ export const Genres: React.FC = () => {
                     ) : genreCoversReady ? (
                       <ProgressiveImage src="/lost.jpg" alt="Artwork unavailable" wrapperClassName="w-14 h-11 rounded-lg flex-shrink-0" className="w-full h-full object-contain bg-white" />
                     ) : (
-                      <span className="w-14 h-11 rounded-lg flex-shrink-0 grid place-items-center font-montserrat font-black text-base" style={{ color: cat.accent, backgroundColor: `${cat.accent}18` }}>
+                      <span className="w-14 h-11 rounded-lg flex-shrink-0 grid place-items-center font-montserrat font-bold text-base" style={{ color: cat.accent, backgroundColor: `${cat.accent}18` }}>
                         <span className="image-skeleton h-full w-full rounded-lg" aria-hidden="true" />
                       </span>
                     )}

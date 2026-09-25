@@ -12,7 +12,7 @@ export const Typography = createGlobalStyle`
 
   .logo, .brand-name {
     font-family: var(--font-logo);
-    font-weight: 900;
+    font-weight: 700;
     text-transform: uppercase;
   }
 

@@ -23,11 +23,11 @@ export const AboutUs: React.FC = () => {
       />
       {/* Hero Section */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
-        <div className="inline-flex items-center gap-2 bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider font-montserrat">
+        <div className="inline-flex items-center gap-2 bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider font-montserrat">
           <Sparkles size={14} />
           <span>About Anime Orbit</span>
         </div>
-        <h1 className="text-4xl sm:text-5xl font-black font-staatliches uppercase tracking-wider text-white">
+        <h1 className="text-4xl sm:text-5xl font-bold font-staatliches uppercase tracking-wider text-white">
           The Ultimate Interactive Anime Database
         </h1>
         <p className="text-neutral-300 text-sm sm:text-base leading-relaxed">

@@ -3,14 +3,7 @@ const REQUEST_TIMEOUT_MS = 6500;
 const normaliseTitle = (value = "") => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 const mangaDexAccessToken = () => {
-  const serverToken = String(process.env.MANGADEX_ACCESS_TOKEN || "").trim();
-  if (serverToken) return serverToken;
-
-  // Temporary migration support: only interpret the old VITE value as a token
-  // when it is actually JWT-shaped. A MangaDex client secret is not a bearer
-  // token and must never be sent to the public catalogue endpoints.
-  const legacyValue = String(process.env.VITE_MANGA_DEX_KEY || "").trim();
-  return legacyValue.split(".").length === 3 ? legacyValue : "";
+  return String(process.env.MANGADEX_ACCESS_TOKEN || "").trim();
 };
 
 async function fetchJson(url, attempts = 2) {

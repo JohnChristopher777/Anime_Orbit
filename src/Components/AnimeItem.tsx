@@ -560,8 +560,7 @@ export const AnimeItem: React.FC = () => {
       setNewComment("");
       setIsCommentSpoiler(false);
       toast.success("Comment posted successfully!");
-    } catch (error: any) {
-      console.error("Comment write failed", error?.code || error);
+    } catch {
       toast.error("Failed to post comment. Try again!");
     } finally {
       setPostingComment(false);
@@ -674,8 +673,7 @@ export const AnimeItem: React.FC = () => {
       setNewReviewText("");
       setNewReviewRating(10);
       toast.success("Review posted successfully!");
-    } catch (error: any) {
-      console.error("Review write failed", error?.code || error);
+    } catch {
       toast.error("Failed to post review. Try again!");
     } finally {
       setPostingReview(false);
@@ -888,7 +886,7 @@ export const AnimeItem: React.FC = () => {
               className="w-full h-full object-contain p-4"
               loading="eager"
             />
-            <h1 className="font-montserrat text-2xl font-black">
+            <h1 className="font-montserrat text-2xl font-bold">
               This title is off orbit
             </h1>
             <p className="text-neutral-400 text-sm mt-2">
@@ -1491,7 +1489,7 @@ export const AnimeItem: React.FC = () => {
               <h3
                 style={{
                   fontSize: "1.3rem",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   color: "#ffd700",
                   fontFamily: "Montserrat, sans-serif",
                 }}
@@ -1596,7 +1594,7 @@ export const AnimeItem: React.FC = () => {
                     style={{
                       background: "#ffd700",
                       color: "#141414",
-                      fontWeight: 800,
+                      fontWeight: 700,
                       padding: "0.7rem 2rem",
                       borderRadius: "25px",
                       border: "none",
@@ -1632,7 +1630,7 @@ export const AnimeItem: React.FC = () => {
               <h3
                 style={{
                   fontSize: "1.3rem",
-                  fontWeight: 800,
+                  fontWeight: 700,
                   color: "#ffd700",
                   fontFamily: "Montserrat, sans-serif",
                 }}
@@ -1717,7 +1715,7 @@ export const AnimeItem: React.FC = () => {
                     style={{
                       background: "#ffd700",
                       color: "#141414",
-                      fontWeight: 800,
+                      fontWeight: 700,
                       padding: "0.7rem 2rem",
                       borderRadius: "25px",
                       border: "none",
@@ -3506,7 +3504,7 @@ const RelationTypeHeader = styled.div`
   display: flex;
   align-items: center;
   font-family: "Montserrat", sans-serif;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.1rem;
   color: #ffd700;
   text-transform: uppercase;
@@ -3578,7 +3576,7 @@ const RelationBadge = styled.span`
   padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-family: "Montserrat", sans-serif;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 0.7rem;
   text-transform: uppercase;
 `;

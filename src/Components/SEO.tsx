@@ -8,6 +8,8 @@ interface SEOProps {
   url?: string;
   type?: "website" | "article" | "video.tv_show" | "video.movie";
   structuredData?: Record<string, any>;
+  imageAlt?: string;
+  noIndex?: boolean;
 }
 
 export const SEO: React.FC<SEOProps> = ({
@@ -18,8 +20,13 @@ export const SEO: React.FC<SEOProps> = ({
   url = typeof window !== "undefined" ? window.location.href : "https://animeorbit.web.app/",
   type = "website",
   structuredData,
+  imageAlt,
+  noIndex = false,
 }) => {
   const fullTitle = title.includes("Anime Orbit") ? title : `${title} | Anime Orbit`;
+  const canonicalUrl = url.split("#")[0];
+  const absoluteImage = image.startsWith("http") ? image : new URL(image, "https://animeorbit.web.app").href;
+  const resolvedImageAlt = imageAlt || `${title} on Anime Orbit`;
 
   useEffect(() => {
     // 1. Update Document Title
@@ -40,18 +47,29 @@ export const SEO: React.FC<SEOProps> = ({
     updateMetaTag('meta[name="description"]', 'name', 'description', description);
     updateMetaTag('meta[name="keywords"]', 'name', 'keywords', keywords);
     updateMetaTag('meta[name="title"]', 'name', 'title', fullTitle);
+    updateMetaTag('meta[name="robots"]', 'name', 'robots', noIndex ? 'noindex, nofollow, noarchive' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
+    updateMetaTag('meta[name="googlebot"]', 'name', 'googlebot', noIndex ? 'noindex, nofollow, noarchive' : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
+    updateMetaTag('meta[name="author"]', 'name', 'author', 'Anime Orbit');
+    updateMetaTag('meta[name="application-name"]', 'name', 'application-name', 'Anime Orbit');
 
     // 3. Open Graph Tags
     updateMetaTag('meta[property="og:title"]', 'property', 'og:title', fullTitle);
     updateMetaTag('meta[property="og:description"]', 'property', 'og:description', description);
-    updateMetaTag('meta[property="og:image"]', 'property', 'og:image', image);
-    updateMetaTag('meta[property="og:url"]', 'property', 'og:url', url);
+    updateMetaTag('meta[property="og:image"]', 'property', 'og:image', absoluteImage);
+    updateMetaTag('meta[property="og:image:secure_url"]', 'property', 'og:image:secure_url', absoluteImage);
+    updateMetaTag('meta[property="og:image:alt"]', 'property', 'og:image:alt', resolvedImageAlt);
+    updateMetaTag('meta[property="og:url"]', 'property', 'og:url', canonicalUrl);
     updateMetaTag('meta[property="og:type"]', 'property', 'og:type', type);
+    updateMetaTag('meta[property="og:site_name"]', 'property', 'og:site_name', 'Anime Orbit');
+    updateMetaTag('meta[property="og:locale"]', 'property', 'og:locale', 'en_US');
 
     // 4. Twitter Card Tags
     updateMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', fullTitle);
     updateMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
-    updateMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', image);
+    updateMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', absoluteImage);
+    updateMetaTag('meta[name="twitter:image:alt"]', 'name', 'twitter:image:alt', resolvedImageAlt);
+    updateMetaTag('meta[name="twitter:url"]', 'name', 'twitter:url', canonicalUrl);
+    updateMetaTag('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary_large_image');
 
     // 5. Canonical Link
     let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
@@ -60,13 +78,13 @@ export const SEO: React.FC<SEOProps> = ({
       canonicalLink.setAttribute("rel", "canonical");
       document.head.appendChild(canonicalLink);
     }
-    canonicalLink.setAttribute("href", url);
+    canonicalLink.setAttribute("href", canonicalUrl);
 
     // 6. Schema.org JSON-LD Structured Data
-    let scriptTag = document.querySelector("#schema-structured-data") as HTMLScriptElement | null;
+    let scriptTag = document.querySelector("#page-structured-data") as HTMLScriptElement | null;
     if (!scriptTag) {
       scriptTag = document.createElement("script");
-      scriptTag.id = "schema-structured-data";
+      scriptTag.id = "page-structured-data";
       scriptTag.type = "application/ld+json";
       document.head.appendChild(scriptTag);
     }
@@ -76,19 +94,25 @@ export const SEO: React.FC<SEOProps> = ({
       "@type": "WebPage",
       name: fullTitle,
       description: description,
-      url: url,
+      url: canonicalUrl,
+      mainEntityOfPage: canonicalUrl,
+      isPartOf: {
+        "@type": "WebSite",
+        name: "Anime Orbit",
+        url: "https://animeorbit.web.app/",
+      },
       publisher: {
         "@type": "Organization",
         name: "Anime Orbit",
         logo: {
           "@type": "ImageObject",
-          url: "https://animeorbit.web.app/animeorbit.jpg",
+          url: "https://animeorbit.web.app/icon.png",
         },
       },
     };
 
-    scriptTag.text = JSON.stringify(structuredData || defaultSchema);
-  }, [fullTitle, description, keywords, image, url, type, structuredData]);
+    scriptTag.textContent = JSON.stringify(structuredData || defaultSchema).replace(/</g, "\\u003c");
+  }, [fullTitle, description, keywords, absoluteImage, canonicalUrl, type, structuredData, resolvedImageAlt, noIndex]);
 
   return null;
 };

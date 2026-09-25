@@ -9,6 +9,7 @@ import {
 import { BarChart3, Check, Clock3, Users } from "lucide-react";
 import { toast } from "react-toastify";
 import { db } from "../firebase/config";
+import { useAuth } from "../context/AuthContext";
 import { getSeasonalAnime } from "../services/anilist";
 import ProgressiveImage from "./ProgressiveImage";
 
@@ -25,19 +26,8 @@ const getDeadline = () => {
   return deadline;
 };
 
-const getVoterKey = () => {
-  const storageKey = "anime-orbit-poll-voter";
-  const existing = localStorage.getItem(storageKey);
-  if (existing) return existing;
-  const next =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  localStorage.setItem(storageKey, next);
-  return next;
-};
-
 export default function SeasonPolls() {
+  const { currentUser } = useAuth();
   const year = new Date().getFullYear();
   const pollId = `fall-${year}-week-${getWeekNumber(new Date())}`;
   const deadline = React.useMemo(getDeadline, []);
@@ -45,7 +35,7 @@ export default function SeasonPolls() {
   const [votes, setVotes] = React.useState<Record<string, number>>({});
   const [loading, setLoading] = React.useState(true);
   const [votingId, setVotingId] = React.useState<number | null>(null);
-  const [voterKey] = React.useState(getVoterKey);
+  const voterKey = currentUser?.uid || "";
   const localVoteKey = `anime-orbit-poll-choice-${pollId}`;
   const [localVote, setLocalVote] = React.useState<number | undefined>(() => {
     const saved = Number(localStorage.getItem(localVoteKey));
@@ -100,6 +90,10 @@ export default function SeasonPolls() {
 
   const vote = async (animeId: number) => {
     if (closed) return;
+    if (!currentUser || !voterKey) {
+      toast.info("Sign in to cast a verified weekly vote.");
+      return;
+    }
     setVotingId(animeId);
     setLocalVote(animeId);
     localStorage.setItem(localVoteKey, String(animeId));

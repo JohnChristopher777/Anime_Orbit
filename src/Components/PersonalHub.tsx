@@ -239,7 +239,7 @@ export const PersonalHub: React.FC = () => {
               <Sparkles size={20} />
             </span>
             <div>
-              <h3 className="font-montserrat font-black text-xl sm:text-2xl text-white">
+              <h3 className="font-montserrat font-bold text-xl sm:text-2xl text-white">
                 How are you feeling today?
               </h3>
               <p className="text-xs sm:text-sm text-neutral-400">
@@ -282,7 +282,7 @@ export const PersonalHub: React.FC = () => {
               <Flame size={22} />
             </div>
             <div>
-              <h3 className="font-montserrat font-black text-2xl text-white">
+              <h3 className="font-montserrat font-bold text-2xl text-white">
                 Trending Airing Broadcasts
               </h3>
               <p className="text-xs sm:text-sm text-neutral-400">
@@ -318,12 +318,12 @@ export const PersonalHub: React.FC = () => {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   {anime.score && (
-                    <div className="absolute top-2.5 left-2.5 bg-black/85 backdrop-blur-md border border-[#ffd700]/70 text-[#ffd700] text-xs font-black px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-lg">
+                    <div className="absolute top-2.5 left-2.5 bg-black/85 backdrop-blur-md border border-[#ffd700]/70 text-[#ffd700] text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-lg">
                       <Star size={12} fill="#ffd700" color="#ffd700" />
                       <span>{anime.score}</span>
                     </div>
                   )}
-                  <div className="absolute bottom-2.5 right-2.5 bg-orange-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow uppercase">
+                  <div className="absolute bottom-2.5 right-2.5 bg-orange-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow uppercase">
                     HOT
                   </div>
                 </div>
@@ -350,7 +350,7 @@ export const PersonalHub: React.FC = () => {
               <Calendar size={22} />
             </div>
             <div>
-              <h3 className="font-montserrat font-black text-2xl text-white">
+              <h3 className="font-montserrat font-bold text-2xl text-white">
                 Upcoming Seasonal Spotlights
               </h3>
               <p className="text-xs sm:text-sm text-neutral-400">
@@ -385,7 +385,7 @@ export const PersonalHub: React.FC = () => {
                     decoding="async"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute top-2.5 left-2.5 bg-pink-950/90 border border-pink-500/60 text-pink-300 text-[10px] font-black px-2 py-0.5 rounded-md shadow">
+                  <div className="absolute top-2.5 left-2.5 bg-pink-950/90 border border-pink-500/60 text-pink-300 text-[10px] font-bold px-2 py-0.5 rounded-md shadow">
                     Upcoming
                   </div>
                 </div>
@@ -412,7 +412,7 @@ export const PersonalHub: React.FC = () => {
               <BookOpen size={22} />
             </div>
             <div>
-              <h3 className="font-montserrat font-black text-2xl text-white">
+              <h3 className="font-montserrat font-bold text-2xl text-white">
                 Manga & Story Genesis Vault
               </h3>
               <p className="text-xs sm:text-sm text-neutral-400">
@@ -448,12 +448,12 @@ export const PersonalHub: React.FC = () => {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   {manga.score && manga.score !== "N/A" && (
-                    <div className="absolute top-2.5 left-2.5 bg-black/85 backdrop-blur-md border border-cyan-400/70 text-cyan-300 text-xs font-black px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-lg">
+                    <div className="absolute top-2.5 left-2.5 bg-black/85 backdrop-blur-md border border-cyan-400/70 text-cyan-300 text-xs font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-lg">
                       <Star size={12} fill="#22d3ee" color="#22d3ee" />
                       <span>{manga.score}</span>
                     </div>
                   )}
-                  <div className="absolute bottom-2.5 right-2.5 bg-cyan-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md shadow uppercase">
+                  <div className="absolute bottom-2.5 right-2.5 bg-cyan-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow uppercase">
                     {manga.format || "Manga"}
                   </div>
                 </div>
@@ -480,7 +480,7 @@ export const PersonalHub: React.FC = () => {
               <Compass size={22} />
             </div>
             <div>
-              <h3 className="font-montserrat font-black text-2xl text-white">
+              <h3 className="font-montserrat font-bold text-2xl text-white">
                 Multiverse Genres & Sequence Lore
               </h3>
               <p className="text-xs sm:text-sm text-neutral-400">
@@ -527,11 +527,11 @@ export const PersonalHub: React.FC = () => {
               <div className="relative z-10 space-y-1">
                 <span
                   style={{ color: cat.accent, borderColor: cat.accent }}
-                  className="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-black/85 backdrop-blur-md border"
+                  className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-black/85 backdrop-blur-md border"
                 >
                   {cat.tag}
                 </span>
-                <h4 className="font-montserrat font-black text-lg text-white group-hover:text-[#ffd700] transition-colors drop-shadow">
+                <h4 className="font-montserrat font-bold text-lg text-white group-hover:text-[#ffd700] transition-colors drop-shadow">
                   {cat.name}
                 </h4>
                 <p className="text-[11px] text-neutral-300 line-clamp-1 drop-shadow">
@@ -551,7 +551,7 @@ export const PersonalHub: React.FC = () => {
               <Layers size={24} />
             </div>
             <div>
-              <h3 className="font-montserrat font-black text-2xl text-white">
+              <h3 className="font-montserrat font-bold text-2xl text-white">
                 Personal Vault & Custom Tierlist
               </h3>
               <p className="text-xs sm:text-sm text-neutral-400">
@@ -569,7 +569,7 @@ export const PersonalHub: React.FC = () => {
             </Link>
             <Link
               to="/favourites"
-              className="px-5 py-2.5 rounded-xl bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-black text-xs sm:text-sm shadow-xl hover:scale-105 transition-all flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs sm:text-sm shadow-xl hover:scale-105 transition-all flex items-center gap-2"
             >
               <Award size={16} />
               <span>Open Tier Board</span>
@@ -584,7 +584,7 @@ export const PersonalHub: React.FC = () => {
               <TrendingUp size={16} className="text-emerald-400" />
               <span>Favorites Pool</span>
             </div>
-            <div className="text-3xl font-black font-montserrat text-white">
+            <div className="text-3xl font-bold font-montserrat text-white">
               {favourites.length}
             </div>
             <span className="text-xs text-neutral-400">Added to personal vault</span>
@@ -595,7 +595,7 @@ export const PersonalHub: React.FC = () => {
               <Award size={16} className="text-[#ffd700]" />
               <span>Tierlist Ranked</span>
             </div>
-            <div className="text-3xl font-black font-montserrat text-[#ffd700]">
+            <div className="text-3xl font-bold font-montserrat text-[#ffd700]">
               {totalTierRanked}
             </div>
             <span className="text-xs text-neutral-400">Positioned in S-to-D ranks</span>
@@ -606,7 +606,7 @@ export const PersonalHub: React.FC = () => {
               <Clock size={16} className="text-cyan-400" />
               <span>Est. Watch Time</span>
             </div>
-            <div className="text-3xl font-black font-montserrat text-cyan-400">
+            <div className="text-3xl font-bold font-montserrat text-cyan-400">
               {Math.max((favourites.length + savedWatchlist.length) * 4.8, 12).toFixed(0)}h
             </div>
             <span className="text-xs text-neutral-400">Episodes tracked across vault</span>

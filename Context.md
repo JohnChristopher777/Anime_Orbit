@@ -469,3 +469,7 @@ AniList `PREQUEL`, `SEQUEL`, `PARENT`, `SIDE_STORY`, and `ALTERNATIVE` relation 
 
 - A network-enabled full-page Home render confirmed the new section's ordering, live content, link hierarchy, and two-card desktop layout.
 - TypeScript, production build, and diff validation pass.
+- [x] Correct Google sign-in callback generation by normalising accidental `web.app` auth-domain configuration to the Firebase project's canonical `firebaseapp.com` helper domain.
+- [x] Add per-category accent colours to character appearance filters and remove the mobile character voice-cast header's inherited 380px vertical flex gap.
+- [x] Colour voice-actor profile/social links, standardise voice-detail emphasis at bold weight, and add AniList-backed popularity sorting for loaded roles.
+- [x] Keep Google authentication on the main `animeorbit.web.app` origin, replace the homepage voice-actor portrait with both connected characters, and cap UI emphasis at standard bold.

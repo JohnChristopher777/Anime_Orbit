@@ -31,21 +31,47 @@ const SeasonPolls = lazy(() => import("./SeasonPolls"));
 const FranchiseRankings = lazy(() => import("./FranchiseRankings"));
 
 const HOME_QUOTE_FALLBACKS = [
-  { line: "If you don't take risks, you can't create a future.", character: "Monkey D. Luffy", anime: "One Piece" },
-  { line: "Set your heart ablaze.", character: "Kyojuro Rengoku", anime: "Demon Slayer" },
-  { line: "Whatever happens, happens.", character: "Spike Spiegel", anime: "Cowboy Bebop" },
+  {
+    line: "If you don't take risks, you can't create a future.",
+    character: "Monkey D. Luffy",
+    anime: "One Piece",
+  },
+  {
+    line: "Set your heart ablaze.",
+    character: "Kyojuro Rengoku",
+    anime: "Demon Slayer",
+  },
+  {
+    line: "Whatever happens, happens.",
+    character: "Spike Spiegel",
+    anime: "Cowboy Bebop",
+  },
 ];
 
 type HomeQuote = { line: string; character: string; anime: string };
 type VoiceConnection = {
-  actor: { id: number; name: string; image?: string };
-  first: { characterId: number; character: string; animeId: number; anime: string };
-  second: { characterId: number; character: string; animeId: number; anime: string };
+  actor: { id: number; name: string };
+  first: {
+    characterId: number;
+    character: string;
+    characterImage?: string;
+    animeId: number;
+    anime: string;
+  };
+  second: {
+    characterId: number;
+    character: string;
+    characterImage?: string;
+    animeId: number;
+    anime: string;
+  };
 };
 
 const DiscoverySpotlight: React.FC = () => {
   const [quote, setQuote] = React.useState<HomeQuote>(HOME_QUOTE_FALLBACKS[0]);
-  const [voiceFact, setVoiceFact] = React.useState<VoiceConnection | null>(null);
+  const [voiceFact, setVoiceFact] = React.useState<VoiceConnection | null>(
+    null,
+  );
   const [loading, setLoading] = React.useState(true);
 
   const refresh = React.useCallback(async () => {
@@ -55,46 +81,93 @@ const DiscoverySpotlight: React.FC = () => {
       getPopularVoiceActors(12, "Japanese"),
     ]);
 
-    const remoteQuote = quoteResult.status === "fulfilled" ? quoteResult.value?.quote : null;
-    setQuote(remoteQuote?.line && remoteQuote?.character && remoteQuote?.anime
-      ? { line: remoteQuote.line, character: remoteQuote.character, anime: remoteQuote.anime }
-      : HOME_QUOTE_FALLBACKS[Math.floor(Math.random() * HOME_QUOTE_FALLBACKS.length)]);
+    const remoteQuote =
+      quoteResult.status === "fulfilled" ? quoteResult.value?.quote : null;
+    setQuote(
+      remoteQuote?.line && remoteQuote?.character && remoteQuote?.anime
+        ? {
+            line: remoteQuote.line,
+            character: remoteQuote.character,
+            anime: remoteQuote.anime,
+          }
+        : HOME_QUOTE_FALLBACKS[
+            Math.floor(Math.random() * HOME_QUOTE_FALLBACKS.length)
+          ],
+    );
 
     if (castResult.status === "fulfilled") {
       const connections = castResult.value.flatMap((actor: any) => {
-        const roles = [...new Map((actor.characterMedia?.edges || []).flatMap((edge: any) =>
-          (edge.characters || []).map((character: any) => [character.id, {
-            characterId: character.id,
-            character: character.name?.full,
-            animeId: edge.node?.id,
-            anime: edge.node?.title?.english || edge.node?.title?.romaji,
-          }]),
-        ).filter(([id]: any) => id)).values()] as any[];
+        const roles = [
+          ...new Map(
+            (actor.characterMedia?.edges || [])
+              .flatMap((edge: any) =>
+                (edge.characters || []).map((character: any) => [
+                  character.id,
+                  {
+                    characterId: character.id,
+                    character: character.name?.full,
+                    characterImage:
+                      character.image?.large || character.image?.medium,
+                    animeId: edge.node?.id,
+                    anime:
+                      edge.node?.title?.english || edge.node?.title?.romaji,
+                  },
+                ]),
+              )
+              .filter(([id]: any) => id),
+          ).values(),
+        ] as any[];
         if (roles.length < 2) return [];
-        return [{
-          actor: { id: actor.id, name: actor.name?.full, image: actor.image?.large || actor.image?.medium },
-          first: roles[0],
-          second: roles.find((role) => role.animeId !== roles[0].animeId) || roles[1],
-        }];
+        return [
+          {
+            actor: { id: actor.id, name: actor.name?.full },
+            first: roles[0],
+            second:
+              roles.find((role) => role.animeId !== roles[0].animeId) ||
+              roles[1],
+          },
+        ];
       });
-      if (connections.length) setVoiceFact(connections[Math.floor(Math.random() * connections.length)]);
+      if (connections.length)
+        setVoiceFact(
+          connections[Math.floor(Math.random() * connections.length)],
+        );
     }
     setLoading(false);
   }, []);
 
-  React.useEffect(() => { void refresh(); }, [refresh]);
+  React.useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   return (
-    <section className="home-discovery-pulse" aria-labelledby="home-discovery-title">
+    <section
+      className="home-discovery-pulse"
+      aria-labelledby="home-discovery-title"
+    >
       <header>
         <div>
-          <span><Sparkles size={15} /> Discovery pulse</span>
+          <span>
+            <Sparkles size={15} /> Discovery pulse
+          </span>
           <h2 id="home-discovery-title">A new trail into anime</h2>
-          <p>Follow a quote, connect familiar voices, or open the complete discovery workspace.</p>
+          <p>
+            Follow a quote, connect familiar voices, or open the complete
+            discovery workspace.
+          </p>
         </div>
         <div className="home-discovery-pulse__actions">
-          <button type="button" onClick={() => void refresh()} disabled={loading}><RefreshCw size={15} className={loading ? "animate-spin" : ""} />New facts</button>
-          <Link to="/discovery">Explore Discovery <ArrowRight size={16} /></Link>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            disabled={loading}
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            New facts
+          </button>
+          <Link to="/discovery">
+            Explore Discovery <ArrowRight size={16} />
+          </Link>
         </div>
       </header>
 
@@ -104,18 +177,102 @@ const DiscoverySpotlight: React.FC = () => {
           <div>
             <span>Random quote</span>
             <blockquote>“{quote.line}”</blockquote>
-            <p>{quote.character} <small>in {quote.anime}</small></p>
+            <p>
+              {quote.character} <small>from {quote.anime}</small>
+            </p>
           </div>
-          <Link to="/discovery?tool=dialogue" aria-label="Open quote search"><ArrowRight size={18} /></Link>
+          <Link to="/discovery?tool=dialogue" aria-label="Open quote search">
+            <ArrowRight size={18} />
+          </Link>
         </article>
 
         <article className="home-discovery-voice">
-          {voiceFact?.actor.image ? <ProgressiveImage src={voiceFact.actor.image} alt={voiceFact.actor.name} wrapperClassName="home-discovery-voice__portrait" className="h-full w-full object-cover" /> : <div className="home-discovery-voice__portrait"><Mic2 size={28} /></div>}
-          <div>
-            <span><Mic2 size={14} /> Did you know?</span>
-            {voiceFact ? <p>The same Japanese voice actor, <Link to={`/voice-actor/${voiceFact.actor.id}`}>{voiceFact.actor.name}</Link>, voiced <Link to={`/character/${voiceFact.first.characterId}`}>{voiceFact.first.character}</Link> in <Link to={`/anime/${voiceFact.first.animeId}`}>{voiceFact.first.anime}</Link> and <Link to={`/character/${voiceFact.second.characterId}`}>{voiceFact.second.character}</Link> in <Link to={`/anime/${voiceFact.second.animeId}`}>{voiceFact.second.anime}</Link>.</p> : <p>Explore Japanese voice actors and discover the characters they connect across different anime.</p>}
+          <div
+            className="home-discovery-voice__characters"
+            aria-label="Connected characters"
+          >
+            {voiceFact ? (
+              <>
+                <Link
+                  to={`/character/${voiceFact.first.characterId}`}
+                  aria-label={`Open ${voiceFact.first.character}`}
+                  title={voiceFact.first.character}
+                >
+                  <ProgressiveImage
+                    src={voiceFact.first.characterImage}
+                    alt={voiceFact.first.character}
+                    wrapperClassName="home-discovery-voice__character"
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
+                <Link
+                  to={`/character/${voiceFact.second.characterId}`}
+                  aria-label={`Open ${voiceFact.second.character}`}
+                  title={voiceFact.second.character}
+                >
+                  <ProgressiveImage
+                    src={voiceFact.second.characterImage}
+                    alt={voiceFact.second.character}
+                    wrapperClassName="home-discovery-voice__character"
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
+              </>
+            ) : (
+              <>
+                <div className="home-discovery-voice__character">
+                  <User size={25} />
+                </div>
+                <div className="home-discovery-voice__character">
+                  <User size={25} />
+                </div>
+              </>
+            )}
           </div>
-          <Link to="/discovery?tool=voices" aria-label="Open voice cast explorer"><ArrowRight size={18} /></Link>
+          <div>
+            <span>
+              <Mic2 size={14} /> Did you know?
+            </span>
+            {voiceFact ? (
+              <p>
+                The same Japanese voice actor,{" "}
+                <Link
+                  className="home-discovery-voice__actor-link"
+                  to={`/voice-actor/${voiceFact.actor.id}`}
+                >
+                  {voiceFact.actor.name}
+                </Link>
+                , voiced{" "}
+                <Link to={`/character/${voiceFact.first.characterId}`}>
+                  {voiceFact.first.character}
+                </Link>{" "}
+                in{" "}
+                <Link to={`/anime/${voiceFact.first.animeId}`}>
+                  {voiceFact.first.anime}
+                </Link>{" "}
+                and{" "}
+                <Link to={`/character/${voiceFact.second.characterId}`}>
+                  {voiceFact.second.character}
+                </Link>{" "}
+                in{" "}
+                <Link to={`/anime/${voiceFact.second.animeId}`}>
+                  {voiceFact.second.anime}
+                </Link>
+                .
+              </p>
+            ) : (
+              <p>
+                Explore Japanese voice actors and discover the characters they
+                connect across different anime.
+              </p>
+            )}
+          </div>
+          <Link
+            to="/discovery?tool=voices"
+            aria-label="Open voice cast explorer"
+          >
+            <ArrowRight size={18} />
+          </Link>
         </article>
       </div>
     </section>
@@ -431,9 +588,7 @@ export function Homepage() {
       <div className="home-catalog">
         <div className="home-catalog__filter">
           <div>
-            <strong>
-                Choose your genre
-            </strong>
+            <strong>Choose your genre</strong>
           </div>
           <CatalogGenreFilter
             items={[

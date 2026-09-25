@@ -89,8 +89,7 @@ export const MangaDetails: React.FC = () => {
         setChapterPage(1);
         setChapterGuideItems(data?.chapterGuide || []);
         setChapterTotal(Number(data?.chapters || 0));
-      } catch (err) {
-        console.error("Error loading manga details:", err);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -302,7 +301,7 @@ export const MangaDetails: React.FC = () => {
               <BookOpen size={13} />
               <span>{manga.format || "Manga"}</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-montserrat tracking-tight text-white drop-shadow-2xl leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold font-montserrat tracking-tight text-white drop-shadow-2xl leading-tight">
               {manga.title}
             </h1>
             {manga.title_japanese && (
@@ -459,7 +458,7 @@ export const MangaDetails: React.FC = () => {
                 <Flame size={20} />
               </div>
               <div>
-                <h2 className="text-lg sm:text-xl font-black font-montserrat text-[#ffd700]">
+                <h2 className="text-lg sm:text-xl font-bold font-montserrat text-[#ffd700]">
                   About the manga
                 </h2>
                 <p className="text-xs text-neutral-400">

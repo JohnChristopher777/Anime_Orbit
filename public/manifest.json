@@ -1,30 +1,55 @@
 {
+  "id": "/",
   "short_name": "Anime Orbit",
-  "name": "Anime Orbit - Dive into the vast Multiverse of Anime",
+  "name": "Anime Orbit - Anime Discovery and Tracker",
+  "description": "Discover anime and manga, explore characters and voice casts, and privately track watching and reading progress.",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "/logo192.png",
+      "src": "/icon.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "1254x1254",
+      "purpose": "any"
     },
     {
-      "src": "/logo512.png",
+      "src": "/pwa-icon-192.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "192x192",
+      "purpose": "any"
     },
     {
-      "src": "/animeorbit.jpg",
-      "type": "image/jpeg",
-      "sizes": "512x512"
+      "src": "/pwa-icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-maskable-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
   "theme_color": "#000000",
-  "background_color": "#141414"
+  "background_color": "#000000",
+  "categories": ["entertainment", "lifestyle"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "My Watchlist",
+      "short_name": "Watchlist",
+      "url": "/watchlist",
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Anime Discovery",
+      "short_name": "Discover",
+      "url": "/discovery",
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
 }

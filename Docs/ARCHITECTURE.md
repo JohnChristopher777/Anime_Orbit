@@ -277,7 +277,7 @@ AnimeItemEnhanced Fetching Strategy:
 │         ↓                                                     │
 │ Component renders with data                                  │
 │         ↓                                                     │
-│ If error: console.error() + empty state UI                  │
+│ If error: safe fallback + empty state UI                    │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -369,7 +369,7 @@ Share Button Click:
 │   → Toast notification appears                              │
 │         ↓                                                     │
 │ IF ERROR:                                                    │
-│   → console.error()                                          │
+│   → safe fallback                                             │
 │   → (Silent fail, no user notification)                     │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -449,13 +449,13 @@ Example: Fetch Anime Data
 │   → Render anime details                                    │
 │         ↓                                                     │
 │ NO (404, 500, etc.):                                        │
-│   → console.error()                                          │
+│   → safe fallback                                             │
 │   → setLoading(false)                                       │
 │   → Render empty state or error message                     │
 │         ↓                                                     │
 │ NETWORK ERROR:                                              │
 │   → catch(error)                                             │
-│   → console.error(error)                                    │
+│   → safe fallback                                           │
 │   → setLoading(false)                                       │
 │   → Render "Failed to load" message                         │
 └──────────────────────────────────────────────────────────────┘

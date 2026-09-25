@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useFavourites } from "../context/FavouritesContext";
 import { useAuth } from "../context/AuthContext";
 import { useGlobalContext } from "../context/global";
+import { useWatchlist } from "../context/WatchlistContext";
 import AuthModal from "./AuthModal";
 import SEO from "./SEO";
 import Footer from "./Footer";
@@ -17,7 +18,6 @@ import {
   Plus,
   Trash2,
   Share2,
-  Download,
   Copy,
   Check,
   X,
@@ -37,6 +37,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { createSharedFavouritesPayload, encodeSharedFavourites } from "../utils/sharedFavourites";
+import { usePublicShareOwner } from "../hooks/usePublicShareOwner";
 
 interface Tier {
   id: string;
@@ -168,6 +170,8 @@ export const Favourites: React.FC = () => {
   const { favourites, mangaFavourites, deletedFavourites, addToFavourites, addMangaToFavourites, removeFromFavourites, removeMangaFromFavourites, restoreFavourite, permanentlyDeleteFavourite, loading } = useFavourites();
   const { currentUser } = useAuth();
   const { popularAnime, topAiringAnime } = useGlobalContext();
+  const { watchlist, mangaWatchlist } = useWatchlist();
+  const publicShareOwner = usePublicShareOwner();
 
   const [viewMode, setViewMode] = useState<"grid" | "tier">("tier");
   const [tiers, setTiers] = useState<Tier[]>(() => {
@@ -348,7 +352,7 @@ export const Favourites: React.FC = () => {
       <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
         <div className="max-w-4xl mx-auto px-4 py-24 text-center space-y-4 flex-1">
           <Heart size={56} className="mx-auto text-red-500" />
-          <h2 className="text-3xl font-extrabold font-montserrat text-white">
+          <h2 className="text-3xl font-bold font-montserrat text-white">
             My Favorite Anime & Tier List
           </h2>
           <p className="text-neutral-400 text-sm max-w-md mx-auto">
@@ -393,6 +397,10 @@ export const Favourites: React.FC = () => {
   const activeFavourites = favoriteMedia === "manga" ? mangaFavourites : favourites;
   const activeTiers = favoriteMedia === "manga" ? mangaTiers : tiers;
   const activeNotes = favoriteMedia === "manga" ? mangaCustomNotes : customNotes;
+  const activeUserScores = new Map(
+    (favoriteMedia === "manga" ? mangaWatchlist : watchlist)
+      .map((item) => [Number(item.mal_id), Number(item.userScore || 0)]),
+  );
   const activeFavMap = new Map(activeFavourites.map((item) => [item.mal_id, item]));
   const activeRankMap = new Map<number, number>();
   let activeRank = 1;
@@ -684,7 +692,7 @@ export const Favourites: React.FC = () => {
   const renderRankBadge = (rank: number) => {
     if (rank === 1) {
       return (
-        <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 bg-gradient-to-r from-[#ffd700] via-[#ffea00] to-[#f39c12] text-black font-black text-[10px] px-1.5 py-0.5 rounded-md shadow-[0_0_12px_rgba(255,215,0,0.9)] border border-white">
+        <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 bg-gradient-to-r from-[#ffd700] via-[#ffea00] to-[#f39c12] text-black font-bold text-[10px] px-1.5 py-0.5 rounded-md shadow-[0_0_12px_rgba(255,215,0,0.9)] border border-white">
           <Crown size={10} className="fill-black" />
           <span>#1</span>
         </div>
@@ -692,7 +700,7 @@ export const Favourites: React.FC = () => {
     }
     if (rank === 2) {
       return (
-        <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 bg-gradient-to-r from-slate-100 to-slate-300 text-black font-black text-[10px] px-1.5 py-0.5 rounded-md shadow-[0_0_10px_rgba(255,255,255,0.8)] border border-slate-400">
+        <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 bg-gradient-to-r from-slate-100 to-slate-300 text-black font-bold text-[10px] px-1.5 py-0.5 rounded-md shadow-[0_0_10px_rgba(255,255,255,0.8)] border border-slate-400">
           <Award size={10} />
           <span>#2</span>
         </div>
@@ -700,7 +708,7 @@ export const Favourites: React.FC = () => {
     }
     if (rank === 3) {
       return (
-        <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-black text-[10px] px-1.5 py-0.5 rounded-md shadow-md border border-amber-300">
+        <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-md shadow-md border border-amber-300">
           <Award size={10} />
           <span>#3</span>
         </div>
@@ -708,129 +716,60 @@ export const Favourites: React.FC = () => {
     }
     if (rank === 4 || rank === 5) {
       return (
-        <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-[10px] px-1.5 py-0.5 rounded-md shadow-md border border-purple-300">
+        <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-[10px] px-1.5 py-0.5 rounded-md shadow-md border border-purple-300">
           <Sparkles size={9} />
           <span>#{rank}</span>
         </div>
       );
     }
     return (
-      <div className="absolute top-1 left-1 z-20 bg-black/85 text-[#ffd700] border border-[#ffd700]/50 font-black text-[9px] px-1 py-0.5 rounded-md shadow">
+      <div className="absolute top-1 left-1 z-20 bg-black/85 text-[#ffd700] border border-[#ffd700]/50 font-bold text-[9px] px-1 py-0.5 rounded-md shadow">
         #{rank}
       </div>
     );
   };
 
-  // Generate Tier List HTML for Share / Export
-  const generateTierListHtml = () => {
-    const userTitle = currentUser?.displayName || "Anime Fan";
-    const userAvatar = currentUser?.photoURL || "";
+  const createSharedFavouritesUrl = () => {
+    const payload = createSharedFavouritesPayload(
+      activeFavourites,
+      activeTiers,
+      favoriteMedia,
+      activeUserScores,
+      publicShareOwner,
+    );
+    return `${window.location.origin}/shared-favourites#${encodeSharedFavourites(payload)}`;
+  };
+
+  const handleOpenSharedFavourites = () => {
+    const url = createSharedFavouritesUrl();
+    if (url.length > 120000) {
+      toast.error("This tier list is too large for a private share link.");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleShareFavourites = async () => {
     const mediaLabel = favoriteMedia === "manga" ? "Manga" : "Anime";
-    const escapeHtml = (str: string = "") =>
-      str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-    const tiersHtml = activeTiers
-      .map((tier) => {
-        const rowCards = tier.animeIds
-          .map((id) => {
-            const anime = activeFavMap.get(id);
-            if (!anime) return "";
-            const title = escapeHtml(anime.title || anime.title_english || "Anime");
-            const img = (anime as any).images?.jpg?.large_image_url || (anime as any).image || "";
-            const r = activeRankMap.get(id) || 0;
-            const note = activeNotes[id] ? `<span class="note">${escapeHtml(activeNotes[id])}</span>` : "";
-            return `
-            <div class="tier-card" title="${title}">
-              <span class="rank-tag">#${r}</span>
-              <img src="${escapeHtml(img)}" alt="${title}" loading="lazy" />
-              ${note}
-            </div>`;
-          })
-          .join("\n");
-
-        return `
-        <div class="tier-row">
-          <div class="tier-label" style="background-color: ${tier.color}; color: ${tier.textColor};">
-            ${escapeHtml(tier.name)}
-          </div>
-          <div class="tier-items">
-            ${rowCards || `<span class="empty-tier">No ${mediaLabel.toLowerCase()} placed in this tier yet</span>`}
-          </div>
-        </div>`;
-      })
-      .join("\n");
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(userTitle)}'s ${mediaLabel} Tier List - Anime Orbit</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0c0c10; color: #fff; padding: 2rem 1rem; min-height: 100vh; }
-    .container { max-width: 1200px; margin: 0 auto; }
-    header { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; margin-bottom: 2rem; text-align: center; }
-    .user-badge { display: flex; align-items: center; gap: 0.75rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,215,0,0.3); padding: 0.5rem 1.2rem; border-radius: 50px; }
-    .user-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #ffd700; }
-    .avatar-fallback { width: 42px; height: 42px; border-radius: 50%; background: #ffd700; color: #000; font-weight: 900; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-    h1 { font-size: 2.2rem; color: #ffd700; text-transform: uppercase; margin: 0; }
-    .tier-row { display: flex; min-height: 110px; margin-bottom: 0.75rem; background: #16161c; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
-    .tier-label { width: 110px; min-width: 110px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 900; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
-    .tier-items { flex: 1; display: flex; flex-wrap: wrap; gap: 0.6rem; padding: 0.6rem; align-items: center; }
-    .tier-card { width: 75px; aspect-ratio: 2/3; position: relative; border-radius: 6px; overflow: hidden; background: #000; border: 1px solid rgba(255,255,255,0.2); }
-    .tier-card img { width: 100%; height: 100%; object-fit: cover; }
-    .rank-tag { position: absolute; top: 2px; left: 2px; background: rgba(0,0,0,0.85); color: #ffd700; font-size: 10px; font-weight: 800; padding: 1px 4px; border-radius: 4px; z-index: 10; border: 1px solid rgba(255,215,0,0.4); }
-    .empty-tier { color: #555; font-size: 0.8rem; font-style: italic; margin-left: 0.5rem; }
-    footer { text-align: center; margin-top: 3rem; color: #666; font-size: 0.8rem; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <div class="user-badge">
-        ${
-          userAvatar
-            ? `<img src="${escapeHtml(userAvatar)}" alt="${escapeHtml(userTitle)}" class="user-avatar" />`
-            : `<div class="avatar-fallback">${escapeHtml(userTitle[0]?.toUpperCase() || "U")}</div>`
-        }
-        <div style="text-align: left;">
-          <div style="font-weight: 800; color: #fff; font-size: 0.95rem;">${escapeHtml(userTitle)}</div>
-          <div style="font-size: 0.75rem; color: #a0a0a0;">Shared favorites list</div>
-        </div>
-      </div>
-      <h1>${escapeHtml(userTitle)}'s ${mediaLabel} Tier List</h1>
-    </header>
-    <div class="tier-board">
-      ${tiersHtml}
-    </div>
-    <footer>
-      <p>© ${new Date().getFullYear()} Anime Orbit - Cosmic Anime Compass & Tier List Maker</p>
-    </footer>
-  </div>
-</body>
-</html>`;
-  };
-
-  const handleOpenHtml = () => {
-    const html = generateTierListHtml();
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  };
-
-  const handleDownloadHtml = () => {
-    const html = generateTierListHtml();
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${currentUser?.displayName || favoriteMedia}-${favoriteMedia}-tier-list.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Tier List HTML downloaded!");
+    const url = createSharedFavouritesUrl();
+    if (url.length > 120000) {
+      toast.error("This tier list is too large for a private share link.");
+      return;
+    }
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `My ${mediaLabel} Favourites Tier List`,
+          text: `${activeFavourites.length} ranked favourites from Anime Orbit`,
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Private tier-list link copied!");
+      }
+    } catch {
+      // Closing the native share sheet requires no error message.
+    }
   };
 
   const handleCopySummary = () => {
@@ -841,7 +780,8 @@ export const Favourites: React.FC = () => {
           .map((id) => {
             const a = activeFavMap.get(id);
             const r = activeRankMap.get(id) || 0;
-            return `#${r} ${a?.title || a?.title_english || mediaLabel}`;
+            const score = Number(activeUserScores.get(id) || 0);
+            return `#${r} ${a?.title || a?.title_english || mediaLabel} · Your score: ${score > 0 ? score.toFixed(2).replace(/\.00$/, ".0") : "Not rated"}`;
           })
           .filter(Boolean)
           .join(", ");
@@ -865,6 +805,7 @@ export const Favourites: React.FC = () => {
         description="Build, organize, and customize your personal anime tier lists and favorite series across all genres on Anime Orbit."
         keywords="anime tier list, anime favorites, custom anime tier rankings, Anime Orbit"
         url="https://animeorbit.web.app/favourites"
+        noIndex
       />
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6 sm:space-y-8 flex-1 w-full">
@@ -872,7 +813,7 @@ export const Favourites: React.FC = () => {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <Heart size={30} className="text-yellow-500 fill-yellow-500" />
-            <h1 className="text-2xl sm:text-3xl font-extrabold font-montserrat text-white">
+            <h1 className="text-2xl sm:text-3xl font-bold font-montserrat text-white">
               Favorites
             </h1>
             <span className="text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
@@ -1142,7 +1083,7 @@ export const Favourites: React.FC = () => {
                             setEditTierName(tier.name);
                             setEditTierColor(tier.color);
                           }}
-                          className="w-20 sm:w-28 flex-shrink-0 flex flex-col items-center justify-center font-montserrat font-black text-xl sm:text-2xl text-center p-2 select-none shadow-md cursor-pointer hover:brightness-110 group relative"
+                          className="w-20 sm:w-28 flex-shrink-0 flex flex-col items-center justify-center font-montserrat font-bold text-xl sm:text-2xl text-center p-2 select-none shadow-md cursor-pointer hover:brightness-110 group relative"
                           title="Click to rename or change color"
                         >
                           <span className="truncate w-full">{tier.name}</span>
@@ -1199,7 +1140,7 @@ export const Favourites: React.FC = () => {
 
                                 {/* Tooltip Hover Overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2 pointer-events-none z-10">
-                                  <span className="text-[11px] font-extrabold text-white leading-tight line-clamp-2">
+                                  <span className="text-[11px] font-bold text-white leading-tight line-clamp-2">
                                     {anime.title || anime.title_english}
                                   </span>
                                   <div className="flex items-center justify-between gap-1 mt-1">
@@ -1343,7 +1284,7 @@ export const Favourites: React.FC = () => {
 
                         {/* Tooltip Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-1.5 pointer-events-none z-10">
-                          <span className="text-[10px] font-extrabold text-white leading-tight line-clamp-2">
+                          <span className="text-[10px] font-bold text-white leading-tight line-clamp-2">
                             {item.title || item.title_english}
                           </span>
                           {item.score && (
@@ -1389,7 +1330,7 @@ export const Favourites: React.FC = () => {
             className="bg-[#18181b] border border-[#ffd700]/40 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95"
           >
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <h3 className="font-montserrat font-extrabold text-base text-[#ffd700]">
+              <h3 className="font-montserrat font-bold text-base text-[#ffd700]">
                 Add Custom Tier Row
               </h3>
               <button
@@ -1464,7 +1405,7 @@ export const Favourites: React.FC = () => {
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Plus size={18} className="text-[#ffd700]" />
-                <h3 className="font-montserrat font-extrabold text-base text-white">
+                <h3 className="font-montserrat font-bold text-base text-white">
                   Add Anime
                 </h3>
               </div>
@@ -1684,7 +1625,7 @@ export const Favourites: React.FC = () => {
             <div className="flex items-center justify-between pb-2 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Share2 size={18} className="text-[#ffd700]" />
-                <h3 className="font-montserrat font-extrabold text-base text-white">
+                <h3 className="font-montserrat font-bold text-base text-white">
                   Export & Share Tier List
                 </h3>
               </div>
@@ -1697,33 +1638,33 @@ export const Favourites: React.FC = () => {
             </div>
 
             <p className="text-xs text-neutral-300 leading-relaxed">
-              Export your personalized tier rankings as a standalone interactive webpage or copy formatted text for Discord, Reddit, and forums.
+              Share a privacy-safe tier-list page or copy formatted rankings. Account details, private notes, and deleted favourites are excluded.
             </p>
 
             <div className="space-y-2.5">
               <button
-                onClick={handleOpenHtml}
+                onClick={handleOpenSharedFavourites}
                 className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-[#ffd700]/15 border border-white/10 hover:border-[#ffd700] rounded-xl text-left text-xs sm:text-sm font-semibold transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
                   <ExternalLink size={18} className="text-[#ffd700]" />
                   <div>
-                    <div className="text-white group-hover:text-[#ffd700]">Open Fullscreen Webpage</div>
-                    <div className="text-[11px] text-neutral-400">View standalone rendered tier board</div>
+                    <div className="text-white group-hover:text-[#ffd700]">Open Shared Page</div>
+                    <div className="text-[11px] text-neutral-400">Preview the private tier-list route</div>
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-neutral-500 group-hover:text-[#ffd700]" />
               </button>
 
               <button
-                onClick={handleDownloadHtml}
+                onClick={() => void handleShareFavourites()}
                 className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-[#ffd700]/15 border border-white/10 hover:border-[#ffd700] rounded-xl text-left text-xs sm:text-sm font-semibold transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <Download size={18} className="text-[#ffd700]" />
+                  <Share2 size={18} className="text-[#ffd700]" />
                   <div>
-                    <div className="text-white group-hover:text-[#ffd700]">Download Standalone HTML</div>
-                    <div className="text-[11px] text-neutral-400">Save as an offline interactive webpage</div>
+                    <div className="text-white group-hover:text-[#ffd700]">Share Page</div>
+                    <div className="text-[11px] text-neutral-400">Use the share sheet or copy its link</div>
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-neutral-500 group-hover:text-[#ffd700]" />
@@ -1839,7 +1780,7 @@ export const Favourites: React.FC = () => {
                 key={t.id}
                 onClick={() => handleDropOnTier(t.id)}
                 style={{ backgroundColor: t.color }}
-                className="px-3 py-1 rounded-lg text-white font-black text-xs shadow hover:scale-110 active:scale-95 transition-transform cursor-pointer flex-shrink-0"
+                className="px-3 py-1 rounded-lg text-white font-bold text-xs shadow hover:scale-110 active:scale-95 transition-transform cursor-pointer flex-shrink-0"
               >
                 {t.name}
               </button>
