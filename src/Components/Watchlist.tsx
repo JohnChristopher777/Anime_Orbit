@@ -826,7 +826,8 @@ export const Watchlist: React.FC = () => {
         >
           <Search size={18} aria-hidden="true" />
           <input
-            type="search"
+            type="text"
+            inputMode="search"
             value={listQuery}
             onChange={(event) => setListQuery(event.target.value)}
             placeholder={`Search your ${mediaTab === "anime" ? "watchlist" : "reading list"}...`}
@@ -1213,8 +1214,18 @@ export const Watchlist: React.FC = () => {
                   value={addQuery}
                   onChange={(event) => setAddQuery(event.target.value)}
                   placeholder={`Search ${mediaTab} titles...`}
-                  className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-[#ffd700]"
+                  className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-11 text-sm text-white outline-none focus:border-[#ffd700]"
                 />
+                {addQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setAddQuery("")}
+                    aria-label={`Clear ${mediaTab} search`}
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
               <div className="mt-4 max-h-[55vh] overflow-y-auto space-y-2 pr-1">
                 {!addLoading &&

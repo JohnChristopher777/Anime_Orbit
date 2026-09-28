@@ -72,9 +72,17 @@ export const Profile: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [genreBackfill, setGenreBackfill] = useState<Record<number, string[]>>(
-    {},
-  );
+  const [animeMetadata, setAnimeMetadata] = useState<
+    Record<
+      number,
+      {
+        genres: string[];
+        type?: string;
+        duration?: number | string | null;
+        episodes?: number | null;
+      }
+    >
+  >({});
 
   // Deletion States
   const [deletionScheduled, setDeletionScheduled] = useState(false);
@@ -159,26 +167,37 @@ export const Profile: React.FC = () => {
   useEffect(() => {
     if (!currentUser) return;
     const missingIds = [...watchlist, ...favourites]
-      .filter(
-        (item) => !(item.genres || []).length && !genreBackfill[item.mal_id],
-      )
+      .filter((item) => !animeMetadata[item.mal_id])
       .map((item) => Number(item.mal_id))
       .filter(Boolean);
     if (!missingIds.length) return;
     let active = true;
-    getAnimeListByIds([...new Set(missingIds)]).then((titles: any[]) => {
+    const uniqueIds = [...new Set(missingIds)];
+    const chunks = Array.from(
+      { length: Math.ceil(uniqueIds.length / 50) },
+      (_, index) => uniqueIds.slice(index * 50, index * 50 + 50),
+    );
+    Promise.all(
+      chunks.map((ids) => getAnimeListByIds(ids, { includeAdult: true })),
+    ).then((groups: any[][]) => {
       if (!active) return;
-      setGenreBackfill((current) => {
+      const titles = groups.flat();
+      setAnimeMetadata((current) => {
         const next = { ...current };
-        missingIds.forEach((mediaId) => {
-          if (!next[mediaId]) next[mediaId] = [];
+        uniqueIds.forEach((mediaId) => {
+          if (!next[mediaId]) next[mediaId] = { genres: [] };
         });
         titles.forEach((title) => {
-          next[Number(title.mal_id)] = (title.genres || [])
-            .map((genre: any) =>
-              typeof genre === "string" ? genre : genre?.name,
-            )
-            .filter(Boolean);
+          next[Number(title.mal_id)] = {
+            genres: (title.genres || [])
+              .map((genre: any) =>
+                typeof genre === "string" ? genre : genre?.name,
+              )
+              .filter(Boolean),
+            type: title.type,
+            duration: title.duration,
+            episodes: title.episodes,
+          };
         });
         return next;
       });
@@ -186,7 +205,7 @@ export const Profile: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [currentUser, watchlist, favourites, genreBackfill]);
+  }, [currentUser, watchlist, favourites, animeMetadata]);
 
   // Validate User ID: 15 chars max, at least 1 number, at least 1 uppercase letter, allowed: . @ - _
   const validateUserId = (id: string): string | null => {
@@ -505,7 +524,7 @@ export const Profile: React.FC = () => {
   >((counts, item: any) => {
     const genres = (item.genres || []).length
       ? item.genres
-      : genreBackfill[item.mal_id] || [];
+      : animeMetadata[item.mal_id]?.genres || [];
     genres.forEach((rawGenre: any) => {
       const genre = typeof rawGenre === "string" ? rawGenre : rawGenre?.name;
       if (genre) counts[genre] = (counts[genre] || 0) + 1;
@@ -516,25 +535,54 @@ export const Profile: React.FC = () => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   const maxGenreCount = topGenres[0]?.[1] || 1;
-  const totalEpisodesWatched = watchlist.reduce((total, item) => {
-    const logged = Math.max(0, Number(item.progress || 0));
-    if (item.status === "Completed" && item.episodes)
-      return total + Math.max(logged, Number(item.episodes));
-    return total + logged;
-  }, 0);
-  const watchMinutes = watchlist.reduce((total, item) => {
-    const logged = Math.max(0, Number(item.progress || 0));
-    const completed = item.status === "Completed";
-    const isMovie = String(item.type || "").toLowerCase() === "movie";
-    if (isMovie) return total + (completed || logged > 0 ? 120 : 0);
-    return (
-      total +
-      (completed && item.episodes
-        ? Math.max(logged, Number(item.episodes))
-        : logged) *
-        24
-    );
-  }, 0);
+  const viewingBreakdown = watchlist.reduce(
+    (totals, item) => {
+      const metadata = animeMetadata[item.mal_id];
+      const format = String(item.type || metadata?.type || "TV")
+        .trim()
+        .toUpperCase()
+        .replace(/[\s-]+/g, "_");
+      const episodeTotal = Math.max(
+        0,
+        Number(item.episodes || metadata?.episodes || 0),
+      );
+      const logged = Math.max(0, Number(item.progress || 0));
+      const completed = item.status === "Completed";
+      const watchedUnits = Math.floor(
+        completed
+          ? Math.max(logged, episodeTotal || 1)
+          : logged,
+      );
+      if (!watchedUnits) return totals;
+
+      if (format === "MOVIE") totals.movies += watchedUnits;
+      else if (format === "OVA") totals.ova += watchedUnits;
+      else if (format === "ONA") totals.ona += watchedUnits;
+      else if (format === "SPECIAL") totals.specials += watchedUnits;
+      else if (format === "TV" || format === "TV_SHORT")
+        totals.tvEpisodes += watchedUnits;
+      else totals.other += watchedUnits;
+
+      const durationValue = item.duration ?? metadata?.duration;
+      const parsedDuration = Number(
+        String(durationValue ?? "").match(/[\d.]+/)?.[0] || 0,
+      );
+      const fallbackDuration =
+        format === "MOVIE" ? 100 : format === "MUSIC" ? 4 : 24;
+      totals.minutes += watchedUnits * (parsedDuration || fallbackDuration);
+      return totals;
+    },
+    {
+      tvEpisodes: 0,
+      movies: 0,
+      ova: 0,
+      ona: 0,
+      specials: 0,
+      other: 0,
+      minutes: 0,
+    },
+  );
+  const watchHours = (viewingBreakdown.minutes / 60).toFixed(2);
   const interestAxes = Array.from(
     { length: 5 },
     (_, index) =>
@@ -708,7 +756,7 @@ export const Profile: React.FC = () => {
                     <strong>{identityGenre} fan</strong>
                     <small>
                       {completedCount} completed ·{" "}
-                      {Math.round(watchMinutes / 60)} watch hours
+                      {watchHours} watch hours
                     </small>
                   </div>
 
@@ -790,15 +838,27 @@ export const Profile: React.FC = () => {
                   <strong>{favourites.length}</strong>
                   <span>Favorites</span>
                 </div>
-                <div>
-                  <strong>{totalEpisodesWatched}<span>Eps.</span></strong>
-                  <span>Episodes watched</span>
-                </div>
-                <div>
-                  <strong>{Math.round(watchMinutes / 60)}<span>Hrs.</span></strong>
-                  <span>Watch hours</span>
-                </div>
               </div>
+              <section
+                className="profile-viewing-breakdown"
+                aria-labelledby="profile-viewing-breakdown-title"
+              >
+                <header>
+                  <div>
+                    <h3 id="profile-viewing-breakdown-title">Complete Watch Activity</h3>
+                  </div>
+                  <p>Shows the actual numbers from Watchlist.</p>
+                </header>
+                <div>
+                  <article><strong>{viewingBreakdown.tvEpisodes}</strong><span>TV episodes</span></article>
+                  <article><strong>{viewingBreakdown.movies}</strong><span>Movies</span></article>
+                  <article><strong>{viewingBreakdown.ova}</strong><span>OVA episodes</span></article>
+                  <article><strong>{viewingBreakdown.ona}</strong><span>ONA episodes</span></article>
+                  <article><strong>{viewingBreakdown.specials}</strong><span>Specials</span></article>
+                  <article><strong>{viewingBreakdown.other}</strong><span>Other</span></article>
+                  <article className="is-hours"><strong>{watchHours}<small> hrs</small></strong><span>Actual watch time</span></article>
+                </div>
+              </section>
               <div className="profile-insights__demographics">
                 <div className="profile-completion">
                   <div

@@ -23,6 +23,7 @@ export interface WatchlistItem {
   image?: string;
   score?: number | string | null;
   episodes?: number | null;
+  duration?: number | string | null;
   type?: string;
   genres?: string[];
   status?: string;
@@ -209,6 +210,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
           anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || anime.image || "",
         score: anime.score || null,
         episodes: anime.episodes || null,
+        duration: anime.duration || null,
         type: anime.type || "TV",
         genres: (anime.genres || []).map((genre: any) => typeof genre === "string" ? genre : genre?.name).filter(Boolean),
         mediaType: "ANIME",
@@ -313,6 +315,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
           anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || anime.image || "",
         score: anime.score || null,
         episodes: anime.episodes || null,
+        duration: anime.duration || null,
         type: anime.type || "TV",
         mediaType: "ANIME",
         releaseStatus: anime.status || "",
@@ -393,6 +396,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
           anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || anime.image || "",
         score: anime.score || null,
         episodes: anime.episodes || null,
+        duration: anime.duration || existingItem?.duration || null,
         type: anime.type || "TV",
         mediaType: "ANIME",
         releaseStatus: anime.status || "",

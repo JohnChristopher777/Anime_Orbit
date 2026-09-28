@@ -205,6 +205,8 @@ export const Favourites: React.FC = () => {
   const [tierSheets, setTierSheets] = useState<TierSheet[]>(createTierSheets);
   const [activeSheetId, setActiveSheetId] = useState<TierSheet["id"]>("slot-1");
   const [tierSheetsHydrated, setTierSheetsHydrated] = useState(false);
+  const [renamingSheet, setRenamingSheet] = useState(false);
+  const [sheetNameDraft, setSheetNameDraft] = useState("");
   const activeSheet = tierSheets.find((sheet) => sheet.id === activeSheetId) || tierSheets[0];
   const tiers = activeSheet?.animeTiers || freshMediaTiers();
   const mangaTiers = activeSheet?.mangaTiers || freshMediaTiers();
@@ -881,14 +883,20 @@ export const Favourites: React.FC = () => {
 
   // Filter pool candidates for Add Anime to Pool modal
   const poolCandidates = animeCandidates;
-  const renameActiveSheet = () => {
-    const nextName = window.prompt("Name this tier sheet", activeSheet.name)?.trim();
+  const startRenamingActiveSheet = () => {
+    setSheetNameDraft(activeSheet.name);
+    setRenamingSheet(true);
+  };
+  const saveActiveSheetName = () => {
+    const nextName = sheetNameDraft.trim();
     if (!nextName) return;
     setTierSheets((current) => current.map((sheet) => sheet.id === activeSheetId ? { ...sheet, name: nextName.slice(0, 40) } : sheet));
+    setRenamingSheet(false);
   };
   const selectTierSheet = (sheetId: TierSheet["id"]) => {
     setSelectedAnimeId(null);
     setDraggedAnimeId(null);
+    setRenamingSheet(false);
     setActiveSheetId(sheetId);
   };
 
@@ -986,8 +994,33 @@ export const Favourites: React.FC = () => {
         {viewMode === "tier" && (
           <section className="tier-sheet-switcher" aria-label="Saved tier sheets">
             <div className="tier-sheet-switcher__heading">
-              <div><span>Saved tier sheets</span><h2>{activeSheet.name}</h2><p>Keep up to five separate boards. Anime and manga placements remain independent inside every sheet.</p></div>
-              <button type="button" onClick={renameActiveSheet}><Edit3 size={15} />Rename heading</button>
+              <div>
+                <span>Saved tier sheets</span>
+                {renamingSheet ? (
+                  <form
+                    className="tier-sheet-name-editor"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      saveActiveSheetName();
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      maxLength={40}
+                      value={sheetNameDraft}
+                      onChange={(event) => setSheetNameDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") setRenamingSheet(false);
+                      }}
+                      aria-label="Tier sheet name"
+                    />
+                    <button type="submit" disabled={!sheetNameDraft.trim()}><Check size={15} />Save</button>
+                    <button type="button" onClick={() => setRenamingSheet(false)}><X size={15} />Cancel</button>
+                  </form>
+                ) : <h2>{activeSheet.name}</h2>}
+                <p>Keep up to five separate boards. Anime and manga placements remain independent inside every sheet.</p>
+              </div>
+              {!renamingSheet && <button type="button" onClick={startRenamingActiveSheet}><Edit3 size={15} />Rename heading</button>}
             </div>
             <div className="tier-sheet-switcher__slots" role="tablist" aria-label="Choose a tier sheet">
               {tierSheets.map((sheet, index) => (
@@ -1544,8 +1577,9 @@ export const Favourites: React.FC = () => {
                 placeholder="Search anime titles..."
                 value={animeSearchQuery}
                 onChange={(e) => setAnimeSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-[#ffd700]"
+                className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-11 text-sm text-white outline-none focus:border-[#ffd700]"
               />
+              {animeSearchQuery && <button type="button" onClick={() => setAnimeSearchQuery("")} aria-label="Clear anime search" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"><X size={15} /></button>}
             </div>
 
             {/* Candidate List */}
@@ -1627,7 +1661,7 @@ export const Favourites: React.FC = () => {
               <div><h3 className="font-montserrat text-xl font-bold text-white">Add Manga</h3><p className="mt-1 text-xs text-neutral-400">Search for a title or pick from popular manga.</p></div>
               <button type="button" onClick={() => setShowAddMangaModal(false)} className="grid h-8 w-8 place-items-center rounded-full border border-white/10 text-neutral-300 hover:text-white"><X size={16} /></button>
             </div>
-            <div className="relative mt-4"><Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" /><input autoFocus value={mangaSearchQuery} onChange={(event) => setMangaSearchQuery(event.target.value)} placeholder="Search manga titles..." className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-[#ffd700]" /></div>
+            <div className="relative mt-4"><Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" /><input autoFocus value={mangaSearchQuery} onChange={(event) => setMangaSearchQuery(event.target.value)} placeholder="Search manga titles..." className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-11 text-sm text-white outline-none focus:border-[#ffd700]" />{mangaSearchQuery && <button type="button" onClick={() => setMangaSearchQuery("")} aria-label="Clear manga search" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"><X size={15} /></button>}</div>
             <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {mangaCandidatesLoading && <div className="py-12 text-center text-xs font-bold text-[#ffd700]">Loading manga…</div>}
               {!mangaCandidatesLoading && mangaCandidates.map((manga) => {

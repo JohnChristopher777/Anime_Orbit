@@ -556,7 +556,7 @@ img {
 
 .profile-insights__stats {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     margin-top: 18px;
     border: 1px solid rgba(255, 255, 255, .09);
     border-radius: 13px;
@@ -9512,9 +9512,89 @@ code {
     padding: 11px 12px;
 }
 
-.profile-insights__stats>div:nth-last-child(-n+2) {
-    border-color: rgba(255, 215, 0, .22) !important;
-    background: linear-gradient(145deg, rgba(255, 215, 0, .08), #111115 66%);
+.profile-viewing-breakdown {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+    border: 1px solid rgba(255, 215, 0, .2);
+    border-radius: 15px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, .065), rgba(17, 17, 21, .96) 42%);
+    padding: 15px;
+}
+
+.profile-viewing-breakdown>header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.profile-viewing-breakdown>header span {
+    color: #ffd700;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.profile-viewing-breakdown>header h3 {
+    margin-top: 3px;
+    color: #f4f4f5;
+    font-family: "Montserrat", sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.profile-viewing-breakdown>header p {
+    max-width: 520px;
+    margin: 0;
+    color: #9b9ba5;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: right;
+}
+
+.profile-viewing-breakdown>div {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.profile-viewing-breakdown article {
+    display: grid;
+    min-height: 72px;
+    align-content: center;
+    gap: 4px;
+    border: 1px solid rgba(255, 255, 255, .09);
+    border-radius: 11px;
+    background: rgba(9, 9, 12, .58);
+    padding: 10px 11px;
+}
+
+.profile-viewing-breakdown article.is-hours {
+    border-color: rgba(255, 215, 0, .42);
+    background: rgba(255, 215, 0, .1);
+}
+
+.profile-viewing-breakdown article strong {
+    color: #f7f7f8;
+    font-family: "Montserrat", sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+}
+
+.profile-viewing-breakdown article.is-hours strong {
+    color: #ffd700;
+}
+
+.profile-viewing-breakdown article small {
+    font-size: 11px;
+}
+
+.profile-viewing-breakdown article span {
+    color: #96969f;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 .profile-completion,
@@ -14301,6 +14381,35 @@ a,
     color: #ffd700;
 }
 
+.tier-sheet-name-editor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+}
+
+.tier-sheet-name-editor input {
+    width: min(420px, 52vw);
+    min-height: 42px;
+    border: 1px solid rgba(255, 215, 0, .55);
+    border-radius: 11px;
+    background: rgba(0, 0, 0, .38);
+    color: #fff;
+    padding: 0 12px;
+    font: 700 16px/1.2 "Montserrat", sans-serif;
+    outline: 0;
+}
+
+.tier-sheet-name-editor input:focus {
+    border-color: #ffd700;
+    box-shadow: 0 0 0 3px rgba(255, 215, 0, .12);
+}
+
+.tier-sheet-name-editor button:disabled {
+    cursor: not-allowed;
+    opacity: .4;
+}
+
 .tier-sheet-switcher__slots {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -14911,6 +15020,24 @@ a,
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .profile-viewing-breakdown>header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .profile-viewing-breakdown>header p {
+        text-align: left;
+    }
+
+    .profile-viewing-breakdown>div {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .profile-viewing-breakdown article.is-hours {
+        grid-column: span 3;
+    }
+
     .tier-sheet-switcher__slots button:first-child {
         grid-column: 1 / -1;
     }
@@ -14995,6 +15122,32 @@ a,
     .tier-sheet-switcher__heading button {
         width: 100%;
         justify-content: center;
+    }
+
+    .tier-sheet-name-editor {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .tier-sheet-name-editor input {
+        width: 100%;
+    }
+
+    .tier-sheet-name-editor button {
+        width: auto;
+        flex: 1 1 0;
+    }
+
+    .profile-viewing-breakdown {
+        padding: 13px;
+    }
+
+    .profile-viewing-breakdown>div {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .profile-viewing-breakdown article.is-hours {
+        grid-column: span 2;
     }
 
     .public-profile-shell {

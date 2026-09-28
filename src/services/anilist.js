@@ -1462,8 +1462,9 @@ export async function getCharacterPictures(id) {
   return pictures;
 }
 
-export async function getAnimeListByIds(ids) {
+export async function getAnimeListByIds(ids, options = {}) {
   if (!ids || ids.length === 0) return [];
+  const includeAdult = Boolean(options.includeAdult);
   const query = `
     query ($ids: [Int]) {
       Page(page: 1, perPage: 50) {
@@ -1482,6 +1483,7 @@ export async function getAnimeListByIds(ids) {
           averageScore
           isAdult
           episodes
+          duration
           format
           genres
         }
@@ -1491,7 +1493,7 @@ export async function getAnimeListByIds(ids) {
   try {
     const data = await queryAniList(query, { ids });
     return (data.Page.media || [])
-      .filter((media) => getMatureContentPreference() || !media.isAdult)
+      .filter((media) => includeAdult || getMatureContentPreference() || !media.isAdult)
       .map(mapAniListAnimeToJikan);
   } catch {
     return [];
