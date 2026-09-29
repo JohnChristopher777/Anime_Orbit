@@ -33,6 +33,34 @@
         ]
       },
       {
+        "source": "/profile",
+        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" }]
+      },
+      {
+        "source": "/watchlist",
+        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" }]
+      },
+      {
+        "source": "/favourites",
+        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" }]
+      },
+      {
+        "source": "/my-comments",
+        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" }]
+      },
+      {
+        "source": "/my-reviews",
+        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" }]
+      },
+      {
+        "source": "/shared-list",
+        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" }]
+      },
+      {
+        "source": "/shared-favourites",
+        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" }]
+      },
+      {
         "source": "**",
         "headers": [
           {

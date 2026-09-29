@@ -318,6 +318,21 @@ const PublicProfile: React.FC = () => {
         description={`View ${userData.displayName}'s public anime favourites, watchlist and viewing progress.`}
         keywords="anime user profile, public anime watchlist, anime favourites"
         url={`https://animeorbit.web.app/user/${id}`}
+        image={userData.avatarUrl || "https://animeorbit.web.app/animeorbit.jpg"}
+        type="profile"
+        pageType="ProfilePage"
+        structuredData={{
+          "@type": "Person",
+          "@id": `https://animeorbit.web.app/user/${id}#person`,
+          name: userData.displayName,
+          description: userData.bio || tasteSummary,
+          ...(userData.avatarUrl ? { image: userData.avatarUrl } : {}),
+          url: `https://animeorbit.web.app/user/${id}`,
+        }}
+        breadcrumbs={[
+          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
+          { name: userData.displayName, url: `https://animeorbit.web.app/user/${id}` },
+        ]}
       />
       <main className="public-profile-shell">
         <button

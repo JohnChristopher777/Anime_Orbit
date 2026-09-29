@@ -116,6 +116,23 @@ export default function FranchiseExplorer() {
         description="Explore connected anime seasons, movies, OVAs and source manga as complete franchises."
         keywords="anime franchises, anime watch order, connected anime seasons"
         url="https://animeorbit.web.app/franchises"
+        pageType="CollectionPage"
+        structuredData={{
+          "@type": "ItemList",
+          "@id": "https://animeorbit.web.app/franchises#franchise-list",
+          name: "Anime franchise guides",
+          numberOfItems: visible.length,
+          itemListElement: visible.slice(0, 50).map((group, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: group.title_english || group.title,
+            url: `https://animeorbit.web.app/franchise/${group.mal_id}`,
+          })),
+        }}
+        breadcrumbs={[
+          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
+          { name: "Franchise library", url: "https://animeorbit.web.app/franchises" },
+        ]}
       />
       <main className="franchise-page">
         <header className="franchise-page__hero franchise-page__catalog-head">

@@ -9,7 +9,12 @@ import AuthModal from "./AuthModal";
 import SEO from "./SEO";
 import Footer from "./Footer";
 import ProgressiveImage from "./ProgressiveImage";
-import { getFranchiseGroups, getPopularManga, searchAnime, searchManga } from "../services/anilist";
+import {
+  getFranchiseGroups,
+  getPopularManga,
+  searchAnime,
+  searchManga,
+} from "../services/anilist";
 import {
   Heart,
   LogIn,
@@ -35,9 +40,13 @@ import {
   GitBranch,
   BookOpen,
   RotateCcw,
+  ListTodo,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { createSharedFavouritesPayload, encodeSharedFavourites } from "../utils/sharedFavourites";
+import {
+  createSharedFavouritesPayload,
+  encodeSharedFavourites,
+} from "../utils/sharedFavourites";
 import { usePublicShareOwner } from "../hooks/usePublicShareOwner";
 import { collection, doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
@@ -52,17 +61,48 @@ interface Tier {
 
 interface TierSheet {
   id: `slot-${1 | 2 | 3 | 4 | 5}`;
-  name: string;
+  animeName: string;
+  mangaName: string;
   animeTiers: Tier[];
   mangaTiers: Tier[];
 }
 
 const DEFAULT_TIERS: Tier[] = [
-  { id: "tier-s", name: "S", color: "#ff4d4d", textColor: "#ffffff", animeIds: [] },
-  { id: "tier-a", name: "A", color: "#ff9f43", textColor: "#ffffff", animeIds: [] },
-  { id: "tier-b", name: "B", color: "#ffd700", textColor: "#000000", animeIds: [] },
-  { id: "tier-c", name: "C", color: "#10ac84", textColor: "#ffffff", animeIds: [] },
-  { id: "tier-d", name: "D", color: "#54a0ff", textColor: "#ffffff", animeIds: [] },
+  {
+    id: "tier-s",
+    name: "S",
+    color: "#ff4d4d",
+    textColor: "#ffffff",
+    animeIds: [],
+  },
+  {
+    id: "tier-a",
+    name: "A",
+    color: "#ff9f43",
+    textColor: "#ffffff",
+    animeIds: [],
+  },
+  {
+    id: "tier-b",
+    name: "B",
+    color: "#ffd700",
+    textColor: "#000000",
+    animeIds: [],
+  },
+  {
+    id: "tier-c",
+    name: "C",
+    color: "#10ac84",
+    textColor: "#ffffff",
+    animeIds: [],
+  },
+  {
+    id: "tier-d",
+    name: "D",
+    color: "#54a0ff",
+    textColor: "#ffffff",
+    animeIds: [],
+  },
 ];
 
 const PRESET_COLORS = [
@@ -76,14 +116,20 @@ const PRESET_COLORS = [
   "#00d2d3",
 ];
 
-const freshMediaTiers = (): Tier[] => DEFAULT_TIERS.map((tier) => ({ ...tier, animeIds: [] }));
-const cloneTiers = (tiers: Tier[]) => tiers.map((tier) => ({ ...tier, animeIds: [...(tier.animeIds || [])] }));
+const freshMediaTiers = (): Tier[] =>
+  DEFAULT_TIERS.map((tier) => ({ ...tier, animeIds: [] }));
+const cloneTiers = (tiers: Tier[]) =>
+  tiers.map((tier) => ({ ...tier, animeIds: [...(tier.animeIds || [])] }));
 const createTierSheets = (): TierSheet[] => {
   let legacyAnime = freshMediaTiers();
   let legacyManga = freshMediaTiers();
   try {
-    const anime = JSON.parse(localStorage.getItem("anime_orbit_tierlist") || "null");
-    const manga = JSON.parse(localStorage.getItem("anime_orbit_manga_tierlist") || "null");
+    const anime = JSON.parse(
+      localStorage.getItem("anime_orbit_tierlist") || "null",
+    );
+    const manga = JSON.parse(
+      localStorage.getItem("anime_orbit_manga_tierlist") || "null",
+    );
     if (Array.isArray(anime)) legacyAnime = cloneTiers(anime);
     if (Array.isArray(manga)) legacyManga = cloneTiers(manga);
   } catch {
@@ -91,14 +137,23 @@ const createTierSheets = (): TierSheet[] => {
   }
   return ([1, 2, 3, 4, 5] as const).map((slot) => ({
     id: `slot-${slot}`,
-    name: slot === 1 ? "Default" : `Tier Sheet ${slot}`,
+    animeName: slot === 1 ? "Default Anime Board" : `Anime Tier Sheet ${slot}`,
+    mangaName: slot === 1 ? "Default Manga Board" : `Manga Tier Sheet ${slot}`,
     animeTiers: slot === 1 ? legacyAnime : freshMediaTiers(),
     mangaTiers: slot === 1 ? legacyManga : freshMediaTiers(),
   }));
 };
 
-const FavouriteTierBoard: React.FC<{ items: any[]; mediaType: "anime" | "manga"; onAdd: () => void; onTiersChange?: (tiers: Tier[]) => void }> = ({ items, mediaType, onAdd, onTiersChange }) => {
-  const storageKey = mediaType === "manga" ? "anime_orbit_manga_tierlist" : "anime_orbit_tierlist";
+const FavouriteTierBoard: React.FC<{
+  items: any[];
+  mediaType: "anime" | "manga";
+  onAdd: () => void;
+  onTiersChange?: (tiers: Tier[]) => void;
+}> = ({ items, mediaType, onAdd, onTiersChange }) => {
+  const storageKey =
+    mediaType === "manga"
+      ? "anime_orbit_manga_tierlist"
+      : "anime_orbit_tierlist";
   const mediaLabel = mediaType === "manga" ? "manga" : "anime";
   const [mediaTiers, setMediaTiers] = useState<Tier[]>(() => {
     try {
@@ -115,7 +170,11 @@ const FavouriteTierBoard: React.FC<{ items: any[]; mediaType: "anime" | "manga";
   const waiting = items.filter((item) => !assigned.has(item.mal_id));
   const ranks = new Map<number, number>();
   let nextRank = 1;
-  mediaTiers.forEach((tier) => tier.animeIds.forEach((mediaId) => { if (itemMap.has(mediaId)) ranks.set(mediaId, nextRank++); }));
+  mediaTiers.forEach((tier) =>
+    tier.animeIds.forEach((mediaId) => {
+      if (itemMap.has(mediaId)) ranks.set(mediaId, nextRank++);
+    }),
+  );
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(mediaTiers));
@@ -124,29 +183,71 @@ const FavouriteTierBoard: React.FC<{ items: any[]; mediaType: "anime" | "manga";
 
   const placeInTier = (tierId: string, mediaId = selectedId) => {
     if (mediaId === null) return;
-    setMediaTiers((current) => current.map((tier) => {
-      const without = tier.animeIds.filter((id) => id !== mediaId);
-      return tier.id === tierId ? { ...tier, animeIds: [...without, mediaId] } : { ...tier, animeIds: without };
-    }));
+    setMediaTiers((current) =>
+      current.map((tier) => {
+        const without = tier.animeIds.filter((id) => id !== mediaId);
+        return tier.id === tierId
+          ? { ...tier, animeIds: [...without, mediaId] }
+          : { ...tier, animeIds: without };
+      }),
+    );
     setSelectedId(null);
   };
 
   const returnToWaiting = (mediaId: number) => {
-    setMediaTiers((current) => current.map((tier) => ({ ...tier, animeIds: tier.animeIds.filter((id) => id !== mediaId) })));
+    setMediaTiers((current) =>
+      current.map((tier) => ({
+        ...tier,
+        animeIds: tier.animeIds.filter((id) => id !== mediaId),
+      })),
+    );
     setSelectedId(null);
   };
 
   const renderCard = (item: any) => {
     const selected = selectedId === item.mal_id;
-    return <button key={item.mal_id} type="button" draggable onDragStart={(event) => event.dataTransfer.setData("text/favorite-id", String(item.mal_id))} onClick={(event) => { event.stopPropagation(); setSelectedId((current) => current === item.mal_id ? null : item.mal_id); }} className={`manga-tier-card ${selected ? "is-selected" : ""}`} aria-pressed={selected} title={`${item.title} — select to move`}>
-      {ranks.has(item.mal_id) && <span>#{ranks.get(item.mal_id)}</span>}
-      <ProgressiveImage src={item.image || item.images?.jpg?.large_image_url || item.images?.jpg?.image_url} fallbackSrc="/lost.jpg" alt="" wrapperClassName="h-full w-full" className="h-full w-full object-cover" />
-      <strong>{item.title}</strong>
-    </button>;
+    return (
+      <button
+        key={item.mal_id}
+        type="button"
+        draggable
+        onDragStart={(event) =>
+          event.dataTransfer.setData("text/favorite-id", String(item.mal_id))
+        }
+        onClick={(event) => {
+          event.stopPropagation();
+          setSelectedId((current) =>
+            current === item.mal_id ? null : item.mal_id,
+          );
+        }}
+        className={`manga-tier-card ${selected ? "is-selected" : ""}`}
+        aria-pressed={selected}
+        title={`${item.title} — select to move`}
+      >
+        {ranks.has(item.mal_id) && <span>#{ranks.get(item.mal_id)}</span>}
+        <ProgressiveImage
+          src={
+            item.image ||
+            item.images?.jpg?.large_image_url ||
+            item.images?.jpg?.image_url
+          }
+          fallbackSrc="/lost.jpg"
+          alt=""
+          wrapperClassName="h-full w-full"
+          className="h-full w-full object-cover"
+        />
+        <strong>{item.title}</strong>
+      </button>
+    );
   };
 
   const resetTiers = () => {
-    if (!window.confirm(`Reset every ${mediaLabel} tier and return all titles to Waiting?`)) return;
+    if (
+      !window.confirm(
+        `Reset every ${mediaLabel} tier and return all titles to Waiting?`,
+      )
+    )
+      return;
     setMediaTiers(freshMediaTiers());
     setSelectedId(null);
   };
@@ -154,7 +255,16 @@ const FavouriteTierBoard: React.FC<{ items: any[]; mediaType: "anime" | "manga";
     const name = newTierName.trim();
     if (!name) return;
     const colors = ["#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
-    setMediaTiers((current) => [...current, { id: `${mediaType}-tier-${Date.now()}`, name: name.toUpperCase(), color: colors[current.length % colors.length], textColor: "#fff", animeIds: [] }]);
+    setMediaTiers((current) => [
+      ...current,
+      {
+        id: `${mediaType}-tier-${Date.now()}`,
+        name: name.toUpperCase(),
+        color: colors[current.length % colors.length],
+        textColor: "#fff",
+        animeIds: [],
+      },
+    ]);
     setNewTierName("");
   };
   const moveTier = (index: number, direction: -1 | 1) => {
@@ -167,60 +277,246 @@ const FavouriteTierBoard: React.FC<{ items: any[]; mediaType: "anime" | "manga";
     });
   };
   const renameTier = (tier: Tier) => {
-    const name = window.prompt(`Rename this ${mediaLabel} tier`, tier.name)?.trim();
-    if (name) setMediaTiers((current) => current.map((item) => item.id === tier.id ? { ...item, name: name.toUpperCase() } : item));
+    const name = window
+      .prompt(`Rename this ${mediaLabel} tier`, tier.name)
+      ?.trim();
+    if (name)
+      setMediaTiers((current) =>
+        current.map((item) =>
+          item.id === tier.id ? { ...item, name: name.toUpperCase() } : item,
+        ),
+      );
   };
   const deleteTier = (tier: Tier) => {
-    if (!window.confirm(`Delete the ${tier.name} row? Its ${mediaLabel} will return to Waiting.`)) return;
+    if (
+      !window.confirm(
+        `Delete the ${tier.name} row? Its ${mediaLabel} will return to Waiting.`,
+      )
+    )
+      return;
     setMediaTiers((current) => current.filter((item) => item.id !== tier.id));
   };
 
-  return <div className="manga-tier-board space-y-4">
-    <div className="favorite-tier-guide"><span><Sparkles size={16} /></span><div><strong>Touch & click active</strong><p>Select a {mediaLabel}, then choose a tier row. Anime and manga rankings stay independent.</p></div></div>
-    {selectedId !== null && <div className="manga-tier-selection"><span>{itemMap.get(selectedId)?.title || (mediaType === "manga" ? "Manga" : "Anime")} selected</span><button type="button" onClick={() => returnToWaiting(selectedId)}>Move to waiting</button><button type="button" onClick={() => setSelectedId(null)}>Cancel</button></div>}
-    <div className="manga-tier-workspace">
-      <div className="manga-tier-main">
-        <div className="manga-tier-rows">
-          {mediaTiers.map((tier, index) => <section key={tier.id} onClick={() => placeInTier(tier.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const mediaId = Number(event.dataTransfer.getData("text/favorite-id")); if (mediaId) placeInTier(tier.id, mediaId); }} className={selectedId !== null ? "is-target" : ""}>
-            <div className="manga-tier-label" style={{ background: tier.color, color: tier.textColor }}>{tier.name}</div>
-            <div className="manga-tier-items">{tier.animeIds.map((mediaId) => itemMap.get(mediaId)).filter(Boolean).map(renderCard)}{!tier.animeIds.some((mediaId) => itemMap.has(mediaId)) && <small>{selectedId !== null ? `Place in ${tier.name}` : `No ${mediaLabel} ranked here`}</small>}</div>
-            <div className="manga-tier-row-actions" onClick={(event) => event.stopPropagation()}><button type="button" disabled={index === 0} onClick={() => moveTier(index, -1)} aria-label={`Move ${tier.name} up`}><ChevronUp size={13} /></button><button type="button" disabled={index === mediaTiers.length - 1} onClick={() => moveTier(index, 1)} aria-label={`Move ${tier.name} down`}><ChevronDown size={13} /></button><button type="button" onClick={() => renameTier(tier)} aria-label={`Rename ${tier.name}`}><Edit3 size={13} /></button><button type="button" onClick={() => deleteTier(tier)} aria-label={`Delete ${tier.name}`}><Trash2 size={13} /></button></div>
-          </section>)}
+  return (
+    <div className="manga-tier-board space-y-4">
+      <div className="favorite-tier-guide">
+        <span>
+          <Sparkles size={16} />
+        </span>
+        <div>
+          <strong>Touch & click active</strong>
+          <p>
+            Select a {mediaLabel}, then choose a tier row. Anime and manga
+            rankings stay independent.
+          </p>
         </div>
-        <div className="favorite-tier-footer"><label><span>New {mediaLabel} row</span><input value={newTierName} maxLength={18} onChange={(event) => setNewTierName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") addTier(); }} placeholder="Row name" /></label><button type="button" onClick={addTier} disabled={!newTierName.trim()}><Plus size={14} />Add row</button><button type="button" className="is-muted" onClick={resetTiers}><RotateCcw size={14} />Reset tiers</button></div>
       </div>
-      <section className="manga-tier-waiting" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const mediaId = Number(event.dataTransfer.getData("text/favorite-id")); if (mediaId) returnToWaiting(mediaId); }}><div><span>Waiting list</span><strong>{waiting.length}</strong><button type="button" onClick={onAdd} aria-label={`Add ${mediaLabel}`}><Plus size={13} /></button></div><div>{waiting.map(renderCard)}{waiting.length === 0 && <small>Every favorite {mediaLabel} has a tier.</small>}</div></section>
+      {selectedId !== null && (
+        <div className="manga-tier-selection">
+          <span>
+            {itemMap.get(selectedId)?.title ||
+              (mediaType === "manga" ? "Manga" : "Anime")}{" "}
+            selected
+          </span>
+          <button type="button" onClick={() => returnToWaiting(selectedId)}>
+            Move to waiting
+          </button>
+          <button type="button" onClick={() => setSelectedId(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
+      <div className="manga-tier-workspace">
+        <div className="manga-tier-main">
+          <div className="manga-tier-rows">
+            {mediaTiers.map((tier, index) => (
+              <section
+                key={tier.id}
+                onClick={() => placeInTier(tier.id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const mediaId = Number(
+                    event.dataTransfer.getData("text/favorite-id"),
+                  );
+                  if (mediaId) placeInTier(tier.id, mediaId);
+                }}
+                className={selectedId !== null ? "is-target" : ""}
+              >
+                <div
+                  className="manga-tier-label"
+                  style={{ background: tier.color, color: tier.textColor }}
+                >
+                  {tier.name}
+                </div>
+                <div className="manga-tier-items">
+                  {tier.animeIds
+                    .map((mediaId) => itemMap.get(mediaId))
+                    .filter(Boolean)
+                    .map(renderCard)}
+                  {!tier.animeIds.some((mediaId) => itemMap.has(mediaId)) && (
+                    <small>
+                      {selectedId !== null
+                        ? `Place in ${tier.name}`
+                        : `No ${mediaLabel} ranked here`}
+                    </small>
+                  )}
+                </div>
+                <div
+                  className="manga-tier-row-actions"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    onClick={() => moveTier(index, -1)}
+                    aria-label={`Move ${tier.name} up`}
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === mediaTiers.length - 1}
+                    onClick={() => moveTier(index, 1)}
+                    aria-label={`Move ${tier.name} down`}
+                  >
+                    <ChevronDown size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => renameTier(tier)}
+                    aria-label={`Rename ${tier.name}`}
+                  >
+                    <Edit3 size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteTier(tier)}
+                    aria-label={`Delete ${tier.name}`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </section>
+            ))}
+          </div>
+          <div className="favorite-tier-footer">
+            <label>
+              <span>New {mediaLabel} row</span>
+              <input
+                value={newTierName}
+                maxLength={18}
+                onChange={(event) => setNewTierName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") addTier();
+                }}
+                placeholder="Row name"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={addTier}
+              disabled={!newTierName.trim()}
+            >
+              <Plus size={14} />
+              Add row
+            </button>
+            <button type="button" className="is-muted" onClick={resetTiers}>
+              <RotateCcw size={14} />
+              Reset tiers
+            </button>
+          </div>
+        </div>
+        <section
+          className="manga-tier-waiting"
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => {
+            event.preventDefault();
+            const mediaId = Number(
+              event.dataTransfer.getData("text/favorite-id"),
+            );
+            if (mediaId) returnToWaiting(mediaId);
+          }}
+        >
+          <div>
+            <span>Waiting list</span>
+            <strong>{waiting.length}</strong>
+            <button
+              type="button"
+              onClick={onAdd}
+              aria-label={`Add ${mediaLabel}`}
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+          <div>
+            {waiting.map(renderCard)}
+            {waiting.length === 0 && (
+              <small>Every favorite {mediaLabel} has a tier.</small>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
-  </div>;
+  );
 };
 
 export const Favourites: React.FC = () => {
-  const { favourites, mangaFavourites, deletedFavourites, addToFavourites, addMangaToFavourites, removeFromFavourites, removeMangaFromFavourites, restoreFavourite, permanentlyDeleteFavourite, loading } = useFavourites();
+  const {
+    favourites,
+    mangaFavourites,
+    deletedFavourites,
+    addToFavourites,
+    addMangaToFavourites,
+    bulkAddFavourites,
+    removeFromFavourites,
+    removeMangaFromFavourites,
+    restoreFavourite,
+    permanentlyDeleteFavourite,
+    loading,
+  } = useFavourites();
   const { currentUser } = useAuth();
   const { popularAnime, topAiringAnime } = useGlobalContext();
   const { watchlist, mangaWatchlist } = useWatchlist();
   const publicShareOwner = usePublicShareOwner();
 
   const [viewMode, setViewMode] = useState<"grid" | "tier">("tier");
+  const [favoriteMedia, setFavoriteMedia] = useState<"anime" | "manga">(
+    "anime",
+  );
   const [tierSheets, setTierSheets] = useState<TierSheet[]>(createTierSheets);
-  const [activeSheetId, setActiveSheetId] = useState<TierSheet["id"]>("slot-1");
+  const [activeSheetIds, setActiveSheetIds] = useState<
+    Record<"anime" | "manga", TierSheet["id"]>
+  >({ anime: "slot-1", manga: "slot-1" });
   const [tierSheetsHydrated, setTierSheetsHydrated] = useState(false);
   const [renamingSheet, setRenamingSheet] = useState(false);
   const [sheetNameDraft, setSheetNameDraft] = useState("");
-  const activeSheet = tierSheets.find((sheet) => sheet.id === activeSheetId) || tierSheets[0];
+  const activeSheetId = activeSheetIds[favoriteMedia];
+  const activeSheet =
+    tierSheets.find((sheet) => sheet.id === activeSheetId) || tierSheets[0];
+  const activeSheetName =
+    favoriteMedia === "manga" ? activeSheet.mangaName : activeSheet.animeName;
   const tiers = activeSheet?.animeTiers || freshMediaTiers();
   const mangaTiers = activeSheet?.mangaTiers || freshMediaTiers();
 
-  const updateSheetTiers = (key: "animeTiers" | "mangaTiers", updater: React.SetStateAction<Tier[]>) => {
-    setTierSheets((current) => current.map((sheet) => {
-      if (sheet.id !== activeSheetId) return sheet;
-      const previous = sheet[key];
-      const next = typeof updater === "function" ? updater(previous) : updater;
-      return { ...sheet, [key]: cloneTiers(next) };
-    }));
+  const updateSheetTiers = (
+    key: "animeTiers" | "mangaTiers",
+    updater: React.SetStateAction<Tier[]>,
+  ) => {
+    setTierSheets((current) =>
+      current.map((sheet) => {
+        if (sheet.id !== activeSheetId) return sheet;
+        const previous = sheet[key];
+        const next =
+          typeof updater === "function" ? updater(previous) : updater;
+        return { ...sheet, [key]: cloneTiers(next) };
+      }),
+    );
   };
-  const setTiers = (updater: React.SetStateAction<Tier[]>) => updateSheetTiers("animeTiers", updater);
-  const setMangaTiers = (updater: React.SetStateAction<Tier[]>) => updateSheetTiers("mangaTiers", updater);
+  const setTiers = (updater: React.SetStateAction<Tier[]>) =>
+    updateSheetTiers("animeTiers", updater);
+  const setMangaTiers = (updater: React.SetStateAction<Tier[]>) =>
+    updateSheetTiers("mangaTiers", updater);
 
   // Custom user notes and nicknames for ranked anime
   const [customNotes, setCustomNotes] = useState<Record<number, string>>(() => {
@@ -234,9 +530,13 @@ export const Favourites: React.FC = () => {
     }
     return {};
   });
-  const [mangaCustomNotes, setMangaCustomNotes] = useState<Record<number, string>>(() => {
+  const [mangaCustomNotes, setMangaCustomNotes] = useState<
+    Record<number, string>
+  >(() => {
     try {
-      return JSON.parse(localStorage.getItem("anime_orbit_manga_tier_notes") || "{}");
+      return JSON.parse(
+        localStorage.getItem("anime_orbit_manga_tier_notes") || "{}",
+      );
     } catch {
       return {};
     }
@@ -266,12 +566,16 @@ export const Favourites: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [favoriteMedia, setFavoriteMedia] = useState<"anime" | "manga">("anime");
   const [trashOpen, setTrashOpen] = useState(false);
-  const visibleDeletedFavourites = deletedFavourites.filter((item) => favoriteMedia === "manga" ? item.mediaType === "MANGA" : item.mediaType !== "MANGA");
+  const visibleDeletedFavourites = deletedFavourites.filter((item) =>
+    favoriteMedia === "manga"
+      ? item.mediaType === "MANGA"
+      : item.mediaType !== "MANGA",
+  );
   const [mergeFranchises, setMergeFranchises] = useState(false);
   const [franchiseGroups, setFranchiseGroups] = useState<any[]>([]);
   const [franchiseLoading, setFranchiseLoading] = useState(false);
+  const [importingWatchlist, setImportingWatchlist] = useState(false);
 
   const autoScrollTimer = useRef<number | null>(null);
 
@@ -288,38 +592,83 @@ export const Favourites: React.FC = () => {
       if (Array.isArray(saved) && saved.length) {
         seed = createTierSheets().map((base) => {
           const match = saved.find((entry: any) => entry?.id === base.id);
-          return match ? {
-            ...base,
-            name: String(match.name || base.name).trim().slice(0, 40) || base.name,
-            animeTiers: Array.isArray(match.animeTiers) ? cloneTiers(match.animeTiers) : base.animeTiers,
-            mangaTiers: Array.isArray(match.mangaTiers) ? cloneTiers(match.mangaTiers) : base.mangaTiers,
-          } : base;
+          return match
+            ? {
+                ...base,
+                animeName:
+                  String(match.animeName || match.name || base.animeName)
+                    .trim()
+                    .slice(0, 40) || base.animeName,
+                mangaName:
+                  String(match.mangaName || match.name || base.mangaName)
+                    .trim()
+                    .slice(0, 40) || base.mangaName,
+                animeTiers: Array.isArray(match.animeTiers)
+                  ? cloneTiers(match.animeTiers)
+                  : base.animeTiers,
+                mangaTiers: Array.isArray(match.mangaTiers)
+                  ? cloneTiers(match.mangaTiers)
+                  : base.mangaTiers,
+              }
+            : base;
         });
       }
-      const savedActive = localStorage.getItem(activeStorageKey);
-      if (/^slot-[1-5]$/.test(savedActive || "")) setActiveSheetId(savedActive as TierSheet["id"]);
+      const legacyActive = localStorage.getItem(activeStorageKey);
+      const savedAnimeActive =
+        localStorage.getItem(`${activeStorageKey}_anime`) || legacyActive;
+      const savedMangaActive =
+        localStorage.getItem(`${activeStorageKey}_manga`) || legacyActive;
+      setActiveSheetIds({
+        anime: /^slot-[1-5]$/.test(savedAnimeActive || "")
+          ? (savedAnimeActive as TierSheet["id"])
+          : "slot-1",
+        manga: /^slot-[1-5]$/.test(savedMangaActive || "")
+          ? (savedMangaActive as TierSheet["id"])
+          : "slot-1",
+      });
     } catch {
       // A malformed local snapshot is replaced by the safe five-sheet model.
     }
     setTierSheets(seed);
     setTierSheetsHydrated(false);
 
-    const unsubscribe = onSnapshot(collection(db, "users", currentUser.uid, "tierSheets"), (snapshot) => {
-      if (!snapshot.empty) {
-        const remote = new Map(snapshot.docs.map((entry) => [entry.id, entry.data()]));
-        const next = createTierSheets().map((base) => {
-          const match: any = remote.get(base.id);
-          return match ? {
-            ...base,
-            name: String(match.name || base.name).trim().slice(0, 40) || base.name,
-            animeTiers: Array.isArray(match.animeTiers) ? cloneTiers(match.animeTiers) : base.animeTiers,
-            mangaTiers: Array.isArray(match.mangaTiers) ? cloneTiers(match.mangaTiers) : base.mangaTiers,
-          } : base;
-        });
-        setTierSheets((current) => JSON.stringify(current) === JSON.stringify(next) ? current : next);
-      }
-      setTierSheetsHydrated(true);
-    }, () => setTierSheetsHydrated(true));
+    const unsubscribe = onSnapshot(
+      collection(db, "users", currentUser.uid, "tierSheets"),
+      (snapshot) => {
+        if (!snapshot.empty) {
+          const remote = new Map(
+            snapshot.docs.map((entry) => [entry.id, entry.data()]),
+          );
+          const next = createTierSheets().map((base) => {
+            const match: any = remote.get(base.id);
+            return match
+              ? {
+                  ...base,
+                  animeName:
+                    String(match.animeName || match.name || base.animeName)
+                      .trim()
+                      .slice(0, 40) || base.animeName,
+                  mangaName:
+                    String(match.mangaName || match.name || base.mangaName)
+                      .trim()
+                      .slice(0, 40) || base.mangaName,
+                  animeTiers: Array.isArray(match.animeTiers)
+                    ? cloneTiers(match.animeTiers)
+                    : base.animeTiers,
+                  mangaTiers: Array.isArray(match.mangaTiers)
+                    ? cloneTiers(match.mangaTiers)
+                    : base.mangaTiers,
+                }
+              : base;
+          });
+          setTierSheets((current) =>
+            JSON.stringify(current) === JSON.stringify(next) ? current : next,
+          );
+        }
+        setTierSheetsHydrated(true);
+      },
+      () => setTierSheetsHydrated(true),
+    );
     return unsubscribe;
   }, [currentUser]);
 
@@ -327,25 +676,55 @@ export const Favourites: React.FC = () => {
     if (!currentUser || !tierSheetsHydrated) return;
     const storageKey = `anime_orbit_tier_sheets_${currentUser.uid}`;
     localStorage.setItem(storageKey, JSON.stringify(tierSheets));
-    localStorage.setItem(`${storageKey}_active`, activeSheetId);
+    localStorage.setItem(`${storageKey}_active_anime`, activeSheetIds.anime);
+    localStorage.setItem(`${storageKey}_active_manga`, activeSheetIds.manga);
     localStorage.setItem("anime_orbit_tierlist", JSON.stringify(tiers));
-    localStorage.setItem("anime_orbit_manga_tierlist", JSON.stringify(mangaTiers));
+    localStorage.setItem(
+      "anime_orbit_manga_tierlist",
+      JSON.stringify(mangaTiers),
+    );
     const timer = window.setTimeout(() => {
-      void Promise.all(tierSheets.slice(0, 5).map((sheet) => setDoc(
-        doc(db, "users", currentUser.uid, "tierSheets", sheet.id),
-        { name: sheet.name, animeTiers: sheet.animeTiers, mangaTiers: sheet.mangaTiers, updatedAt: new Date().toISOString() },
-        { merge: true },
-      ))).catch(() => toast.error("Tier sheets could not sync. Your local copy is still saved."));
+      void Promise.all(
+        tierSheets
+          .slice(0, 5)
+          .map((sheet) =>
+            setDoc(
+              doc(db, "users", currentUser.uid, "tierSheets", sheet.id),
+              {
+                animeName: sheet.animeName,
+                mangaName: sheet.mangaName,
+                animeTiers: sheet.animeTiers,
+                mangaTiers: sheet.mangaTiers,
+                updatedAt: new Date().toISOString(),
+              },
+              { merge: true },
+            ),
+          ),
+      ).catch(() =>
+        toast.error(
+          "Tier sheets could not sync. Your local copy is still saved.",
+        ),
+      );
     }, 700);
     return () => window.clearTimeout(timer);
-  }, [tierSheets, activeSheetId, currentUser, tierSheetsHydrated, tiers, mangaTiers]);
+  }, [
+    tierSheets,
+    activeSheetIds,
+    currentUser,
+    tierSheetsHydrated,
+    tiers,
+    mangaTiers,
+  ]);
 
   useEffect(() => {
     localStorage.setItem("anime_orbit_tier_notes", JSON.stringify(customNotes));
   }, [customNotes]);
 
   useEffect(() => {
-    localStorage.setItem("anime_orbit_manga_tier_notes", JSON.stringify(mangaCustomNotes));
+    localStorage.setItem(
+      "anime_orbit_manga_tier_notes",
+      JSON.stringify(mangaCustomNotes),
+    );
   }, [mangaCustomNotes]);
 
   useEffect(() => {
@@ -376,13 +755,22 @@ export const Favourites: React.FC = () => {
   // Clean up auto scroll timer on unmount
   useEffect(() => {
     return () => {
-      if (autoScrollTimer.current) cancelAnimationFrame(autoScrollTimer.current);
+      if (autoScrollTimer.current)
+        cancelAnimationFrame(autoScrollTimer.current);
     };
   }, []);
 
   // Lock body scroll when modals/dialogs are open
   useEffect(() => {
-    if (showAddTierModal || showAddAnimeModal || showAddMangaModal || editingAnimeId !== null || editingTier !== null || shareModalOpen || authModalOpen) {
+    if (
+      showAddTierModal ||
+      showAddAnimeModal ||
+      showAddMangaModal ||
+      editingAnimeId !== null ||
+      editingTier !== null ||
+      shareModalOpen ||
+      authModalOpen
+    ) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -390,46 +778,78 @@ export const Favourites: React.FC = () => {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showAddTierModal, showAddAnimeModal, showAddMangaModal, editingAnimeId, editingTier, shareModalOpen, authModalOpen]);
+  }, [
+    showAddTierModal,
+    showAddAnimeModal,
+    showAddMangaModal,
+    editingAnimeId,
+    editingTier,
+    shareModalOpen,
+    authModalOpen,
+  ]);
 
   useEffect(() => {
     if (!showAddAnimeModal) return;
     let active = true;
-    const timer = window.setTimeout(async () => {
-      setAnimeCandidatesLoading(true);
-      try {
-        const result = animeSearchQuery.trim().length >= 1
-          ? await searchAnime(animeSearchQuery.trim(), 18)
-          : [...(popularAnime || []), ...(topAiringAnime || [])].slice(0, 18);
-        const list = Array.isArray(result) ? result : result?.media || [];
-        if (active) setAnimeCandidates(list.filter((item: any, index: number, all: any[]) => all.findIndex((entry) => entry.mal_id === item.mal_id) === index));
-      } catch {
-        if (active) setAnimeCandidates([]);
-      } finally {
-        if (active) setAnimeCandidatesLoading(false);
-      }
-    }, animeSearchQuery.trim() ? 250 : 0);
-    return () => { active = false; window.clearTimeout(timer); };
+    const timer = window.setTimeout(
+      async () => {
+        setAnimeCandidatesLoading(true);
+        try {
+          const result =
+            animeSearchQuery.trim().length >= 1
+              ? await searchAnime(animeSearchQuery.trim(), 18)
+              : [...(popularAnime || []), ...(topAiringAnime || [])].slice(
+                  0,
+                  18,
+                );
+          const list = Array.isArray(result) ? result : result?.media || [];
+          if (active)
+            setAnimeCandidates(
+              list.filter(
+                (item: any, index: number, all: any[]) =>
+                  all.findIndex((entry) => entry.mal_id === item.mal_id) ===
+                  index,
+              ),
+            );
+        } catch {
+          if (active) setAnimeCandidates([]);
+        } finally {
+          if (active) setAnimeCandidatesLoading(false);
+        }
+      },
+      animeSearchQuery.trim() ? 250 : 0,
+    );
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [showAddAnimeModal, animeSearchQuery, popularAnime, topAiringAnime]);
 
   useEffect(() => {
     if (!showAddMangaModal) return;
     let active = true;
-    const timer = window.setTimeout(async () => {
-      setMangaCandidatesLoading(true);
-      try {
-        const result = mangaSearchQuery.trim().length >= 1
-          ? await searchManga(mangaSearchQuery.trim(), 18)
-          : await getPopularManga(1, 18, "POPULARITY_DESC");
-        const list = Array.isArray(result) ? result : result?.media || [];
-        if (active) setMangaCandidates(list);
-      } catch {
-        if (active) setMangaCandidates([]);
-      } finally {
-        if (active) setMangaCandidatesLoading(false);
-      }
-    }, mangaSearchQuery.trim() ? 300 : 0);
-    return () => { active = false; window.clearTimeout(timer); };
+    const timer = window.setTimeout(
+      async () => {
+        setMangaCandidatesLoading(true);
+        try {
+          const result =
+            mangaSearchQuery.trim().length >= 1
+              ? await searchManga(mangaSearchQuery.trim(), 18)
+              : await getPopularManga(1, 18, "POPULARITY_DESC");
+          const list = Array.isArray(result) ? result : result?.media || [];
+          if (active) setMangaCandidates(list);
+        } catch {
+          if (active) setMangaCandidates([]);
+        } finally {
+          if (active) setMangaCandidatesLoading(false);
+        }
+      },
+      mangaSearchQuery.trim() ? 300 : 0,
+    );
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [showAddMangaModal, mangaSearchQuery]);
 
   if (!currentUser) {
@@ -441,7 +861,8 @@ export const Favourites: React.FC = () => {
             My Favorite Anime & Tier List
           </h2>
           <p className="text-neutral-400 text-sm max-w-md mx-auto">
-            Sign in to view and curate your personal collection of favorite anime series and build your interactive Tier List.
+            Sign in to view and curate your personal collection of favorite
+            anime series and build your interactive Tier List.
           </p>
           <button
             onClick={() => setAuthModalOpen(true)}
@@ -450,7 +871,10 @@ export const Favourites: React.FC = () => {
             <LogIn size={16} />
             <span>Sign In to View Favorites</span>
           </button>
-          <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+          <AuthModal
+            isOpen={authModalOpen}
+            onClose={() => setAuthModalOpen(false)}
+          />
         </div>
         <Footer />
       </div>
@@ -468,32 +892,81 @@ export const Favourites: React.FC = () => {
 
   // Determine unassigned pool
   const assignedIds = new Set(tiers.flatMap((t) => t.animeIds));
-  const unassignedAnime = favourites.filter((item) => !assignedIds.has(item.mal_id));
-  const gridItems = [...favourites].sort((a, b) => (linearRankMap.get(a.mal_id) || Number.MAX_SAFE_INTEGER) - (linearRankMap.get(b.mal_id) || Number.MAX_SAFE_INTEGER));
-  const gridRankMap = new Map(gridItems.map((item, index) => [item.mal_id, index + 1]));
+  const unassignedAnime = favourites.filter(
+    (item) => !assignedIds.has(item.mal_id),
+  );
+  const gridItems = [...favourites].sort(
+    (a, b) =>
+      (linearRankMap.get(a.mal_id) || Number.MAX_SAFE_INTEGER) -
+      (linearRankMap.get(b.mal_id) || Number.MAX_SAFE_INTEGER),
+  );
+  const gridRankMap = new Map(
+    gridItems.map((item, index) => [item.mal_id, index + 1]),
+  );
   const savedMangaTierOrder = mangaTiers.flatMap((tier) => tier.animeIds || []);
-  const mangaOrder = new Map(savedMangaTierOrder.map((mediaId, index) => [mediaId, index]));
-  const mangaGridItems = [...mangaFavourites].sort((a, b) => (mangaOrder.get(a.mal_id) ?? Number.MAX_SAFE_INTEGER) - (mangaOrder.get(b.mal_id) ?? Number.MAX_SAFE_INTEGER));
-  const activeGridItems = favoriteMedia === "manga" ? mangaGridItems : gridItems;
-  const activeGridRanks = new Map(activeGridItems.map((item, index) => [item.mal_id, index + 1]));
+  const mangaOrder = new Map(
+    savedMangaTierOrder.map((mediaId, index) => [mediaId, index]),
+  );
+  const mangaGridItems = [...mangaFavourites].sort(
+    (a, b) =>
+      (mangaOrder.get(a.mal_id) ?? Number.MAX_SAFE_INTEGER) -
+      (mangaOrder.get(b.mal_id) ?? Number.MAX_SAFE_INTEGER),
+  );
+  const activeGridItems =
+    favoriteMedia === "manga" ? mangaGridItems : gridItems;
+  const activeGridRanks = new Map(
+    activeGridItems.map((item, index) => [item.mal_id, index + 1]),
+  );
 
   // Map of all available favorites for quick lookup
   const favMap = new Map(favourites.map((f) => [f.mal_id, f]));
-  const activeFavourites = favoriteMedia === "manga" ? mangaFavourites : favourites;
+  const activeFavourites =
+    favoriteMedia === "manga" ? mangaFavourites : favourites;
   const activeTiers = favoriteMedia === "manga" ? mangaTiers : tiers;
-  const activeNotes = favoriteMedia === "manga" ? mangaCustomNotes : customNotes;
+  const activeNotes =
+    favoriteMedia === "manga" ? mangaCustomNotes : customNotes;
   const activeUserScores = new Map(
-    (favoriteMedia === "manga" ? mangaWatchlist : watchlist)
-      .map((item) => [Number(item.mal_id), Number(item.userScore || 0)]),
+    (favoriteMedia === "manga" ? mangaWatchlist : watchlist).map((item) => [
+      Number(item.mal_id),
+      Number(item.userScore || 0),
+    ]),
   );
-  const activeFavMap = new Map(activeFavourites.map((item) => [item.mal_id, item]));
+  const activeFavMap = new Map(
+    activeFavourites.map((item) => [item.mal_id, item]),
+  );
   const activeRankMap = new Map<number, number>();
   let activeRank = 1;
-  activeTiers.forEach((tier) => tier.animeIds.forEach((mediaId) => {
-    if (activeFavMap.has(mediaId)) activeRankMap.set(mediaId, activeRank++);
-  }));
-  const activeAssignedIds = new Set(activeTiers.flatMap((tier) => tier.animeIds));
-  const activeUnassigned = activeFavourites.filter((item) => !activeAssignedIds.has(item.mal_id));
+  activeTiers.forEach((tier) =>
+    tier.animeIds.forEach((mediaId) => {
+      if (activeFavMap.has(mediaId)) activeRankMap.set(mediaId, activeRank++);
+    }),
+  );
+  const activeAssignedIds = new Set(
+    activeTiers.flatMap((tier) => tier.animeIds),
+  );
+  const activeUnassigned = activeFavourites.filter(
+    (item) => !activeAssignedIds.has(item.mal_id),
+  );
+  const activeTrackedItems =
+    favoriteMedia === "manga" ? mangaWatchlist : watchlist;
+  const favoriteIds = new Set(
+    activeFavourites.map((item) => Number(item.mal_id)),
+  );
+  const importableTrackedItems = activeTrackedItems.filter(
+    (item) => !favoriteIds.has(Number(item.mal_id)),
+  );
+  const importTrackedFavorites = async () => {
+    if (!importableTrackedItems.length || importingWatchlist) return;
+    setImportingWatchlist(true);
+    try {
+      await bulkAddFavourites(
+        importableTrackedItems,
+        favoriteMedia === "manga" ? "MANGA" : "ANIME",
+      );
+    } finally {
+      setImportingWatchlist(false);
+    }
+  };
   const updateActiveTiers = (updater: React.SetStateAction<Tier[]>) => {
     if (favoriteMedia === "manga") setMangaTiers(updater);
     else setTiers(updater);
@@ -503,54 +976,78 @@ export const Favourites: React.FC = () => {
   const franchiseTierRows = (() => {
     if (!mergeFranchises) return [];
     const used = new Set<number>();
-    const summaries: any[] = franchiseGroups.map((group) => {
-      const memberIds = (group.memberIds || []).filter((id: number) => favMap.has(id));
-      memberIds.forEach((id: number) => used.add(id));
-      const members = memberIds.map((id: number) => favMap.get(id)).filter(Boolean);
-      const rankedMembers = memberIds
-        .map((id: number) => ({ id, rank: linearRankMap.get(id) || Number.MAX_SAFE_INTEGER }))
-        .sort((a: any, b: any) => a.rank - b.rank);
-      const leadId = rankedMembers[0]?.id || memberIds[0];
-      const tier = tiers.find((candidate) => candidate.animeIds.some((id) => memberIds.includes(id)));
-      const notes = memberIds
-        .map((id: number) => ({
-          title: favMap.get(id)?.title || favMap.get(id)?.title_english || "Anime",
-          note: customNotes[id],
-        }))
-        .filter((entry: any) => entry.note);
-      return {
-        ...group,
-        mal_id: leadId || group.mal_id,
-        title: favMap.get(leadId)?.title || group.title,
-        tierId: tier?.id || "unranked",
-        members,
-        memberIds,
-        notes,
-        rank: leadId ? linearRankMap.get(leadId) : undefined,
-      };
-    }).filter((group) => group.memberIds.length > 0);
+    const summaries: any[] = franchiseGroups
+      .map((group) => {
+        const memberIds = (group.memberIds || []).filter((id: number) =>
+          favMap.has(id),
+        );
+        memberIds.forEach((id: number) => used.add(id));
+        const members = memberIds
+          .map((id: number) => favMap.get(id))
+          .filter(Boolean);
+        const rankedMembers = memberIds
+          .map((id: number) => ({
+            id,
+            rank: linearRankMap.get(id) || Number.MAX_SAFE_INTEGER,
+          }))
+          .sort((a: any, b: any) => a.rank - b.rank);
+        const leadId = rankedMembers[0]?.id || memberIds[0];
+        const tier = tiers.find((candidate) =>
+          candidate.animeIds.some((id) => memberIds.includes(id)),
+        );
+        const notes = memberIds
+          .map((id: number) => ({
+            title:
+              favMap.get(id)?.title || favMap.get(id)?.title_english || "Anime",
+            note: customNotes[id],
+          }))
+          .filter((entry: any) => entry.note);
+        return {
+          ...group,
+          mal_id: leadId || group.mal_id,
+          title: favMap.get(leadId)?.title || group.title,
+          tierId: tier?.id || "unranked",
+          members,
+          memberIds,
+          notes,
+          rank: leadId ? linearRankMap.get(leadId) : undefined,
+        };
+      })
+      .filter((group) => group.memberIds.length > 0);
 
     favourites.forEach((favorite) => {
       if (used.has(favorite.mal_id)) return;
-      const tier = tiers.find((candidate) => candidate.animeIds.includes(favorite.mal_id));
+      const tier = tiers.find((candidate) =>
+        candidate.animeIds.includes(favorite.mal_id),
+      );
       summaries.push({
         mal_id: favorite.mal_id,
         title: favorite.title || favorite.title_english,
-        images: (favorite as any).images || { jpg: { large_image_url: favorite.image } },
+        images: (favorite as any).images || {
+          jpg: { large_image_url: favorite.image },
+        },
         score: favorite.score,
         franchiseEntries: 1,
         memberIds: [favorite.mal_id],
         members: [favorite],
         tierId: tier?.id || "unranked",
         notes: customNotes[favorite.mal_id]
-          ? [{ title: favorite.title || favorite.title_english || "Anime", note: customNotes[favorite.mal_id] }]
+          ? [
+              {
+                title: favorite.title || favorite.title_english || "Anime",
+                note: customNotes[favorite.mal_id],
+              },
+            ]
           : [],
         rank: linearRankMap.get(favorite.mal_id),
       });
     });
 
     return [
-      ...tiers.map((tier) => ({ ...tier, groups: summaries.filter((group) => group.tierId === tier.id) })),
+      ...tiers.map((tier) => ({
+        ...tier,
+        groups: summaries.filter((group) => group.tierId === tier.id),
+      })),
       {
         id: "unranked",
         name: "Waiting",
@@ -583,8 +1080,14 @@ export const Favourites: React.FC = () => {
       e.preventDefault();
       e.stopPropagation();
     }
-    const transferId = e ? parseInt(e.dataTransfer.getData("text/plain"), 10) : NaN;
-    const idToMove = !isNaN(transferId) ? transferId : (draggedAnimeId !== null ? draggedAnimeId : selectedAnimeId);
+    const transferId = e
+      ? parseInt(e.dataTransfer.getData("text/plain"), 10)
+      : NaN;
+    const idToMove = !isNaN(transferId)
+      ? transferId
+      : draggedAnimeId !== null
+        ? draggedAnimeId
+        : selectedAnimeId;
     if (idToMove === null || isNaN(idToMove)) return;
 
     updateActiveTiers((prev) =>
@@ -594,7 +1097,7 @@ export const Favourites: React.FC = () => {
           return { ...tier, animeIds: [...filtered, idToMove] };
         }
         return { ...tier, animeIds: filtered };
-      })
+      }),
     );
     setDraggedAnimeId(null);
     setSelectedAnimeId(null);
@@ -605,15 +1108,21 @@ export const Favourites: React.FC = () => {
       e.preventDefault();
       e.stopPropagation();
     }
-    const transferId = e ? parseInt(e.dataTransfer.getData("text/plain"), 10) : NaN;
-    const idToMove = !isNaN(transferId) ? transferId : (draggedAnimeId !== null ? draggedAnimeId : selectedAnimeId);
+    const transferId = e
+      ? parseInt(e.dataTransfer.getData("text/plain"), 10)
+      : NaN;
+    const idToMove = !isNaN(transferId)
+      ? transferId
+      : draggedAnimeId !== null
+        ? draggedAnimeId
+        : selectedAnimeId;
     if (idToMove === null || isNaN(idToMove)) return;
 
     updateActiveTiers((prev) =>
       prev.map((tier) => ({
         ...tier,
         animeIds: tier.animeIds.filter((id) => id !== idToMove),
-      }))
+      })),
     );
     setDraggedAnimeId(null);
     setSelectedAnimeId(null);
@@ -698,7 +1207,7 @@ export const Favourites: React.FC = () => {
           return { ...tier, animeIds: [...filtered, animeId] };
         }
         return { ...tier, animeIds: filtered };
-      })
+      }),
     );
     setSelectedAnimeId(null);
     setEditingAnimeId(null);
@@ -745,9 +1254,13 @@ export const Favourites: React.FC = () => {
     updateActiveTiers((prev) =>
       prev.map((t) =>
         t.id === editingTier.id
-          ? { ...t, name: editTierName.trim().toUpperCase(), color: editTierColor }
-          : t
-      )
+          ? {
+              ...t,
+              name: editTierName.trim().toUpperCase(),
+              color: editTierColor,
+            }
+          : t,
+      ),
     );
     setEditingTier(null);
   };
@@ -757,14 +1270,27 @@ export const Favourites: React.FC = () => {
   };
 
   const handleResetTiers = () => {
-    if (!window.confirm(`Reset every ${favoriteMedia} tier and return all favorites to the Waiting List?`)) return;
+    if (
+      !window.confirm(
+        `Reset every ${favoriteMedia} tier and return all favorites to the Waiting List?`,
+      )
+    )
+      return;
     updateActiveTiers(freshMediaTiers());
     setSelectedAnimeId(null);
   };
 
   const handleSaveNote = (animeId: number) => {
-    if (favoriteMedia === "manga") setMangaCustomNotes((prev) => ({ ...prev, [animeId]: editingNoteText.trim() }));
-    else setCustomNotes((prev) => ({ ...prev, [animeId]: editingNoteText.trim() }));
+    if (favoriteMedia === "manga")
+      setMangaCustomNotes((prev) => ({
+        ...prev,
+        [animeId]: editingNoteText.trim(),
+      }));
+    else
+      setCustomNotes((prev) => ({
+        ...prev,
+        [animeId]: editingNoteText.trim(),
+      }));
     setEditingAnimeId(null);
     toast.success("Note saved!");
   };
@@ -821,7 +1347,7 @@ export const Favourites: React.FC = () => {
       favoriteMedia,
       activeUserScores,
       publicShareOwner,
-      activeSheet.name,
+      activeSheetName,
     );
     return `${window.location.origin}/shared-favourites#${encodeSharedFavourites(payload)}`;
   };
@@ -845,7 +1371,7 @@ export const Favourites: React.FC = () => {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${activeSheet.name} - ${mediaLabel} Favourites`,
+          title: `${activeSheetName} - ${mediaLabel} Favourites`,
           text: `${activeFavourites.length} ranked favourites from Anime Orbit`,
           url,
         });
@@ -884,20 +1410,27 @@ export const Favourites: React.FC = () => {
   // Filter pool candidates for Add Anime to Pool modal
   const poolCandidates = animeCandidates;
   const startRenamingActiveSheet = () => {
-    setSheetNameDraft(activeSheet.name);
+    setSheetNameDraft(activeSheetName);
     setRenamingSheet(true);
   };
   const saveActiveSheetName = () => {
     const nextName = sheetNameDraft.trim();
     if (!nextName) return;
-    setTierSheets((current) => current.map((sheet) => sheet.id === activeSheetId ? { ...sheet, name: nextName.slice(0, 40) } : sheet));
+    const nameKey = favoriteMedia === "manga" ? "mangaName" : "animeName";
+    setTierSheets((current) =>
+      current.map((sheet) =>
+        sheet.id === activeSheetId
+          ? { ...sheet, [nameKey]: nextName.slice(0, 40) }
+          : sheet,
+      ),
+    );
     setRenamingSheet(false);
   };
   const selectTierSheet = (sheetId: TierSheet["id"]) => {
     setSelectedAnimeId(null);
     setDraggedAnimeId(null);
     setRenamingSheet(false);
-    setActiveSheetId(sheetId);
+    setActiveSheetIds((current) => ({ ...current, [favoriteMedia]: sheetId }));
   };
 
   return (
@@ -919,23 +1452,58 @@ export const Favourites: React.FC = () => {
               Favorites
             </h1>
             <span className="text-xs font-bold text-neutral-400 bg-white/5 border border-white/10 px-3 py-1 rounded-full">
-              {favoriteMedia === "anime" ? `${favourites.length} Anime` : `${mangaFavourites.length} Manga`}
+              {favoriteMedia === "anime"
+                ? `${favourites.length} Anime`
+                : `${mangaFavourites.length} Manga`}
             </span>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="flex rounded-full border border-white/10 bg-white/5 p-1 text-xs font-bold">
-              <button type="button" onClick={() => { setSelectedAnimeId(null); setFavoriteMedia("anime"); }} className={`rounded-full px-4 py-1.5 ${favoriteMedia === "anime" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Anime</button>
-              <button type="button" onClick={() => { setSelectedAnimeId(null); setFavoriteMedia("manga"); setMergeFranchises(false); }} className={`rounded-full px-4 py-1.5 ${favoriteMedia === "manga" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}>Manga</button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAnimeId(null);
+                  setFavoriteMedia("anime");
+                }}
+                className={`rounded-full px-4 py-1.5 ${favoriteMedia === "anime" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}
+              >
+                Anime
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAnimeId(null);
+                  setFavoriteMedia("manga");
+                  setMergeFranchises(false);
+                }}
+                className={`rounded-full px-4 py-1.5 ${favoriteMedia === "manga" ? "bg-[#ffd700] text-black" : "text-neutral-300"}`}
+              >
+                Manga
+              </button>
             </div>
             {/* Add Anime to Pool Button */}
-            {favoriteMedia === "anime" ? <button
-              onClick={() => setShowAddAnimeModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs transition-all shadow-[0_0_12px_rgba(255,215,0,0.3)] hover:scale-105 cursor-pointer"
-            >
-              <Plus size={14} />
-              <span>Add Anime</span>
-            </button> : <button type="button" onClick={() => { setMangaSearchQuery(""); setShowAddMangaModal(true); }} className="inline-flex items-center gap-1.5 rounded-full bg-[#ffd700] px-3.5 py-2 text-xs font-bold text-black"><Plus size={14} />Add Manga</button>}
+            {favoriteMedia === "anime" ? (
+              <button
+                onClick={() => setShowAddAnimeModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs transition-all shadow-[0_0_12px_rgba(255,215,0,0.3)] hover:scale-105 cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>Add Anime</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMangaSearchQuery("");
+                  setShowAddMangaModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#ffd700] px-3.5 py-2 text-xs font-bold text-black"
+              >
+                <Plus size={14} />
+                Add Manga
+              </button>
+            )}
 
             {/* View Toggle */}
             <div className="bg-white/5 p-1 rounded-full border border-white/10 flex items-center">
@@ -963,19 +1531,21 @@ export const Favourites: React.FC = () => {
               </button>
             </div>
 
-            {favoriteMedia === "anime" && <button
-              type="button"
-              onClick={() => setMergeFranchises((value) => !value)}
-              aria-pressed={mergeFranchises}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border font-montserrat font-bold text-xs transition-colors ${
-                mergeFranchises
-                  ? "bg-violet-400/20 border-violet-300/60 text-violet-200"
-                  : "bg-white/5 border-white/15 text-neutral-300 hover:text-white"
-              }`}
-            >
-              <GitBranch size={14} />
-              Franchise view
-            </button>}
+            {favoriteMedia === "anime" && (
+              <button
+                type="button"
+                onClick={() => setMergeFranchises((value) => !value)}
+                aria-pressed={mergeFranchises}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border font-montserrat font-bold text-xs transition-colors ${
+                  mergeFranchises
+                    ? "bg-violet-400/20 border-violet-300/60 text-violet-200"
+                    : "bg-white/5 border-white/15 text-neutral-300 hover:text-white"
+                }`}
+              >
+                <GitBranch size={14} />
+                Franchise view
+              </button>
+            )}
 
             {/* Share Button */}
             <button
@@ -986,13 +1556,28 @@ export const Favourites: React.FC = () => {
               <span>Share Tier List</span>
             </button>
 
-            <button type="button" aria-pressed={trashOpen} onClick={() => setTrashOpen((value) => !value)} className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition-colors ${trashOpen ? "border-[#ffd700]/60 bg-[#ffd700]/10 text-[#ffd700]" : "border-white/15 bg-white/5 text-neutral-300 hover:text-white"}`}><Trash2 size={14} />Trash{visibleDeletedFavourites.length > 0 && <span className="rounded-full bg-white/10 px-1.5">{visibleDeletedFavourites.length}</span>}</button>
-
+            <button
+              type="button"
+              aria-pressed={trashOpen}
+              onClick={() => setTrashOpen((value) => !value)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition-colors ${trashOpen ? "border-[#ffd700]/60 bg-[#ffd700]/10 text-[#ffd700]" : "border-white/15 bg-white/5 text-neutral-300 hover:text-white"}`}
+            >
+              <Trash2 size={14} />
+              Trash
+              {visibleDeletedFavourites.length > 0 && (
+                <span className="rounded-full bg-white/10 px-1.5">
+                  {visibleDeletedFavourites.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
         {viewMode === "tier" && (
-          <section className="tier-sheet-switcher" aria-label="Saved tier sheets">
+          <section
+            className="tier-sheet-switcher"
+            aria-label="Saved tier sheets"
+          >
             <div className="tier-sheet-switcher__heading">
               <div>
                 <span>Saved tier sheets</span>
@@ -1008,21 +1593,46 @@ export const Favourites: React.FC = () => {
                       autoFocus
                       maxLength={40}
                       value={sheetNameDraft}
-                      onChange={(event) => setSheetNameDraft(event.target.value)}
+                      onChange={(event) =>
+                        setSheetNameDraft(event.target.value)
+                      }
                       onKeyDown={(event) => {
                         if (event.key === "Escape") setRenamingSheet(false);
                       }}
                       aria-label="Tier sheet name"
                     />
-                    <button type="submit" disabled={!sheetNameDraft.trim()}><Check size={15} />Save</button>
-                    <button type="button" onClick={() => setRenamingSheet(false)}><X size={15} />Cancel</button>
+                    <button type="submit" disabled={!sheetNameDraft.trim()}>
+                      <Check size={15} />
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRenamingSheet(false)}
+                    >
+                      <X size={15} />
+                      Cancel
+                    </button>
                   </form>
-                ) : <h2>{activeSheet.name}</h2>}
-                <p>Keep up to five separate boards. Anime and manga placements remain independent inside every sheet.</p>
+                ) : (
+                  <h2>{activeSheetName}</h2>
+                )}
+                <p>
+                  Five saved {favoriteMedia} boards with independent names,
+                  rankings, and automatic sync.
+                </p>
               </div>
-              {!renamingSheet && <button type="button" onClick={startRenamingActiveSheet}><Edit3 size={15} />Rename heading</button>}
+              {!renamingSheet && (
+                <button type="button" onClick={startRenamingActiveSheet}>
+                  <Edit3 size={15} />
+                  Rename heading
+                </button>
+              )}
             </div>
-            <div className="tier-sheet-switcher__slots" role="tablist" aria-label="Choose a tier sheet">
+            <div
+              className="tier-sheet-switcher__slots"
+              role="tablist"
+              aria-label="Choose a tier sheet"
+            >
               {tierSheets.map((sheet, index) => (
                 <button
                   type="button"
@@ -1033,7 +1643,11 @@ export const Favourites: React.FC = () => {
                   key={sheet.id}
                 >
                   <small>{index === 0 ? "Default" : `Slot ${index + 1}`}</small>
-                  <strong>{sheet.name}</strong>
+                  <strong>
+                    {favoriteMedia === "manga"
+                      ? sheet.mangaName
+                      : sheet.animeName}
+                  </strong>
                 </button>
               ))}
             </div>
@@ -1042,15 +1656,57 @@ export const Favourites: React.FC = () => {
 
         {trashOpen && (
           <section className="favorite-trash">
-            <header><div><span>Recovery</span><h2>Recently removed favorites</h2><p>Restore a title within five days, or delete it permanently.</p></div></header>
-            {visibleDeletedFavourites.length > 0 ? <div className="favorite-trash__list">{visibleDeletedFavourites.map((item) => (
-              <article key={item.originalKey}>
-                <ProgressiveImage src={item.image} alt="" wrapperClassName="favorite-trash__cover" className="h-full w-full object-cover" />
-                <div><strong>{item.title}</strong><span>{item.mediaType === "MANGA" ? (item.format || "Manga") : "Anime"}</span></div>
-                <button type="button" onClick={() => restoreFavourite(item.originalKey)}><RotateCcw size={13} />Restore</button>
-                <button type="button" className="is-danger" aria-label={`Permanently delete ${item.title}`} onClick={() => { if (window.confirm(`Permanently delete ${item.title}?`)) void permanentlyDeleteFavourite(item.originalKey); }}><Trash2 size={13} /></button>
-              </article>
-            ))}</div> : <p className="favorite-trash__empty">Trash is empty.</p>}
+            <header>
+              <div>
+                <span>Recovery</span>
+                <h2>Recently removed favorites</h2>
+                <p>
+                  Restore a title within five days, or delete it permanently.
+                </p>
+              </div>
+            </header>
+            {visibleDeletedFavourites.length > 0 ? (
+              <div className="favorite-trash__list">
+                {visibleDeletedFavourites.map((item) => (
+                  <article key={item.originalKey}>
+                    <ProgressiveImage
+                      src={item.image}
+                      alt=""
+                      wrapperClassName="favorite-trash__cover"
+                      className="h-full w-full object-cover"
+                    />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>
+                        {item.mediaType === "MANGA"
+                          ? item.format || "Manga"
+                          : "Anime"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => restoreFavourite(item.originalKey)}
+                    >
+                      <RotateCcw size={13} />
+                      Restore
+                    </button>
+                    <button
+                      type="button"
+                      className="is-danger"
+                      aria-label={`Permanently delete ${item.title}`}
+                      onClick={() => {
+                        if (window.confirm(`Permanently delete ${item.title}?`))
+                          void permanentlyDeleteFavourite(item.originalKey);
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="favorite-trash__empty">Trash is empty.</p>
+            )}
           </section>
         )}
 
@@ -1060,7 +1716,10 @@ export const Favourites: React.FC = () => {
             <div className="flex items-center gap-2 text-emerald-300 text-xs sm:text-sm font-bold">
               <Sparkles size={16} />
               <span>
-                "{activeFavMap.get(selectedAnimeId)?.title || (favoriteMedia === "manga" ? "Manga" : "Anime")}" selected! Tap any Tier row below to place it there.
+                "
+                {activeFavMap.get(selectedAnimeId)?.title ||
+                  (favoriteMedia === "manga" ? "Manga" : "Anime")}
+                " selected! Tap any Tier row below to place it there.
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -1069,7 +1728,8 @@ export const Favourites: React.FC = () => {
                 onClick={() => {
                   const selectedId = selectedAnimeId;
                   setSelectedAnimeId(null);
-                  if (favoriteMedia === "manga") void removeMangaFromFavourites(selectedId);
+                  if (favoriteMedia === "manga")
+                    void removeMangaFromFavourites(selectedId);
                   else void removeFromFavourites(selectedId);
                 }}
                 className="favorite-selection-trash"
@@ -1094,60 +1754,141 @@ export const Favourites: React.FC = () => {
         ) : viewMode === "grid" && !mergeFranchises ? (
           activeGridItems.length === 0 ? (
             <div className="text-center py-20 bg-neutral-900/40 rounded-2xl border border-white/5 space-y-4">
-              {favoriteMedia === "manga" ? <BookOpen size={35} className="mx-auto text-[#ffd700]" /> : <Heart size={35} className="mx-auto text-[#ffd700]" />}
-              <p className="font-montserrat font-bold text-lg text-white">No favorite {favoriteMedia} yet</p>
-              <button type="button" onClick={() => favoriteMedia === "manga" ? setShowAddMangaModal(true) : setShowAddAnimeModal(true)} className="inline-flex items-center gap-2 rounded-full bg-[#ffd700] px-5 py-2.5 text-xs font-bold text-black"><Plus size={14} /> Add {favoriteMedia === "manga" ? "Manga" : "Anime"}</button>
+              {favoriteMedia === "manga" ? (
+                <BookOpen size={35} className="mx-auto text-[#ffd700]" />
+              ) : (
+                <Heart size={35} className="mx-auto text-[#ffd700]" />
+              )}
+              <p className="font-montserrat font-bold text-lg text-white">
+                No favorite {favoriteMedia} yet
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  favoriteMedia === "manga"
+                    ? setShowAddMangaModal(true)
+                    : setShowAddAnimeModal(true)
+                }
+                className="inline-flex items-center gap-2 rounded-full bg-[#ffd700] px-5 py-2.5 text-xs font-bold text-black"
+              >
+                <Plus size={14} /> Add{" "}
+                {favoriteMedia === "manga" ? "Manga" : "Anime"}
+              </button>
             </div>
           ) : (
             <div className="favorite-grid-view">
               {activeGridItems.map((item: any) => {
-                const image = item.image || item.images?.jpg?.large_image_url || item.images?.jpg?.image_url;
+                const image =
+                  item.image ||
+                  item.images?.jpg?.large_image_url ||
+                  item.images?.jpg?.image_url;
                 const rank = activeGridRanks.get(item.mal_id) || 0;
-                const ranked = favoriteMedia === "manga" ? mangaOrder.has(item.mal_id) : linearRankMap.has(item.mal_id);
-                return <article key={item.mal_id} className="favorite-grid-card">
-                  <Link to={`/${favoriteMedia}/${item.mal_id}`}>
-                    <ProgressiveImage src={image} fallbackSrc="/lost.jpg" alt={item.title || item.title_english} wrapperClassName="favorite-grid-card__cover" className="h-full w-full object-cover" />
-                    <span className="favorite-grid-card__rank">#{rank}</span>
-                    <div><small>{ranked ? "Ranked favorite" : "Waiting to rank"}</small><h2>{item.title || item.title_english}</h2><p>{item.format || item.type || (favoriteMedia === "manga" ? "Manga" : "Anime")}{item.score ? ` · ★ ${item.score}` : ""}</p></div>
-                  </Link>
-                  <button type="button" aria-label={`Remove ${item.title || item.title_english}`} onClick={() => favoriteMedia === "manga" ? removeMangaFromFavourites(item.mal_id) : removeFromFavourites(item.mal_id)}><Trash2 size={13} /></button>
-                </article>;
+                const ranked =
+                  favoriteMedia === "manga"
+                    ? mangaOrder.has(item.mal_id)
+                    : linearRankMap.has(item.mal_id);
+                return (
+                  <article key={item.mal_id} className="favorite-grid-card">
+                    <Link to={`/${favoriteMedia}/${item.mal_id}`}>
+                      <ProgressiveImage
+                        src={image}
+                        fallbackSrc="/lost.jpg"
+                        alt={item.title || item.title_english}
+                        wrapperClassName="favorite-grid-card__cover"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="favorite-grid-card__rank">#{rank}</span>
+                      <div>
+                        <small>
+                          {ranked ? "Ranked favorite" : "Waiting to rank"}
+                        </small>
+                        <h2>{item.title || item.title_english}</h2>
+                        <p>
+                          {item.format ||
+                            item.type ||
+                            (favoriteMedia === "manga" ? "Manga" : "Anime")}
+                          {item.score ? ` · ★ ${item.score}` : ""}
+                        </p>
+                      </div>
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${item.title || item.title_english}`}
+                      onClick={() =>
+                        favoriteMedia === "manga"
+                          ? removeMangaFromFavourites(item.mal_id)
+                          : removeFromFavourites(item.mal_id)
+                      }
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </article>
+                );
               })}
             </div>
           )
         ) : mergeFranchises ? (
-          <div className="favorite-franchise-board" aria-label="Favorites grouped by franchise">
+          <div
+            className="favorite-franchise-board"
+            aria-label="Favorites grouped by franchise"
+          >
             <div className="favorite-franchise-note">
               <GitBranch size={17} />
               <p>
-                Related seasons are grouped for viewing only. Your individual favorites, notes and tier placements stay unchanged.
+                Related seasons are grouped for viewing only. Your individual
+                favorites, notes and tier placements stay unchanged.
               </p>
             </div>
             {franchiseTierRows.map((row) => (
               <section className="favorite-franchise-row" key={row.id}>
-                <div className="favorite-franchise-tier" style={{ backgroundColor: row.color, color: row.textColor }}>
+                <div
+                  className="favorite-franchise-tier"
+                  style={{ backgroundColor: row.color, color: row.textColor }}
+                >
                   {row.name}
                 </div>
                 <div className="favorite-franchise-groups">
                   {row.groups.map((group: any) => {
-                    const cover = group.images?.jpg?.large_image_url || group.members?.[0]?.images?.jpg?.large_image_url || group.members?.[0]?.image;
+                    const cover =
+                      group.images?.jpg?.large_image_url ||
+                      group.members?.[0]?.images?.jpg?.large_image_url ||
+                      group.members?.[0]?.image;
                     return (
-                      <article className="favorite-franchise-card" key={`${row.id}-${group.mal_id}`}>
-                        <ProgressiveImage src={cover} alt="" wrapperClassName="favorite-franchise-card__cover" className="h-full w-full object-cover" />
+                      <article
+                        className="favorite-franchise-card"
+                        key={`${row.id}-${group.mal_id}`}
+                      >
+                        <ProgressiveImage
+                          src={cover}
+                          alt=""
+                          wrapperClassName="favorite-franchise-card__cover"
+                          className="h-full w-full object-cover"
+                        />
                         <div className="favorite-franchise-copy">
                           <span className="favorite-franchise-kicker">
-                            {group.rank ? `#${group.rank} · ` : ""}{group.memberIds.length} saved {group.memberIds.length === 1 ? "title" : "titles"}
+                            {group.rank ? `#${group.rank} · ` : ""}
+                            {group.memberIds.length} saved{" "}
+                            {group.memberIds.length === 1 ? "title" : "titles"}
                           </span>
                           <h3>{group.title}</h3>
-                          <p>{group.memberIds.length > 1 ? `${group.memberIds.length} connected entries combined` : "Single entry"}</p>
+                          <p>
+                            {group.memberIds.length > 1
+                              ? `${group.memberIds.length} connected entries combined`
+                              : "Single entry"}
+                          </p>
                           {group.notes.length > 0 && (
                             <div className="favorite-franchise-notes">
                               {group.notes.map((entry: any) => (
-                                <span key={`${entry.title}-${entry.note}`}>{entry.title}: {entry.note}</span>
+                                <span key={`${entry.title}-${entry.note}`}>
+                                  {entry.title}: {entry.note}
+                                </span>
                               ))}
                             </div>
                           )}
-                          <Link to={`/franchise/${group.mal_id}`} className="favorite-franchise-link">
+                          <Link
+                            to={`/franchise/${group.mal_id}`}
+                            className="favorite-franchise-link"
+                          >
                             Full franchise guide <ChevronRight size={14} />
                           </Link>
                         </div>
@@ -1175,16 +1916,42 @@ export const Favourites: React.FC = () => {
           ) : (
             <div className="favorite-grid-view">
               {gridItems.map((item) => {
-                const image = (item as any).images?.jpg?.large_image_url || (item as any).image;
+                const image =
+                  (item as any).images?.jpg?.large_image_url ||
+                  (item as any).image;
                 const rank = gridRankMap.get(item.mal_id) || 0;
-                return <article key={item.mal_id} className="favorite-grid-card">
-                  <Link to={`/anime/${item.mal_id}`}>
-                    <ProgressiveImage src={image} alt={item.title || item.title_english} wrapperClassName="favorite-grid-card__cover" className="h-full w-full object-cover" />
-                    <span className="favorite-grid-card__rank">#{rank}</span>
-                    <div><small>{linearRankMap.has(item.mal_id) ? "Ranked favorite" : "Waiting to rank"}</small><h2>{item.title || item.title_english}</h2><p>{(item as any).type || "Anime"}{item.score ? ` · ★ ${item.score}` : ""}</p></div>
-                  </Link>
-                  <button type="button" aria-label={`Remove ${item.title || item.title_english}`} onClick={() => removeFromFavourites(item.mal_id)}><Trash2 size={13} /></button>
-                </article>;
+                return (
+                  <article key={item.mal_id} className="favorite-grid-card">
+                    <Link to={`/anime/${item.mal_id}`}>
+                      <ProgressiveImage
+                        src={image}
+                        alt={item.title || item.title_english}
+                        wrapperClassName="favorite-grid-card__cover"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="favorite-grid-card__rank">#{rank}</span>
+                      <div>
+                        <small>
+                          {linearRankMap.has(item.mal_id)
+                            ? "Ranked favorite"
+                            : "Waiting to rank"}
+                        </small>
+                        <h2>{item.title || item.title_english}</h2>
+                        <p>
+                          {(item as any).type || "Anime"}
+                          {item.score ? ` · ★ ${item.score}` : ""}
+                        </p>
+                      </div>
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${item.title || item.title_english}`}
+                      onClick={() => removeFromFavourites(item.mal_id)}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </article>
+                );
               })}
             </div>
           )
@@ -1202,7 +1969,16 @@ export const Favourites: React.FC = () => {
                     <span>Touch & Click Active</span>
                   </h4>
                   <p className="text-[11px] sm:text-xs text-neutral-300 mt-0.5">
-                   <span className="text-white font-semibold">Tip:</span> Tap any {favoriteMedia} to select <span className="text-emerald-400 font-semibold">(green outline)</span>, then tap a tier row to place it, or tap another title to <span className="text-[#ffd700] font-semibold">swap positions</span>.
+                    <span className="text-white font-semibold">Tip:</span> Tap
+                    any {favoriteMedia} to select{" "}
+                    <span className="text-emerald-400 font-semibold">
+                      (green outline)
+                    </span>
+                    , then tap a tier row to place it, or tap another title to{" "}
+                    <span className="text-[#ffd700] font-semibold">
+                      swap positions
+                    </span>
+                    .
                   </p>
                 </div>
               </div>
@@ -1217,7 +1993,8 @@ export const Favourites: React.FC = () => {
                       <div
                         key={tier.id}
                         onClick={() => {
-                          if (selectedAnimeId !== null) handleDropOnTier(tier.id);
+                          if (selectedAnimeId !== null)
+                            handleDropOnTier(tier.id);
                         }}
                         className={`flex min-h-[110px] bg-neutral-900/85 rounded-xl overflow-hidden border transition-all cursor-pointer ${
                           selectedAnimeId !== null
@@ -1227,7 +2004,10 @@ export const Favourites: React.FC = () => {
                       >
                         {/* Tier Rank Header Label (Click to Edit / Rename) */}
                         <div
-                          style={{ backgroundColor: tier.color, color: tier.textColor }}
+                          style={{
+                            backgroundColor: tier.color,
+                            color: tier.textColor,
+                          }}
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingTier(tier);
@@ -1238,7 +2018,9 @@ export const Favourites: React.FC = () => {
                           title="Click to rename or change color"
                         >
                           <span className="truncate w-full">{tier.name}</span>
-                          <span className="text-[9px] opacity-0 group-hover:opacity-90 font-medium text-white/90">Edit</span>
+                          <span className="text-[9px] opacity-0 group-hover:opacity-90 font-medium text-white/90">
+                            Edit
+                          </span>
                         </div>
 
                         {/* Tier Items Grid & Tap Target */}
@@ -1246,7 +2028,10 @@ export const Favourites: React.FC = () => {
                           {tier.animeIds.map((animeId) => {
                             const anime = activeFavMap.get(animeId);
                             if (!anime) return null;
-                            const img = (anime as any).images?.jpg?.large_image_url || (anime as any).image || "";
+                            const img =
+                              (anime as any).images?.jpg?.large_image_url ||
+                              (anime as any).image ||
+                              "";
                             const rank = activeRankMap.get(animeId) || 0;
                             const isSelected = selectedAnimeId === animeId;
                             const note = activeNotes[animeId];
@@ -1281,7 +2066,9 @@ export const Favourites: React.FC = () => {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditingAnimeId(animeId);
-                                    setEditingNoteText(activeNotes[animeId] || "");
+                                    setEditingNoteText(
+                                      activeNotes[animeId] || "",
+                                    );
                                   }}
                                   className="absolute bottom-1 left-1 z-20 p-1 rounded-md bg-black/80 text-[#ffd700] opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
                                   title="Edit info note"
@@ -1370,8 +2157,21 @@ export const Favourites: React.FC = () => {
                     );
                   })}
                   <div className="favorite-tier-footer">
-                    <button type="button" onClick={() => setShowAddTierModal(true)}><Plus size={14} />Add row</button>
-                    <button type="button" className="is-muted" onClick={handleResetTiers}><RotateCcw size={14} />Reset tiers</button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddTierModal(true)}
+                    >
+                      <Plus size={14} />
+                      Add row
+                    </button>
+                    <button
+                      type="button"
+                      className="is-muted"
+                      onClick={handleResetTiers}
+                    >
+                      <RotateCcw size={14} />
+                      Reset tiers
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1398,22 +2198,47 @@ export const Favourites: React.FC = () => {
                     </span>
                   </div>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      favoriteMedia === "manga" ? setShowAddMangaModal(true) : setShowAddAnimeModal(true);
-                    }}
-                    className="p-1.5 rounded-lg bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700] hover:text-black transition-all cursor-pointer"
-                    title={`Add ${favoriteMedia === "manga" ? "Manga" : "Anime"} to Pool`}
-                  >
-                    <Plus size={14} />
-                  </button>
+                  <div className="favorite-waiting-actions">
+                    {importableTrackedItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void importTrackedFavorites();
+                        }}
+                        disabled={importingWatchlist}
+                        title={`Import ${importableTrackedItems.length} tracked ${favoriteMedia} titles not already in Favorites`}
+                      >
+                        <ListTodo size={14} />
+                        <span>
+                          {importingWatchlist
+                            ? "Importing..."
+                            : `Import ${importableTrackedItems.length}`}
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        favoriteMedia === "manga"
+                          ? setShowAddMangaModal(true)
+                          : setShowAddAnimeModal(true);
+                      }}
+                      className="p-1.5 rounded-lg bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] hover:bg-[#ffd700] hover:text-black transition-all cursor-pointer"
+                      title={`Add ${favoriteMedia === "manga" ? "Manga" : "Anime"} to Pool`}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Pool Items Grid */}
                 <div className="flex flex-wrap gap-2.5 min-h-[140px] max-h-[480px] overflow-y-auto p-2 bg-black/40 rounded-xl border border-dashed border-white/15 items-center content-start">
                   {activeUnassigned.map((item) => {
-                    const img = (item as any).images?.jpg?.large_image_url || (item as any).image || "";
+                    const img =
+                      (item as any).images?.jpg?.large_image_url ||
+                      (item as any).image ||
+                      "";
                     const isSelected = selectedAnimeId === item.mal_id;
 
                     return (
@@ -1455,7 +2280,11 @@ export const Favourites: React.FC = () => {
                         Waiting list is empty!
                       </p>
                       <button
-                        onClick={() => favoriteMedia === "manga" ? setShowAddMangaModal(true) : setShowAddAnimeModal(true)}
+                        onClick={() =>
+                          favoriteMedia === "manga"
+                            ? setShowAddMangaModal(true)
+                            : setShowAddAnimeModal(true)
+                        }
                         className="inline-flex items-center gap-1.5 text-xs text-[#ffd700] hover:underline cursor-pointer"
                       >
                         <Plus size={13} />
@@ -1518,7 +2347,9 @@ export const Favourites: React.FC = () => {
                     onClick={() => setNewTierColor(c)}
                     style={{ backgroundColor: c }}
                     className={`w-8 h-8 rounded-full border-2 transition-transform cursor-pointer ${
-                      newTierColor === c ? "border-white scale-110" : "border-transparent"
+                      newTierColor === c
+                        ? "border-white scale-110"
+                        : "border-transparent"
                     }`}
                   />
                 ))}
@@ -1544,141 +2375,291 @@ export const Favourites: React.FC = () => {
       )}
 
       {/* Add Anime To list Modal */}
-      {showAddAnimeModal && createPortal((
-        <div
-          onClick={() => setShowAddAnimeModal(false)}
-          className="fixed inset-0 bg-black/85 backdrop-blur-md z-[5000] flex items-center justify-center p-4"
-        >
+      {showAddAnimeModal &&
+        createPortal(
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[82vh] w-full max-w-xl flex-col rounded-2xl border border-white/15 bg-[#17171d] p-5 shadow-2xl"
+            onClick={() => setShowAddAnimeModal(false)}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-[5000] flex items-center justify-center p-4"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <Plus size={18} className="text-[#ffd700]" />
-                <h3 className="font-montserrat font-bold text-base text-white">
-                  Add Anime
-                </h3>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="flex max-h-[82vh] w-full max-w-xl flex-col rounded-2xl border border-white/15 bg-[#17171d] p-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <Plus size={18} className="text-[#ffd700]" />
+                  <h3 className="font-montserrat font-bold text-base text-white">
+                    Add Anime
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowAddAnimeModal(false)}
+                  className="text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button
-                onClick={() => setShowAddAnimeModal(false)}
-                className="text-neutral-400 hover:text-white cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
 
-            {/* Search Input */}
-            <div className="relative">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-              <input
-                type="text"
-                autoFocus
-                placeholder="Search anime titles..."
-                value={animeSearchQuery}
-                onChange={(e) => setAnimeSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-11 text-sm text-white outline-none focus:border-[#ffd700]"
-              />
-              {animeSearchQuery && <button type="button" onClick={() => setAnimeSearchQuery("")} aria-label="Clear anime search" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"><X size={15} /></button>}
-            </div>
-
-            {/* Candidate List */}
-            <div className="mt-4 min-h-0 flex-1 overflow-y-auto space-y-2 pr-1">
-              {animeCandidatesLoading && Array.from({ length: 4 }).map((_, index) => <div key={`anime-search-skeleton-${index}`} className="h-20 animate-pulse rounded-xl bg-white/5" />)}
-              {!animeCandidatesLoading && animeSearchQuery.trim().length < 1 && poolCandidates.length > 0 && <p className="px-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-[#ffd700]">Recommended for you</p>}
-              {!animeCandidatesLoading && poolCandidates.map((anime) => {
-                const isAlreadyFav = favourites.some((f) => f.mal_id === anime.mal_id);
-                const title = anime.title || anime.title_english || "Anime";
-                const img = (anime as any).images?.jpg?.image_url || (anime as any).image || "";
-
-                return (
-                  <div
-                    key={`cand-${anime.mal_id}`}
-                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+              {/* Search Input */}
+              <div className="relative">
+                <Search
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
+                />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search anime titles..."
+                  value={animeSearchQuery}
+                  onChange={(e) => setAnimeSearchQuery(e.target.value)}
+                  className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-11 text-sm text-white outline-none focus:border-[#ffd700]"
+                />
+                {animeSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setAnimeSearchQuery("")}
+                    aria-label="Clear anime search"
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <ProgressiveImage src={img} fallbackSrc="/lost.jpg" alt={title} wrapperClassName="h-16 w-12 flex-shrink-0 rounded-lg" className="h-full w-full object-cover" />
-                      <div className="min-w-0">
-                        <h4 className="text-xs sm:text-sm font-bold text-white truncate">
-                          {title}
-                        </h4>
-                        <div className="flex items-center gap-2 text-[11px] text-neutral-400 mt-0.5">
-                          {anime.score && (
-                            <span className="text-[#ffd700] font-bold flex items-center gap-0.5">
-                              <Star size={10} fill="#ffd700" />
-                              {anime.score}
-                            </span>
-                          )}
-                          <span>•</span>
-                          <span>{anime.type || "TV"}</span>
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+
+              {/* Candidate List */}
+              <div className="mt-4 min-h-0 flex-1 overflow-y-auto space-y-2 pr-1">
+                {animeCandidatesLoading &&
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={`anime-search-skeleton-${index}`}
+                      className="h-20 animate-pulse rounded-xl bg-white/5"
+                    />
+                  ))}
+                {!animeCandidatesLoading &&
+                  animeSearchQuery.trim().length < 1 &&
+                  poolCandidates.length > 0 && (
+                    <p className="px-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-[#ffd700]">
+                      Recommended for you
+                    </p>
+                  )}
+                {!animeCandidatesLoading &&
+                  poolCandidates.map((anime) => {
+                    const isAlreadyFav = favourites.some(
+                      (f) => f.mal_id === anime.mal_id,
+                    );
+                    const title = anime.title || anime.title_english || "Anime";
+                    const img =
+                      (anime as any).images?.jpg?.image_url ||
+                      (anime as any).image ||
+                      "";
+
+                    return (
+                      <div
+                        key={`cand-${anime.mal_id}`}
+                        className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <ProgressiveImage
+                            src={img}
+                            fallbackSrc="/lost.jpg"
+                            alt={title}
+                            wrapperClassName="h-16 w-12 flex-shrink-0 rounded-lg"
+                            className="h-full w-full object-cover"
+                          />
+                          <div className="min-w-0">
+                            <h4 className="text-xs sm:text-sm font-bold text-white truncate">
+                              {title}
+                            </h4>
+                            <div className="flex items-center gap-2 text-[11px] text-neutral-400 mt-0.5">
+                              {anime.score && (
+                                <span className="text-[#ffd700] font-bold flex items-center gap-0.5">
+                                  <Star size={10} fill="#ffd700" />
+                                  {anime.score}
+                                </span>
+                              )}
+                              <span>•</span>
+                              <span>{anime.type || "TV"}</span>
+                            </div>
+                          </div>
                         </div>
+
+                        <button
+                          disabled={isAlreadyFav}
+                          onClick={() => handleAddAnimeToFavorites(anime)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold font-montserrat flex items-center gap-1 transition-all ${
+                            isAlreadyFav
+                              ? "bg-white/10 text-neutral-500 cursor-default"
+                              : "bg-[#ffd700] hover:bg-[#ffea00] text-black hover:scale-105 cursor-pointer shadow-md"
+                          }`}
+                        >
+                          {isAlreadyFav ? (
+                            <>
+                              <Check size={13} />
+                              <span>In Pool</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus size={13} />
+                              <span>Add</span>
+                            </>
+                          )}
+                        </button>
                       </div>
-                    </div>
+                    );
+                  })}
+                {!animeCandidatesLoading &&
+                  animeSearchQuery.trim().length >= 1 &&
+                  poolCandidates.length === 0 && (
+                    <p className="py-8 text-center text-sm text-neutral-500">
+                      No matches found.
+                    </p>
+                  )}
+              </div>
 
-                    <button
-                      disabled={isAlreadyFav}
-                      onClick={() => handleAddAnimeToFavorites(anime)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold font-montserrat flex items-center gap-1 transition-all ${
-                        isAlreadyFav
-                          ? "bg-white/10 text-neutral-500 cursor-default"
-                          : "bg-[#ffd700] hover:bg-[#ffea00] text-black hover:scale-105 cursor-pointer shadow-md"
-                      }`}
-                    >
-                      {isAlreadyFav ? (
-                        <>
-                          <Check size={13} />
-                          <span>In Pool</span>
-                        </>
-                      ) : (
-                        <>
-                          <Plus size={13} />
-                          <span>Add</span>
-                        </>
-                      )}
-                    </button>
+              <div className="pt-2 border-t border-white/10 text-right">
+                <button
+                  onClick={() => setShowAddAnimeModal(false)}
+                  className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-montserrat font-bold text-xs"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {showAddMangaModal &&
+        createPortal(
+          <div
+            onClick={() => setShowAddMangaModal(false)}
+            className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+          >
+            <div
+              onClick={(event) => event.stopPropagation()}
+              className="flex max-h-[82vh] w-full max-w-xl flex-col rounded-2xl border border-white/15 bg-[#17171d] p-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                  <h3 className="font-montserrat text-xl font-bold text-white">
+                    Add Manga
+                  </h3>
+                  <p className="mt-1 text-xs text-neutral-400">
+                    Search for a title or pick from popular manga.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddMangaModal(false)}
+                  className="grid h-8 w-8 place-items-center rounded-full border border-white/10 text-neutral-300 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="relative mt-4">
+                <Search
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
+                />
+                <input
+                  autoFocus
+                  value={mangaSearchQuery}
+                  onChange={(event) => setMangaSearchQuery(event.target.value)}
+                  placeholder="Search manga titles..."
+                  className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-11 text-sm text-white outline-none focus:border-[#ffd700]"
+                />
+                {mangaSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setMangaSearchQuery("")}
+                    aria-label="Clear manga search"
+                    className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+              <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                {mangaCandidatesLoading && (
+                  <div className="py-12 text-center text-xs font-bold text-[#ffd700]">
+                    Loading manga…
                   </div>
-                );
-              })}
-              {!animeCandidatesLoading && animeSearchQuery.trim().length >= 1 && poolCandidates.length === 0 && <p className="py-8 text-center text-sm text-neutral-500">No matches found.</p>}
+                )}
+                {!mangaCandidatesLoading &&
+                  mangaCandidates.map((manga) => {
+                    const alreadySaved = mangaFavourites.some(
+                      (item) => item.mal_id === manga.mal_id,
+                    );
+                    const cover =
+                      manga.images?.jpg?.image_url ||
+                      manga.images?.jpg?.large_image_url ||
+                      manga.image;
+                    return (
+                      <article
+                        key={`manga-candidate-${manga.mal_id}`}
+                        className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+                      >
+                        <ProgressiveImage
+                          src={cover}
+                          alt=""
+                          wrapperClassName="h-14 w-10 flex-shrink-0 rounded-lg"
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <strong className="block truncate text-xs text-white">
+                            {manga.title || manga.title_english}
+                          </strong>
+                          <span className="text-[10px] text-neutral-400">
+                            {manga.format || manga.type || "Manga"}
+                            {manga.chapters
+                              ? ` · ${manga.chapters} chapters`
+                              : ""}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={alreadySaved}
+                          onClick={async () => {
+                            const added = await addMangaToFavourites(manga);
+                            if (added)
+                              setMangaCandidates((items) => [...items]);
+                          }}
+                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-bold ${alreadySaved ? "bg-white/10 text-neutral-500" : "bg-[#ffd700] text-black"}`}
+                        >
+                          {alreadySaved ? (
+                            <>
+                              <Check size={12} />
+                              Saved
+                            </>
+                          ) : (
+                            <>
+                              <Plus size={12} />
+                              Add
+                            </>
+                          )}
+                        </button>
+                      </article>
+                    );
+                  })}
+                {!mangaCandidatesLoading && mangaCandidates.length === 0 && (
+                  <p className="py-12 text-center text-xs text-neutral-400">
+                    No manga found. Try another title.
+                  </p>
+                )}
+              </div>
+              <div className="border-t border-white/10 pt-3 text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowAddMangaModal(false)}
+                  className="rounded-xl bg-white/10 px-5 py-2 text-xs font-bold text-white"
+                >
+                  Done
+                </button>
+              </div>
             </div>
-
-            <div className="pt-2 border-t border-white/10 text-right">
-              <button
-                onClick={() => setShowAddAnimeModal(false)}
-                className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-montserrat font-bold text-xs"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      ), document.body)}
-
-      {showAddMangaModal && createPortal((
-        <div onClick={() => setShowAddMangaModal(false)} className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-          <div onClick={(event) => event.stopPropagation()} className="flex max-h-[82vh] w-full max-w-xl flex-col rounded-2xl border border-white/15 bg-[#17171d] p-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div><h3 className="font-montserrat text-xl font-bold text-white">Add Manga</h3><p className="mt-1 text-xs text-neutral-400">Search for a title or pick from popular manga.</p></div>
-              <button type="button" onClick={() => setShowAddMangaModal(false)} className="grid h-8 w-8 place-items-center rounded-full border border-white/10 text-neutral-300 hover:text-white"><X size={16} /></button>
-            </div>
-            <div className="relative mt-4"><Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" /><input autoFocus value={mangaSearchQuery} onChange={(event) => setMangaSearchQuery(event.target.value)} placeholder="Search manga titles..." className="w-full rounded-xl border border-white/15 bg-black/30 py-3 pl-10 pr-11 text-sm text-white outline-none focus:border-[#ffd700]" />{mangaSearchQuery && <button type="button" onClick={() => setMangaSearchQuery("")} aria-label="Clear manga search" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"><X size={15} /></button>}</div>
-            <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-              {mangaCandidatesLoading && <div className="py-12 text-center text-xs font-bold text-[#ffd700]">Loading manga…</div>}
-              {!mangaCandidatesLoading && mangaCandidates.map((manga) => {
-                const alreadySaved = mangaFavourites.some((item) => item.mal_id === manga.mal_id);
-                const cover = manga.images?.jpg?.image_url || manga.images?.jpg?.large_image_url || manga.image;
-                return <article key={`manga-candidate-${manga.mal_id}`} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-                  <ProgressiveImage src={cover} alt="" wrapperClassName="h-14 w-10 flex-shrink-0 rounded-lg" className="h-full w-full object-cover" />
-                  <div className="min-w-0 flex-1"><strong className="block truncate text-xs text-white">{manga.title || manga.title_english}</strong><span className="text-[10px] text-neutral-400">{manga.format || manga.type || "Manga"}{manga.chapters ? ` · ${manga.chapters} chapters` : ""}</span></div>
-                  <button type="button" disabled={alreadySaved} onClick={async () => { const added = await addMangaToFavourites(manga); if (added) setMangaCandidates((items) => [...items]); }} className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-bold ${alreadySaved ? "bg-white/10 text-neutral-500" : "bg-[#ffd700] text-black"}`}>{alreadySaved ? <><Check size={12} />Saved</> : <><Plus size={12} />Add</>}</button>
-                </article>;
-              })}
-              {!mangaCandidatesLoading && mangaCandidates.length === 0 && <p className="py-12 text-center text-xs text-neutral-400">No manga found. Try another title.</p>}
-            </div>
-            <div className="border-t border-white/10 pt-3 text-right"><button type="button" onClick={() => setShowAddMangaModal(false)} className="rounded-xl bg-white/10 px-5 py-2 text-xs font-bold text-white">Done</button></div>
-          </div>
-        </div>
-      ), document.body)}
+          </div>,
+          document.body,
+        )}
 
       {/* Edit Anime Note / Move Modal */}
       {editingAnimeId !== null && (
@@ -1703,7 +2684,8 @@ export const Favourites: React.FC = () => {
             </div>
 
             <div className="text-xs text-white font-bold truncate">
-              {activeFavMap.get(editingAnimeId)?.title || (favoriteMedia === "manga" ? "Manga" : "Anime")}
+              {activeFavMap.get(editingAnimeId)?.title ||
+                (favoriteMedia === "manga" ? "Manga" : "Anime")}
             </div>
 
             <div>
@@ -1765,86 +2747,109 @@ export const Favourites: React.FC = () => {
       )}
 
       {/* Share / Export Tier List Modal */}
-      {shareModalOpen && createPortal((
-        <div
-          onClick={() => setShareModalOpen(false)}
-          className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[5000] flex items-center justify-center p-4"
-        >
+      {shareModalOpen &&
+        createPortal(
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-[#18181b] border border-[#ffd700]/40 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95"
+            onClick={() => setShareModalOpen(false)}
+            className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[5000] flex items-center justify-center p-4"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <Share2 size={18} className="text-[#ffd700]" />
-                <h3 className="font-montserrat font-bold text-base text-white">
-                  Export & Share Tier List
-                </h3>
-              </div>
-              <button
-                onClick={() => setShareModalOpen(false)}
-                className="text-neutral-400 hover:text-white cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <p className="text-xs text-neutral-300 leading-relaxed">
-              Share a privacy-safe tier-list page or copy formatted rankings. Account details, private notes, and deleted favourites are excluded.
-            </p>
-
-            <div className="space-y-2.5">
-              <button
-                onClick={handleOpenSharedFavourites}
-                className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-[#ffd700]/15 border border-white/10 hover:border-[#ffd700] rounded-xl text-left text-xs sm:text-sm font-semibold transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <ExternalLink size={18} className="text-[#ffd700]" />
-                  <div>
-                    <div className="text-white group-hover:text-[#ffd700]">Open Shared Page</div>
-                    <div className="text-[11px] text-neutral-400">Preview the private tier-list route</div>
-                  </div>
-                </div>
-                <ChevronRight size={16} className="text-neutral-500 group-hover:text-[#ffd700]" />
-              </button>
-
-              <button
-                onClick={() => void handleShareFavourites()}
-                className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-[#ffd700]/15 border border-white/10 hover:border-[#ffd700] rounded-xl text-left text-xs sm:text-sm font-semibold transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#18181b] border border-[#ffd700]/40 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                <div className="flex items-center gap-2">
                   <Share2 size={18} className="text-[#ffd700]" />
-                  <div>
-                    <div className="text-white group-hover:text-[#ffd700]">Share Page</div>
-                    <div className="text-[11px] text-neutral-400">Use the share sheet or copy its link</div>
-                  </div>
+                  <h3 className="font-montserrat font-bold text-base text-white">
+                    Export & Share Tier List
+                  </h3>
                 </div>
-                <ChevronRight size={16} className="text-neutral-500 group-hover:text-[#ffd700]" />
-              </button>
+                <button
+                  onClick={() => setShareModalOpen(false)}
+                  className="text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-              <button
-                onClick={handleCopySummary}
-                className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-[#ffd700]/15 border border-white/10 hover:border-[#ffd700] rounded-xl text-left text-xs sm:text-sm font-semibold transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  {copied ? (
-                    <Check size={18} className="text-green-400" />
-                  ) : (
-                    <Copy size={18} className="text-[#ffd700]" />
-                  )}
-                  <div>
-                    <div className="text-white group-hover:text-[#ffd700]">
-                      {copied ? "Copied to Clipboard!" : "Copy Summary Text"}
+              <p className="text-xs text-neutral-300 leading-relaxed">
+                Share a privacy-safe tier-list page or copy formatted rankings.
+                Account details, private notes, and deleted favourites are
+                excluded.
+              </p>
+
+              <div className="space-y-2.5">
+                <button
+                  onClick={handleOpenSharedFavourites}
+                  className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-[#ffd700]/15 border border-white/10 hover:border-[#ffd700] rounded-xl text-left text-xs sm:text-sm font-semibold transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    <ExternalLink size={18} className="text-[#ffd700]" />
+                    <div>
+                      <div className="text-white group-hover:text-[#ffd700]">
+                        Open Shared Page
+                      </div>
+                      <div className="text-[11px] text-neutral-400">
+                        Preview the private tier-list route
+                      </div>
                     </div>
-                    <div className="text-[11px] text-neutral-400">Copy formatted text rankings</div>
                   </div>
-                </div>
-                <ChevronRight size={16} className="text-neutral-500 group-hover:text-[#ffd700]" />
-              </button>
+                  <ChevronRight
+                    size={16}
+                    className="text-neutral-500 group-hover:text-[#ffd700]"
+                  />
+                </button>
+
+                <button
+                  onClick={() => void handleShareFavourites()}
+                  className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-[#ffd700]/15 border border-white/10 hover:border-[#ffd700] rounded-xl text-left text-xs sm:text-sm font-semibold transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    <Share2 size={18} className="text-[#ffd700]" />
+                    <div>
+                      <div className="text-white group-hover:text-[#ffd700]">
+                        Share Page
+                      </div>
+                      <div className="text-[11px] text-neutral-400">
+                        Use the share sheet or copy its link
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    size={16}
+                    className="text-neutral-500 group-hover:text-[#ffd700]"
+                  />
+                </button>
+
+                <button
+                  onClick={handleCopySummary}
+                  className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-[#ffd700]/15 border border-white/10 hover:border-[#ffd700] rounded-xl text-left text-xs sm:text-sm font-semibold transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    {copied ? (
+                      <Check size={18} className="text-green-400" />
+                    ) : (
+                      <Copy size={18} className="text-[#ffd700]" />
+                    )}
+                    <div>
+                      <div className="text-white group-hover:text-[#ffd700]">
+                        {copied ? "Copied to Clipboard!" : "Copy Summary Text"}
+                      </div>
+                      <div className="text-[11px] text-neutral-400">
+                        Copy formatted text rankings
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight
+                    size={16}
+                    className="text-neutral-500 group-hover:text-[#ffd700]"
+                  />
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      ), document.body)}
+          </div>,
+          document.body,
+        )}
 
       {/* Edit / Rename Tier Modal */}
       {editingTier && (
@@ -1870,7 +2875,9 @@ export const Favourites: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-neutral-300">Tier Name / Rank</label>
+              <label className="text-xs font-semibold text-neutral-300">
+                Tier Name / Rank
+              </label>
               <input
                 type="text"
                 value={editTierName}
@@ -1882,7 +2889,9 @@ export const Favourites: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-neutral-300">Tier Header Color</label>
+              <label className="text-xs font-semibold text-neutral-300">
+                Tier Header Color
+              </label>
               <div className="flex items-center gap-2 flex-wrap">
                 {PRESET_COLORS.map((c) => (
                   <button
@@ -1891,7 +2900,9 @@ export const Favourites: React.FC = () => {
                     onClick={() => setEditTierColor(c)}
                     style={{ backgroundColor: c }}
                     className={`w-7 h-7 rounded-full transition-transform cursor-pointer ${
-                      editTierColor === c ? "ring-4 ring-white scale-110 shadow-lg" : "hover:scale-105"
+                      editTierColor === c
+                        ? "ring-4 ring-white scale-110 shadow-lg"
+                        : "hover:scale-105"
                     }`}
                   />
                 ))}
@@ -1918,11 +2929,14 @@ export const Favourites: React.FC = () => {
 
       {/* Floating Tap-to-Place Quick Bar (Mobile & Desktop) */}
       {selectedAnimeId !== null && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#121218]/95 backdrop-blur-xl border-2 border-emerald-400 shadow-[0_0_30px_rgba(52,211,153,0.5)] rounded-2xl px-4 py-3 flex items-center gap-3 max-w-[95vw] overflow-x-auto animate-in slide-in-from-bottom-5">
+        <div className="favorite-placement-bar fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#121218]/95 backdrop-blur-xl border-2 border-emerald-400 shadow-[0_0_30px_rgba(52,211,153,0.5)] rounded-2xl px-4 py-3 flex items-center gap-3 max-w-[95vw] overflow-x-auto animate-in slide-in-from-bottom-5">
           <div className="flex items-center gap-2 pr-2 border-r border-white/10 flex-shrink-0">
-            <span className="text-xs font-bold text-emerald-400">Place in:</span>
+            <span className="text-xs font-bold text-emerald-400">
+              Place in:
+            </span>
             <span className="text-xs font-semibold text-white truncate max-w-[110px]">
-              {activeFavMap.get(selectedAnimeId)?.title || (favoriteMedia === "manga" ? "Manga" : "Anime")}
+              {activeFavMap.get(selectedAnimeId)?.title ||
+                (favoriteMedia === "manga" ? "Manga" : "Anime")}
             </span>
           </div>
 

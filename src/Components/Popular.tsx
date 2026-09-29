@@ -119,6 +119,19 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
         description="Explore the highest-rated and most popular anime series and movies across all genres. Filter, search, and discover timeless masterpieces on Anime Orbit."
         keywords="popular anime, top rated anime, best anime of all time, all genres, anime catalog, Anime Orbit"
         url="https://animeorbit.web.app/popular"
+        pageType="CollectionPage"
+        structuredData={{
+          "@type": "ItemList",
+          "@id": "https://animeorbit.web.app/popular#anime-list",
+          name: "Top rated and popular anime",
+          numberOfItems: visibleAnime.length,
+          itemListElement: visibleAnime.slice(0, 50).map((anime, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: anime.title_english || anime.title,
+            url: `https://animeorbit.web.app/anime/${anime.mal_id}`,
+          })),
+        }}
       />
       {safePopularAnime.length > 0 && (
         <div className="w-full max-w-7xl px-2 sm:px-4 mb-8">

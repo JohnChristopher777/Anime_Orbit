@@ -13,6 +13,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [profileHandle, setProfileHandle] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +43,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         toast.success("Welcome back to Anime Orbit!");
         onClose();
       } else if (mode === "signup") {
-        await signup(email, password, displayName);
+        await signup(email, password, displayName, profileHandle);
         toast.success("Account created successfully!");
         onClose();
       } else if (mode === "forgot") {
@@ -160,19 +161,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         {/* Email & Password Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
-            <div className="relative">
-              <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
-              <input
-                id="auth-username"
-                name="username"
-                type="text"
-                placeholder="Username / Display Name"
-                required
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-xs sm:text-sm text-white outline-none"
-              />
-            </div>
+            <>
+              <div className="relative">
+                <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <input id="auth-username" name="username" type="text" placeholder="Display name" required maxLength={15} value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-xs sm:text-sm text-white outline-none" />
+              </div>
+              <div>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#ffd700] font-bold">@</span>
+                  <input id="auth-profile-id" name="profileId" type="text" placeholder="Unique profile ID" required minLength={3} maxLength={24} pattern="[A-Za-z0-9][A-Za-z0-9_-]*" value={profileHandle} onChange={(e) => setProfileHandle(e.target.value.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24))} className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-xs sm:text-sm text-white outline-none" />
+                </div>
+                <small className="mt-1.5 block text-[10px] text-neutral-500">Required and unique. This becomes your public profile link.</small>
+              </div>
+            </>
           )}
 
           <div className="relative">

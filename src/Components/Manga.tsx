@@ -72,6 +72,19 @@ export const Manga: React.FC = () => {
         description="Explore top-rated manga masterpieces, original source stories, light novels, and character genesis across all genres on Anime Orbit."
         keywords="manga database, popular manga, manga story genesis, manga origins, read manga info, Anime Orbit"
         url="https://animeorbit.web.app/manga"
+        pageType="CollectionPage"
+        structuredData={{
+          "@type": "ItemList",
+          "@id": "https://animeorbit.web.app/manga#manga-list",
+          name: "Popular manga and light novels",
+          numberOfItems: mangaList.length,
+          itemListElement: mangaList.slice(0, 50).map((manga, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: manga.title_english || manga.title,
+            url: `https://animeorbit.web.app/manga/${manga.mal_id}`,
+          })),
+        }}
       />
 
       <main className="manga-catalog-shell max-w-7xl mx-auto px-3 sm:px-8 pt-4 sm:pt-8 pb-16 flex-1 w-full space-y-5 sm:space-y-8">

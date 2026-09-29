@@ -51,6 +51,19 @@ export const Trending: React.FC<TrendingProps> = ({ mode = "trending" }) => {
         description={isAiring ? "Keep up with anime currently broadcasting this season." : "Explore anime gaining momentum across the community right now."}
         keywords="airing anime, trending anime, current anime season, weekly anime episodes, Anime Orbit"
         url={`https://animeorbit.web.app/${isAiring ? "airing" : "trending"}`}
+        pageType="CollectionPage"
+        structuredData={{
+          "@type": "ItemList",
+          "@id": `https://animeorbit.web.app/${isAiring ? "airing" : "trending"}#anime-list`,
+          name: isAiring ? "Currently airing anime" : "Trending anime",
+          numberOfItems: visibleItems.length,
+          itemListElement: visibleItems.slice(0, 50).map((anime, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: anime.title_english || anime.title,
+            url: `https://animeorbit.web.app/anime/${anime.mal_id}`,
+          })),
+        }}
       />
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 flex flex-col gap-6 sm:gap-8 flex-1 w-full">
         {/* Header */}

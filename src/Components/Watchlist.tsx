@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   useWatchlist,
   type WatchlistItem,
@@ -28,6 +28,7 @@ import {
   RotateCcw,
   Clock3,
   Layers3,
+  Pin,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -55,7 +56,7 @@ interface TrackerFieldsProps {
     endDate?: string;
     personalNotes?: string;
     progress?: number;
-    userScore?: number;
+    userScore?: number | null;
   }) => Promise<void>;
   onCancel: () => void;
 }
@@ -65,6 +66,36 @@ const statusToken = (status = "") => status.toLowerCase().replace(/\s+/g, "-");
 const trackerTimestamp = (item: WatchlistItem | MangaWatchlistItem) => {
   const timestamp = Date.parse(item.startDate || item.addedAt || "9999-12-31");
   return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
+};
+
+const animeStatusOrder: Record<string, number> = {
+  Watching: 0,
+  "Plan to Watch": 1,
+  "Caught Up": 2,
+  Completed: 3,
+  "On-Hold": 4,
+  Dropped: 5,
+};
+
+const mangaStatusOrder: Record<string, number> = {
+  Reading: 0,
+  "Plan to Read": 1,
+  "Caught Up": 2,
+  Completed: 3,
+  "On-Hold": 4,
+  Dropped: 5,
+};
+
+const sortTrackedItems = <T extends WatchlistItem | MangaWatchlistItem>(
+  items: T[],
+  mediaType: "anime" | "manga",
+) => {
+  const order = mediaType === "manga" ? mangaStatusOrder : animeStatusOrder;
+  return [...items].sort((a, b) => {
+    const statusA = order[a.status || ""] ?? 99;
+    const statusB = order[b.status || ""] ?? 99;
+    return statusA - statusB || trackerTimestamp(a) - trackerTimestamp(b);
+  });
 };
 
 const deletedDateMillis = (value: any) =>
@@ -90,7 +121,7 @@ const matchesWatchlistSearch = (
     .some((value) => String(value).toLowerCase().includes(query));
 };
 
-const personalScoreLabel = (score?: number) =>
+const personalScoreLabel = (score?: number | null) =>
   Number(score) > 0
     ? Number(score).toFixed(2).replace(/\.00$/, ".0")
     : "Not rated";
@@ -108,7 +139,7 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({
   const [endDate, setEndDate] = useState(item.endDate || "");
   const [personalNotes, setPersonalNotes] = useState(item.personalNotes || "");
   const [progress, setProgress] = useState(Number(item.progress || 0));
-  const [userScore, setUserScore] = useState(Number(item.userScore || 1));
+  const [userScore, setUserScore] = useState(Number(item.userScore || 0));
   const [saving, setSaving] = useState(false);
   const progressTotal =
     mediaType === "manga"
@@ -145,7 +176,7 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({
         endDate,
         personalNotes: personalNotes.trim(),
         progress,
-        userScore,
+        userScore: userScore > 0 ? userScore : null,
       });
     } finally {
       setSaving(false);
@@ -280,7 +311,9 @@ export const Watchlist: React.FC = () => {
     permanentlyDeleteItem,
     emptyTrash,
     loading,
+    setCurrentAnime,
   } = useWatchlist();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser } = useAuth();
   const publicShareOwner = usePublicShareOwner();
   const [activeFilter, setActiveFilter] = useState<string>("All");
@@ -305,10 +338,26 @@ export const Watchlist: React.FC = () => {
   const [franchiseLoading, setFranchiseLoading] = useState(false);
 
   useEffect(() => {
+    const editId = Number(searchParams.get("edit"));
+    if (!Number.isFinite(editId) || !watchlist.some((item) => item.mal_id === editId)) return;
+    setMediaTab("anime");
+    setExpandedTracker(`anime-${editId}`);
+  }, [searchParams, watchlist]);
+
+  const closeTracker = () => {
+    setExpandedTracker(null);
+    if (searchParams.has("edit")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("edit");
+      setSearchParams(next, { replace: true });
+    }
+  };
+
+  useEffect(() => {
     if (!expandedTracker) return;
     const previousOverflow = document.body.style.overflow;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setExpandedTracker(null);
+      if (event.key === "Escape") closeTracker();
     };
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleEscape);
@@ -406,8 +455,7 @@ export const Watchlist: React.FC = () => {
   const animeRank = useMemo(
     () =>
       new Map(
-        [...watchlist]
-          .sort((a, b) => trackerTimestamp(a) - trackerTimestamp(b))
+        sortTrackedItems(watchlist, "anime")
           .map((item, index) => [item.mal_id, index + 1]),
       ),
     [watchlist],
@@ -415,8 +463,7 @@ export const Watchlist: React.FC = () => {
   const mangaRank = useMemo(
     () =>
       new Map(
-        [...mangaWatchlist]
-          .sort((a, b) => trackerTimestamp(a) - trackerTimestamp(b))
+        sortTrackedItems(mangaWatchlist, "manga")
           .map((item, index) => [item.mal_id, index + 1]),
       ),
     [mangaWatchlist],
@@ -461,8 +508,9 @@ export const Watchlist: React.FC = () => {
   }, [mergeFranchises, watchlist]);
 
   const mergedWatchlist = useMemo(() => {
-    const searched = watchlist.filter((item) =>
-      matchesWatchlistSearch(item, listQuery),
+    const searched = sortTrackedItems(
+      watchlist.filter((item) => matchesWatchlistSearch(item, listQuery)),
+      "anime",
     );
     const source =
       activeFilter === "All"
@@ -573,9 +621,10 @@ export const Watchlist: React.FC = () => {
 
   const filteredItems =
     activeFilter === "All"
-      ? watchlist
-          .filter((item) => matchesWatchlistSearch(item, listQuery))
-          .sort((a, b) => trackerTimestamp(a) - trackerTimestamp(b))
+      ? sortTrackedItems(
+          watchlist.filter((item) => matchesWatchlistSearch(item, listQuery)),
+          "anime",
+        )
       : watchlist
           .filter(
             (item) =>
@@ -585,9 +634,10 @@ export const Watchlist: React.FC = () => {
           .sort((a, b) => trackerTimestamp(a) - trackerTimestamp(b));
   const filteredMangaItems =
     activeMangaFilter === "All"
-      ? mangaWatchlist
-          .filter((item) => matchesWatchlistSearch(item, listQuery))
-          .sort((a, b) => trackerTimestamp(a) - trackerTimestamp(b))
+      ? sortTrackedItems(
+          mangaWatchlist.filter((item) => matchesWatchlistSearch(item, listQuery)),
+          "manga",
+        )
       : mangaWatchlist
           .filter(
             (item) =>
@@ -1067,6 +1117,18 @@ export const Watchlist: React.FC = () => {
                     </small>
                   </div>
                   <div className="tracker-card__actions">
+                    {item.status === "Watching" && (
+                      <button
+                        type="button"
+                        className={item.isCurrent ? "is-current" : ""}
+                        aria-pressed={Boolean(item.isCurrent)}
+                        title={item.isCurrent ? "Remove from the top of your home progress deck" : "Show first in your home progress deck"}
+                        onClick={() => void setCurrentAnime(item.isCurrent ? null : item.mal_id)}
+                      >
+                        <Pin size={13} fill={item.isCurrent ? "currentColor" : "none"} />
+                        {item.isCurrent ? "Current" : "Set current"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       aria-haspopup="dialog"
@@ -1318,7 +1380,7 @@ export const Watchlist: React.FC = () => {
             <div
               className="tracker-editor-modal__backdrop"
               role="presentation"
-              onMouseDown={() => setExpandedTracker(null)}
+              onMouseDown={closeTracker}
             >
               <section
                 className="tracker-editor-modal"
@@ -1351,7 +1413,7 @@ export const Watchlist: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setExpandedTracker(null)}
+                    onClick={closeTracker}
                     aria-label="Close tracker editor"
                   >
                     <X size={19} />
@@ -1361,7 +1423,7 @@ export const Watchlist: React.FC = () => {
                   key={expandedTracker}
                   mediaType={trackerMediaType}
                   item={trackerItem}
-                  onCancel={() => setExpandedTracker(null)}
+                  onCancel={closeTracker}
                   onSave={async (updates) => {
                     if (trackerMediaType === "manga")
                       await updateMangaWatchlistEntry(
@@ -1373,7 +1435,7 @@ export const Watchlist: React.FC = () => {
                         trackerItem.mal_id,
                         updates as any,
                       );
-                    setExpandedTracker(null);
+                    closeTracker();
                   }}
                 />
               </section>

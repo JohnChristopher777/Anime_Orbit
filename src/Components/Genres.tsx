@@ -323,6 +323,19 @@ export const Genres: React.FC = () => {
         description={`Browse top-rated ${activeGenre} ${activeMedia} on Anime Orbit.`}
         keywords={`${activeGenre} ${activeMedia}, top ${activeGenre} ${activeMedia}, ${activeMedia} genres, Anime Orbit`}
         url={`https://animeorbit.web.app/genres?genre=${encodeURIComponent(activeGenre)}&media=${activeMedia}`}
+        pageType="CollectionPage"
+        structuredData={{
+          "@type": "ItemList",
+          "@id": `https://animeorbit.web.app/genres?genre=${encodeURIComponent(activeGenre)}&media=${activeMedia}#titles`,
+          name: `${activeGenre} ${activeMedia} titles`,
+          numberOfItems: animeList.length,
+          itemListElement: animeList.slice(0, 50).map((item: any, index: number) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: item.title_english || item.title,
+            url: `https://animeorbit.web.app/${activeMedia === "manga" ? "manga" : "anime"}/${item.mal_id}`,
+          })),
+        }}
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-16 w-full flex-1">

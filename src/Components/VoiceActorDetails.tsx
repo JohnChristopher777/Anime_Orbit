@@ -147,15 +147,58 @@ const VoiceActorDetails: React.FC = () => {
     () => extractLinks(actor?.description || ""),
     [actor?.description],
   );
+  const actorName = actor?.name?.full || "Voice Actor";
+  const actorSummary = actor
+    ? plainText(actor.description || "").slice(0, 190) ||
+      `Explore the anime characters voiced by ${actorName}, with roles ordered by release year.`
+    : "Explore anime voice actors and their character roles by release year.";
+  const actorStructuredData = actor
+    ? [
+        {
+          "@type": "Person",
+          "@id": `https://animeorbit.web.app/voice-actor/${id}#person`,
+          name: actorName,
+          alternateName: actor.name?.native || undefined,
+          description: actorSummary,
+          image: actor.image?.large || actor.image?.medium || undefined,
+          jobTitle: "Voice actor",
+          knowsLanguage: actor.languageV2 || undefined,
+          url: `https://animeorbit.web.app/voice-actor/${id}`,
+        },
+        {
+          "@type": "ItemList",
+          "@id": `https://animeorbit.web.app/voice-actor/${id}#roles`,
+          name: `${actorName} voice roles`,
+          numberOfItems: roleRows.length,
+          itemListElement: sortedRows.slice(0, 25).map(({ edge, character }, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: `${character?.name?.full || "Character"} in ${edge.node?.title?.english || edge.node?.title?.romaji || "Anime"}`,
+            url: character?.id
+              ? `https://animeorbit.web.app/character/${character.id}`
+              : `https://animeorbit.web.app/voice-actor/${id}`,
+          })),
+        },
+      ]
+    : undefined;
 
   return (
     <div className="voice-detail-page">
       <SEO
-        title={`${actor?.name?.full || "Voice Actor"} - Voice Roles`}
-        description={`Characters and anime voiced by ${actor?.name?.full || "this actor"}, ordered by year.`}
-        keywords="anime voice actor, seiyuu, anime cast"
+        title={`${actorName} - Anime Characters & Voice Roles`}
+        description={actorSummary}
+        keywords={`${actorName}, anime voice actor, seiyuu, anime characters, voice roles, anime cast`}
         url={`https://animeorbit.web.app/voice-actor/${id}`}
         image={actor?.image?.large}
+        type="profile"
+        pageType="ProfilePage"
+        structuredData={actorStructuredData}
+        breadcrumbs={[
+          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
+          { name: "Voice cast discovery", url: "https://animeorbit.web.app/discovery?tool=voices" },
+          { name: actorName, url: `https://animeorbit.web.app/voice-actor/${id}` },
+        ]}
+        noIndex={Boolean(loadError && !actor)}
       />
       <main className="voice-detail-shell">
         <div className="voice-detail-actions">

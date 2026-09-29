@@ -9,14 +9,13 @@ import {
   where,
   onSnapshot,
   getDocs,
-  deleteDoc,
-  doc,
 } from "firebase/firestore";
 import { AlertCircle, BookOpen, MessageSquare, Trash2, LogIn, ExternalLink, RefreshCw, Tv } from "lucide-react";
 import { toast } from "react-toastify";
 import AuthModal from "./AuthModal";
 import ProgressiveImage from "./ProgressiveImage";
 import Footer from "./Footer";
+import { deleteCommunityEntryTree } from "../services/communityModeration";
 
 const commentMedia = (comment: any) => {
   const isManga = comment.mediaType === "MANGA" || Boolean(comment.mangaId);
@@ -80,10 +79,13 @@ export const MyComments: React.FC = () => {
     }
   }, [currentUser, reloadKey]);
 
-  const handleDeleteComment = async (commentId: string) => {
+  const handleDeleteComment = async (comment: any) => {
+    const isRoot = !comment.parentId;
+    if (!window.confirm(isRoot ? "Delete this comment, every reply below it, and its notifications?" : "Delete this reply?")) return;
     try {
-      await deleteDoc(doc(db, "comments", commentId));
-      toast.info("Comment deleted");
+      if (!currentUser) return;
+      await deleteCommunityEntryTree(comment, currentUser.uid);
+      toast.info(isRoot ? "Comment thread and related notifications deleted" : "Reply deleted");
     } catch {
       toast.error("Failed to delete comment");
     }
@@ -105,14 +107,14 @@ export const MyComments: React.FC = () => {
             <div className="flex gap-4 items-start flex-1 min-w-0">
               {media.image && <ProgressiveImage src={media.image} alt={`${media.title} cover`} wrapperClassName="w-16 h-24 rounded-xl border border-white/10 flex-shrink-0" className="h-full w-full object-cover" />}
               <div className="space-y-2 flex-1 min-w-0">
-                <Link to={media.route} className="font-montserrat font-bold text-base text-white hover:text-[#ffd700] transition-colors inline-flex items-center gap-1">
+                <Link to={`${media.route}?tab=discussion#comment-${encodeURIComponent(comm.id)}`} className="font-montserrat font-bold text-base text-white hover:text-[#ffd700] transition-colors inline-flex items-center gap-1">
                   <span>{media.title}</span><ExternalLink size={14} />
                 </Link>
                 <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">{comm.text || comm.content}</p>
                 <p className="text-[11px] text-neutral-500">Posted on: {comm.createdAt?.toDate ? comm.createdAt.toDate().toLocaleDateString() : "Recently"}</p>
               </div>
             </div>
-            <button onClick={() => handleDeleteComment(comm.id)} className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-xl border border-red-500/20 text-xs font-bold flex items-center gap-1.5 transition-colors self-end sm:self-start flex-shrink-0">
+            <button onClick={() => void handleDeleteComment(comm)} className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-xl border border-red-500/20 text-xs font-bold flex items-center gap-1.5 transition-colors self-end sm:self-start flex-shrink-0">
               <Trash2 size={15} /><span>Delete</span>
             </button>
           </article>;

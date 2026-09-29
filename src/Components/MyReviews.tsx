@@ -9,11 +9,8 @@ import {
   where,
   onSnapshot,
   getDocs,
-  deleteDoc,
-  doc,
 } from "firebase/firestore";
-import { AlertCircle, BookOpen, MessageCircle, Star, Trash2, LogIn, ExternalLink, RefreshCw, Tv } from "lucide-react";
-import { toast } from "react-toastify";
+import { AlertCircle, BookOpen, MessageCircle, Star, LogIn, ExternalLink, RefreshCw, Tv, Pencil } from "lucide-react";
 import AuthModal from "./AuthModal";
 import ProgressiveImage from "./ProgressiveImage";
 import Footer from "./Footer";
@@ -79,15 +76,6 @@ export const MyReviews: React.FC = () => {
     }
   }, [currentUser, reloadKey]);
 
-  const handleDeleteReview = async (reviewId: string) => {
-    try {
-      await deleteDoc(doc(db, "reviews", reviewId));
-      toast.info("Review deleted");
-    } catch {
-      toast.error("Failed to delete review");
-    }
-  };
-
   const animeReviews = reviews.filter((review) => !reviewMedia(review).isManga);
   const mangaReviews = reviews.filter((review) => reviewMedia(review).isManga);
 
@@ -100,19 +88,20 @@ export const MyReviews: React.FC = () => {
       {entries.length ? <div className="space-y-4">
         {entries.map((rev) => {
           const media = reviewMedia(rev);
+          const reviewRoute = `${media.route}?tab=reviews&editReview=${encodeURIComponent(rev.id)}#review-${encodeURIComponent(rev.id)}`;
           return <article key={rev.id} className="p-5 bg-neutral-900/60 border border-white/10 hover:border-[#ffd700]/30 rounded-2xl flex flex-col sm:flex-row gap-5 items-start justify-between transition-all">
             <div className="flex gap-4 items-start flex-1 min-w-0">
               {media.image && <ProgressiveImage src={media.image} alt={`${media.title} cover`} wrapperClassName="w-16 h-24 rounded-xl border border-white/10 flex-shrink-0" className="h-full w-full object-cover" />}
               <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
-                  <Link to={media.route} className="font-montserrat font-bold text-base text-white hover:text-[#ffd700] transition-colors flex items-center gap-1"><span>{media.title}</span><ExternalLink size={14} /></Link>
+                  <Link to={reviewRoute} className="font-montserrat font-bold text-base text-white hover:text-[#ffd700] transition-colors flex items-center gap-1"><span>{media.title}</span><ExternalLink size={14} /></Link>
                   <div className="flex items-center gap-1 bg-[#ffd700]/20 border border-[#ffd700]/40 text-[#ffd700] px-2.5 py-0.5 rounded-full text-xs font-bold font-montserrat"><Star size={12} fill="#ffd700" /><span>{rev.rating} / 10</span></div>
                 </div>
                 <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">{rev.text || rev.content}</p>
                 <p className="text-[11px] text-neutral-500">Reviewed on: {rev.createdAt?.toDate ? rev.createdAt.toDate().toLocaleDateString() : "Recently"}</p>
               </div>
             </div>
-            <button onClick={() => handleDeleteReview(rev.id)} className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-xl border border-red-500/20 text-xs font-bold flex items-center gap-1.5 transition-colors self-end sm:self-start flex-shrink-0"><Trash2 size={15} /><span>Delete</span></button>
+            <Link to={reviewRoute} className="p-2.5 bg-[#ffd700]/10 hover:bg-[#ffd700] text-[#ffd700] hover:text-black rounded-xl border border-[#ffd700]/20 text-xs font-bold flex items-center gap-1.5 transition-colors self-end sm:self-start flex-shrink-0"><Pencil size={14} /><span>Edit</span></Link>
           </article>;
         })}
       </div> : <p className="community-history-section__empty">No {mediaType} reviews yet.</p>}

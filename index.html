@@ -22,9 +22,11 @@
       name="keywords"
       content="Anime Orbit, anime database, all genre anime, anime compass, One Piece, Naruto Shippuden, Bleach Thousand-Year Blood War, Vinland Saga, Jujutsu Kaisen, Attack on Titan, Solo Leveling, Demon Slayer, Frieren, anime episode guide, anime characters, anime reviews, anime watchlist"
     />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="author" content="Anime Orbit" />
-    <link rel="canonical" href="https://animeorbit.web.app/" />
+    <!-- Route-specific canonicals are injected by the application after routing.
+         Keeping a root canonical here would incorrectly canonicalize every SPA detail URL. -->
 
     <!-- Open Graph / Facebook / Discord SEO -->
     <meta property="og:type" content="website" />
@@ -86,7 +88,7 @@
             "@id": "https://animeorbit.web.app/#website",
             "url": "https://animeorbit.web.app/",
             "name": "Anime Orbit",
-            "alternateName": ["AnimeOrbit", "animeorbit.web.app"],
+            "alternateName": ["AnimeOrbit", "Anime Orbit App"],
             "description": "Anime and manga discovery, episode and chapter guides, watchlists, tier lists, and community discussions.",
             "inLanguage": "en",
             "publisher": { "@id": "https://animeorbit.web.app/#organization" }
@@ -95,6 +97,7 @@
             "@type": "Organization",
             "@id": "https://animeorbit.web.app/#organization",
             "name": "Anime Orbit",
+            "alternateName": ["AnimeOrbit", "Anime Orbit App"],
             "url": "https://animeorbit.web.app/",
             "logo": {
               "@type": "ImageObject",

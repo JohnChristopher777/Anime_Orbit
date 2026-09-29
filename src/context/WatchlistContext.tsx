@@ -34,7 +34,8 @@ export interface WatchlistItem {
   endDate?: string;
   personalNotes?: string;
   progress?: number;
-  userScore?: number;
+  userScore?: number | null;
+  isCurrent?: boolean;
   mediaType?: "ANIME" | "MANGA";
   releaseStatus?: string;
 }
@@ -85,7 +86,8 @@ interface WatchlistContextType {
   isWatched: (animeId: number) => boolean;
   updateAnimeStatus: (anime: any, status: string | null) => Promise<void>;
   getAnimeStatus: (animeId: number) => string | null;
-  updateWatchlistEntry: (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "episodes" | "releaseStatus">>) => Promise<void>;
+  updateWatchlistEntry: (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "episodes" | "releaseStatus" | "isCurrent">>) => Promise<void>;
+  setCurrentAnime: (animeId: number | null) => Promise<void>;
   addMangaToWatchlist: (manga: any) => Promise<void>;
   removeMangaFromWatchlist: (mangaId: number) => Promise<void>;
   updateMangaWatchlistEntry: (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "chapters" | "releaseStatus">>) => Promise<void>;
@@ -402,6 +404,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
         releaseStatus: anime.status || "",
         genres: anime.genres?.map((g: any) => g.name || g) || [],
         status: normalizedStatus,
+        isCurrent: normalizedStatus === "Watching" ? Boolean(existingItem?.isCurrent) : false,
         ...((normalizedStatus === "Completed" || normalizedStatus === "Caught Up") && episodeTotal > 0 ? { progress: episodeTotal, ...(normalizedStatus === "Completed" ? { endDate: existingItem?.endDate || new Date().toISOString().slice(0, 10) } : {}) } : {}),
         updatedAt: new Date().toISOString(),
       };
@@ -437,7 +440,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     return item ? (item.status || "Plan to Watch") : null;
   };
 
-  const updateWatchlistEntry = async (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "episodes" | "releaseStatus">>) => {
+  const updateWatchlistEntry = async (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "episodes" | "releaseStatus" | "isCurrent">>) => {
     if (!currentUser) return;
     try {
       const currentItem = watchlist.find((item) => item.mal_id === animeId);
@@ -461,6 +464,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
         ...updates,
         status: derivedStatus,
         progress: hasEpisodeTotal ? Math.min(progress, episodeTotal) : progress,
+        ...(derivedStatus !== "Watching" ? { isCurrent: false } : {}),
         ...(reachedFinalEpisode && statusAtKnownTotal(releaseStatus) === "Completed" ? { endDate: updates.endDate || new Date().toISOString().slice(0, 10) } : {}),
       };
       await setDoc(doc(db, "users", currentUser.uid, "watchlist", animeId.toString()), { ...normalizedUpdates, mediaType: "ANIME", updatedAt }, { merge: true });
@@ -476,6 +480,33 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
         toast.success("Latest available episode logged — you're caught up");
     } catch {
       toast.error("Could not save watch notes");
+    }
+  };
+
+  const setCurrentAnime = async (animeId: number | null) => {
+    if (!currentUser) return;
+    const target = animeId === null ? null : watchlist.find((item) => item.mal_id === animeId);
+    if (target && target.status !== "Watching") {
+      toast.info("Only an anime you are watching can be set as current");
+      return;
+    }
+    try {
+      const batch = writeBatch(db);
+      const updatedAt = new Date().toISOString();
+      watchlist.forEach((item) => {
+        const shouldBeCurrent = animeId !== null && item.mal_id === animeId;
+        if (Boolean(item.isCurrent) !== shouldBeCurrent) {
+          batch.set(
+            doc(db, "users", currentUser.uid, "watchlist", item.mal_id.toString()),
+            { isCurrent: shouldBeCurrent, updatedAt },
+            { merge: true }
+          );
+        }
+      });
+      await batch.commit();
+      toast.success(animeId === null ? "Current anime cleared" : `${target?.title || "Anime"} is now current`);
+    } catch {
+      toast.error("Could not update your current anime");
     }
   };
 
@@ -599,6 +630,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     updateAnimeStatus,
     getAnimeStatus,
     updateWatchlistEntry,
+    setCurrentAnime,
     addMangaToWatchlist,
     removeMangaFromWatchlist,
     updateMangaWatchlistEntry,

@@ -37,6 +37,7 @@ interface FavouritesContextType {
   removeFromFavourites: (animeId: number) => Promise<boolean>;
   isFavourite: (animeId: number) => boolean;
   addMangaToFavourites: (manga: any) => Promise<boolean>;
+  bulkAddFavourites: (items: any[], mediaType: "ANIME" | "MANGA") => Promise<number>;
   removeMangaFromFavourites: (mangaId: number) => Promise<boolean>;
   isMangaFavourite: (mangaId: number) => boolean;
   restoreFavourite: (originalKey: string) => Promise<void>;
@@ -128,6 +129,43 @@ export const FavouritesProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  const bulkAddFavourites = async (items: any[], mediaType: "ANIME" | "MANGA") => {
+    if (!currentUser || items.length === 0) return 0;
+    try {
+      let imported = 0;
+      for (let offset = 0; offset < items.length; offset += 400) {
+        const batch = writeBatch(db);
+        items.slice(offset, offset + 400).forEach((media) => {
+          const id = Number(media.mal_id);
+          if (!Number.isFinite(id)) return;
+          const key = mediaType === "MANGA" ? `manga-${id}` : id.toString();
+          batch.set(doc(db, "users", currentUser.uid, "favourites", key), {
+            mal_id: id,
+            title: media.title || media.title_english || `Unknown ${mediaType === "MANGA" ? "Manga" : "Anime"}`,
+            title_english: media.title_english || media.title,
+            image: media.images?.jpg?.large_image_url || media.images?.jpg?.image_url || media.image_url || media.image || "",
+            score: media.score || null,
+            episodes: mediaType === "ANIME" ? media.episodes || null : null,
+            chapters: mediaType === "MANGA" ? media.chapters || null : null,
+            volumes: mediaType === "MANGA" ? media.volumes || null : null,
+            format: media.format || media.type || mediaType,
+            countryOfOrigin: media.countryOfOrigin || null,
+            genres: (media.genres || []).map((genre: any) => typeof genre === "string" ? genre : genre?.name).filter(Boolean),
+            mediaType,
+            addedAt: media.addedAt || new Date().toISOString(),
+          }, { merge: true });
+          imported += 1;
+        });
+        await batch.commit();
+      }
+      toast.success(`${imported} ${mediaType === "MANGA" ? "manga" : "anime"} imported to Favorites`);
+      return imported;
+    } catch {
+      toast.error("Could not import your tracked titles");
+      return 0;
+    }
+  };
+
   const restoreFavourite = async (originalKey: string) => {
     if (!currentUser) return;
     const item = deletedFavourites.find((entry) => entry.originalKey === originalKey)
@@ -194,6 +232,7 @@ export const FavouritesProvider: React.FC<{ children: ReactNode }> = ({ children
     removeFromFavourites,
     isFavourite: (animeId) => favourites.some((item) => item.mal_id === animeId),
     addMangaToFavourites: (manga) => addFavourite(manga, "MANGA"),
+    bulkAddFavourites,
     removeMangaFromFavourites,
     isMangaFavourite: (mangaId) => mangaFavourites.some((item) => item.mal_id === mangaId),
     restoreFavourite,

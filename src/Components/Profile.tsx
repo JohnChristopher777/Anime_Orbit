@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import { useFavourites } from "../context/FavouritesContext";
 import { useWatchlist } from "../context/WatchlistContext";
@@ -30,6 +31,14 @@ import {
   Share2,
   Copy,
   Check,
+  PlayCircle,
+  Radio,
+  CheckCircle2,
+  Tv,
+  Film,
+  Disc3,
+  Layers3,
+  Clock3,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { useNavigate, Link } from "react-router-dom";
@@ -40,6 +49,117 @@ import AppDropdown from "./AppDropdown";
 import { getAnimeListByIds, setMatureContentPreference } from "../services/anilist";
 import { safeImageUrl, sanitizeHandle, sanitizeInput } from "../utils/security";
 import { AVATAR_PRESETS, BANNER_PRESETS } from "../generated/profileAssets";
+import { claimProfileHandle, createAvailableProfileHandle, isProfileHandleAvailable, validateProfileHandle } from "../services/profileHandle";
+
+type ProfileAssetDialogProps = {
+  kind: "avatar" | "banner";
+  open: boolean;
+  value: string;
+  choices: readonly string[];
+  fallbackLabel: string;
+  onChange: (value: string) => void;
+  onClose: () => void;
+};
+
+const ProfileAssetDialog: React.FC<ProfileAssetDialogProps> = ({
+  kind,
+  open,
+  value,
+  choices,
+  fallbackLabel,
+  onChange,
+  onClose,
+}) => {
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const isAvatar = kind === "avatar";
+  const title = isAvatar ? "Choose your profile avatar" : "Choose your profile cover";
+  const description = isAvatar
+    ? "Pick a character image or keep the clean name-initial avatar."
+    : "Choose a wide banner for the top of your profile, or use the Anime Orbit signature.";
+  const initial = (fallbackLabel.trim() || "A").charAt(0).toUpperCase();
+
+  return createPortal(
+    <div
+      className="profile-asset-dialog"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className={`profile-asset-dialog__panel is-${kind}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`profile-${kind}-dialog-title`}
+      >
+        <header className="profile-asset-dialog__header">
+          <div>
+            <span>Profile appearance</span>
+            <h2 id={`profile-${kind}-dialog-title`}>{title}</h2>
+            <p>{description}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label={`Close ${kind} picker`}>
+            <X size={21} />
+          </button>
+        </header>
+
+        <div className={`profile-asset-dialog__grid is-${kind}`}>
+          <button
+            type="button"
+            className={`profile-asset-dialog__choice is-fallback ${!value ? "is-selected" : ""}`}
+            onClick={() => onChange("")}
+            aria-pressed={!value}
+          >
+            {isAvatar ? (
+              <span className="profile-asset-dialog__initial">{initial}</span>
+            ) : (
+              <span className="profile-asset-dialog__empty-cover">ANIME ORBIT</span>
+            )}
+            <span className="profile-asset-dialog__choice-label">
+              {isAvatar ? "Use name initial" : "Use signature cover"}
+            </span>
+            {!value && <span className="profile-asset-dialog__check"><Check size={14} /></span>}
+          </button>
+
+          {choices.map((choice, index) => (
+            <button
+              type="button"
+              key={choice}
+              className={`profile-asset-dialog__choice ${value === choice ? "is-selected" : ""}`}
+              onClick={() => onChange(choice)}
+              aria-label={`Select ${kind} ${index + 1}`}
+              aria-pressed={value === choice}
+            >
+              <img src={choice} alt="" loading="lazy" />
+              {value === choice && <span className="profile-asset-dialog__check"><Check size={14} /></span>}
+            </button>
+          ))}
+        </div>
+
+        <footer className="profile-asset-dialog__footer">
+          <span>{value ? "Selection ready" : isAvatar ? "Name initial selected" : "Signature cover selected"}</span>
+          <button type="button" onClick={onClose}>Use this {kind}</button>
+        </footer>
+      </section>
+    </div>,
+    document.body,
+  );
+};
 
 const isAdultBirthDate = (value: string) => {
   if (!value) return false;
@@ -60,7 +180,9 @@ export const Profile: React.FC = () => {
 
   const [displayName, setDisplayName] = useState("");
   const [userId, setUserId] = useState("");
+  const [savedUserId, setSavedUserId] = useState("");
   const [userIdError, setUserIdError] = useState("");
+  const [userIdChecking, setUserIdChecking] = useState(false);
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
@@ -72,6 +194,8 @@ export const Profile: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [bannerPickerOpen, setBannerPickerOpen] = useState(false);
   const [animeMetadata, setAnimeMetadata] = useState<
     Record<
       number,
@@ -93,6 +217,21 @@ export const Profile: React.FC = () => {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleting, setDeleting] = useState(false);
 
+  const scrollToProfileCard = () => {
+    window.setTimeout(() => {
+      document
+        .getElementById("profile-card")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  };
+
+  const closeEditSection = () => {
+    setIsEditing(false);
+    setAvatarPickerOpen(false);
+    setBannerPickerOpen(false);
+    scrollToProfileCard();
+  };
+
   const handleOpenEditSection = () => {
     setIsEditing(true);
     setTimeout(() => {
@@ -103,15 +242,27 @@ export const Profile: React.FC = () => {
   };
 
   const handleToggleEdit = () => {
-    const next = !isEditing;
-    setIsEditing(next);
-    if (next) {
-      setTimeout(() => {
-        document
-          .getElementById("edit-profile-form")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 80);
+    if (isEditing) {
+      closeEditSection();
+      return;
     }
+    handleOpenEditSection();
+  };
+
+  const openAssetPicker = (kind: "avatar" | "banner") => {
+    setIsEditing(true);
+    setAvatarPickerOpen(kind === "avatar");
+    setBannerPickerOpen(kind === "banner");
+  };
+
+  const closeAssetPicker = (kind: "avatar" | "banner") => {
+    if (kind === "avatar") setAvatarPickerOpen(false);
+    else setBannerPickerOpen(false);
+    window.setTimeout(() => {
+      document
+        .getElementById("edit-profile-form")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
   };
 
   useEffect(() => {
@@ -129,7 +280,18 @@ export const Profile: React.FC = () => {
         if (userDoc.exists()) {
           const data = userDoc.data();
           if (data.displayName) setDisplayName(data.displayName.slice(0, 15));
-          if (data.userId) setUserId(data.userId);
+          if (data.userId) {
+            setUserId(data.userId);
+            setSavedUserId(data.userId);
+          } else {
+            const generatedId = await createAvailableProfileHandle(
+              currentUser.uid,
+              data.displayName || currentUser.displayName || currentUser.email?.split("@")[0] || "AnimeFan",
+            );
+            setUserId(generatedId);
+            setSavedUserId(generatedId);
+            await setDoc(userDocRef, { userId: generatedId, updatedAt: new Date().toISOString() }, { merge: true });
+          }
           if (data.bio) setBio(data.bio);
           if (data.favoriteGenre) setFavoriteGenre(data.favoriteGenre);
           if (data.avatarUrl) setAvatarUrl(data.avatarUrl);
@@ -156,6 +318,19 @@ export const Profile: React.FC = () => {
             setDeletionScheduled(true);
             setScheduledDeletionDate(data.scheduledDeletionDate);
           }
+        } else {
+          const generatedId = await createAvailableProfileHandle(
+            currentUser.uid,
+            currentUser.displayName || currentUser.email?.split("@")[0] || "AnimeFan",
+          );
+          setUserId(generatedId);
+          setSavedUserId(generatedId);
+          await setDoc(userDocRef, {
+            displayName: currentUser.displayName || currentUser.email?.split("@")[0] || "Anime Fan",
+            userId: generatedId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
         }
       } catch {
         // Handled
@@ -207,24 +382,28 @@ export const Profile: React.FC = () => {
     };
   }, [currentUser, watchlist, favourites, animeMetadata]);
 
-  // Validate User ID: 15 chars max, at least 1 number, at least 1 uppercase letter, allowed: . @ - _
-  const validateUserId = (id: string): string | null => {
-    if (!id || !id.trim()) return null;
-    if (id.length > 15) return "User ID must be 15 characters or less";
-    if (!/\d/.test(id)) return "User ID must contain at least 1 number";
-    if (!/[A-Z]/.test(id))
-      return "User ID must contain at least 1 uppercase letter";
-    if (!/^[a-zA-Z0-9.@\-_]+$/.test(id))
-      return "Allowed symbols are: . @ - _ only";
-    return null;
-  };
-
   const handleUserIdChange = (val: string) => {
-    const trimmed = val.slice(0, 15);
+    const trimmed = val.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24);
     setUserId(trimmed);
-    const err = validateUserId(trimmed);
+    const err = validateProfileHandle(trimmed);
     setUserIdError(err || "");
   };
+
+  useEffect(() => {
+    if (!currentUser || !userId || userId === savedUserId || validateProfileHandle(userId)) {
+      setUserIdChecking(false);
+      return;
+    }
+    let active = true;
+    setUserIdChecking(true);
+    const timer = window.setTimeout(() => {
+      void isProfileHandleAvailable(userId, currentUser.uid)
+        .then((available) => { if (active) setUserIdError(available ? "" : "That profile ID is already taken"); })
+        .catch(() => { if (active) setUserIdError("Could not check this ID right now"); })
+        .finally(() => { if (active) setUserIdChecking(false); });
+    }, 350);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [currentUser, userId, savedUserId]);
 
   // Calculate age from birthDate
   const calculatedAge = useMemo(() => {
@@ -294,13 +473,12 @@ export const Profile: React.FC = () => {
     e.preventDefault();
     if (!currentUser) return;
 
-    if (userId) {
-      const err = validateUserId(userId);
-      if (err) {
-        setUserIdError(err);
-        toast.error(err);
-        return;
-      }
+    const idError = validateProfileHandle(userId);
+    if (idError || userIdError || userIdChecking) {
+      const message = idError || userIdError || "Wait for the profile ID check to finish";
+      setUserIdError(message);
+      toast.error(message);
+      return;
     }
 
     setSaving(true);
@@ -313,6 +491,7 @@ export const Profile: React.FC = () => {
       const safeBannerUrl = safeImageUrl(bannerUrl);
       const safeGenre = sanitizeInput(favoriteGenre, 40) || "Action";
       const updatedAt = new Date().toISOString();
+      await claimProfileHandle(currentUser.uid, safeUserId, savedUserId);
 
       try {
         await updateProfile(currentUser, {
@@ -370,6 +549,7 @@ export const Profile: React.FC = () => {
         }),
       );
       setMatureContentPreference(finalMatureSetting);
+      setSavedUserId(safeUserId);
 
       if (publicProfileSynced) {
         toast.success("Profile saved successfully!");
@@ -378,14 +558,19 @@ export const Profile: React.FC = () => {
           "Profile saved. The public profile preview could not sync yet; retry after the connection is restored.",
         );
       }
-      setIsEditing(false);
+      closeEditSection();
     } catch (error: unknown) {
       const code =
         typeof error === "object" && error && "code" in error
           ? String((error as { code?: unknown }).code || "")
           : "";
+      if (code === "profile/handle-taken") {
+        setUserIdError("That profile ID is already taken");
+      }
       toast.error(
-        code.includes("permission-denied") || code.includes("unauthenticated")
+        code === "profile/handle-taken"
+          ? "That profile ID is already taken. Choose another one."
+          : code.includes("permission-denied") || code.includes("unauthenticated")
           ? "Your session cannot save profile changes. Sign in again and retry."
           : "Unable to save profile changes. Check your connection and retry.",
       );
@@ -669,9 +854,12 @@ export const Profile: React.FC = () => {
         )}
 
         {/* Main Profile View Card with Cover Banner */}
-        <div className="profile-card relative bg-[#15151a] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+        <div
+          id="profile-card"
+          className="profile-card relative bg-[#15151a] border border-white/10 rounded-2xl overflow-hidden shadow-xl scroll-mt-24"
+        >
           {/* Custom Header Cover Banner */}
-          <div className="profile-cover relative h-36 sm:h-48 w-full overflow-hidden bg-neutral-900">
+          <div className={`profile-cover ${bannerUrl ? "has-banner" : "is-empty"} relative h-36 sm:h-48 w-full overflow-hidden bg-neutral-900`}>
             {bannerUrl ? (
               <img
                 src={bannerUrl}
@@ -684,7 +872,7 @@ export const Profile: React.FC = () => {
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-[#12121c] via-[#12121c]/40 to-black/30" />
             <button
-              onClick={handleOpenEditSection}
+              onClick={() => openAssetPicker("banner")}
               className="absolute top-4 right-4 bg-black/60 hover:bg-black/85 text-white/90 hover:text-white border border-white/20 px-3.5 py-1.5 rounded-full text-xs font-montserrat font-bold flex items-center gap-1.5 backdrop-blur-md transition-all cursor-pointer shadow-lg"
             >
               <Camera size={14} className="text-[#ffd700]" />
@@ -710,7 +898,7 @@ export const Profile: React.FC = () => {
                     </span>
                   )}
                   <button
-                    onClick={handleOpenEditSection}
+                    onClick={() => openAssetPicker("avatar")}
                     className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white transition-opacity cursor-pointer text-[10px] font-bold gap-1"
                   >
                     <Camera size={18} className="text-[#ffd700]" />
@@ -819,22 +1007,27 @@ export const Profile: React.FC = () => {
               </div>
               <div className="profile-insights__stats">
                 <div>
+                  <List size={18} aria-hidden="true" />
                   <strong>{watchlist.length}</strong>
                   <span>Tracked</span>
                 </div>
                 <div>
+                  <PlayCircle size={18} aria-hidden="true" />
                   <strong>{watchingCount}</strong>
                   <span>Watching</span>
                 </div>
                 <div>
+                  <Radio size={18} aria-hidden="true" />
                   <strong>{caughtUpCount}</strong>
                   <span>Caught up</span>
                 </div>
                 <div>
+                  <CheckCircle2 size={18} aria-hidden="true" />
                   <strong>{completedCount}</strong>
                   <span>Completed</span>
                 </div>
                 <div>
+                  <Heart size={18} aria-hidden="true" />
                   <strong>{favourites.length}</strong>
                   <span>Favorites</span>
                 </div>
@@ -850,13 +1043,13 @@ export const Profile: React.FC = () => {
                   <p>Shows the actual numbers from Watchlist.</p>
                 </header>
                 <div>
-                  <article><strong>{viewingBreakdown.tvEpisodes}</strong><span>TV episodes</span></article>
-                  <article><strong>{viewingBreakdown.movies}</strong><span>Movies</span></article>
-                  <article><strong>{viewingBreakdown.ova}</strong><span>OVA episodes</span></article>
-                  <article><strong>{viewingBreakdown.ona}</strong><span>ONA episodes</span></article>
-                  <article><strong>{viewingBreakdown.specials}</strong><span>Specials</span></article>
-                  <article><strong>{viewingBreakdown.other}</strong><span>Other</span></article>
-                  <article className="is-hours"><strong>{watchHours}<small> hrs</small></strong><span>Actual watch time</span></article>
+                  <article><Tv aria-hidden="true" /><strong>{viewingBreakdown.tvEpisodes}</strong><span>TV episodes</span></article>
+                  <article><Film aria-hidden="true" /><strong>{viewingBreakdown.movies}</strong><span>Movies</span></article>
+                  <article><Disc3 aria-hidden="true" /><strong>{viewingBreakdown.ova}</strong><span>OVA episodes</span></article>
+                  <article><Radio aria-hidden="true" /><strong>{viewingBreakdown.ona}</strong><span>ONA episodes</span></article>
+                  <article><Sparkles aria-hidden="true" /><strong>{viewingBreakdown.specials}</strong><span>Specials</span></article>
+                  <article><Layers3 aria-hidden="true" /><strong>{viewingBreakdown.other}</strong><span>Other</span></article>
+                  <article className="is-hours"><Clock3 aria-hidden="true" /><strong>{watchHours}<small> hrs</small></strong><span>Actual watch time</span></article>
                 </div>
               </section>
               <div className="profile-insights__demographics">
@@ -870,7 +1063,6 @@ export const Profile: React.FC = () => {
                     }
                   >
                     <strong>{completionRate}%</strong>
-                    <span>complete</span>
                   </div>
                   <div>
                     <h3>List progress</h3>
@@ -1004,130 +1196,61 @@ export const Profile: React.FC = () => {
           <form
             id="edit-profile-form"
             onSubmit={handleSaveProfile}
-            className="bg-[#12121c]/95 border border-[#ffd700]/30 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl backdrop-blur-2xl animate-fadeIn scroll-mt-24"
+            className="profile-application-form animate-fadeIn scroll-mt-24"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
-              <h2 className="text-xl font-bold font-montserrat text-[#ffd700] flex items-center gap-2">
-                <Sparkles size={20} />
-                <span>Edit profile</span>
-              </h2>
+            <header className="profile-application-form__header">
+              <div>
+                <span><Sparkles size={15} /> Anime Orbit profile form</span>
+                <h2>Edit your profile</h2>
+                <p>Complete the sections below, then save once to return to your finished profile.</p>
+              </div>
               <button
                 type="button"
-                onClick={() => setIsEditing(false)}
-                className="text-neutral-400 hover:text-white cursor-pointer"
+                onClick={closeEditSection}
+                aria-label="Close profile form"
               >
-                <X size={20} />
+                <X size={21} />
               </button>
-            </div>
+            </header>
 
-            {/* Packaged avatar picker */}
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold uppercase font-montserrat text-neutral-200">
-                  Profile avatar
-                </label>
-                <span className="text-xs font-semibold text-[#ffd700]">
-                  {AVATAR_PRESETS.length} choices
-                </span>
-              </div>
+            <fieldset className="profile-form-section">
+              <legend><span>01</span> Public identity</legend>
+              <p className="profile-form-section__intro">Choose how you appear across comments, reviews, shared lists, and public pages.</p>
 
-              <div className="grid max-h-72 grid-cols-4 gap-3 overflow-y-auto p-1 sm:grid-cols-7 md:grid-cols-9">
-                <button
-                  type="button"
-                  onClick={() => setAvatarUrl("")}
-                  aria-label="Use name initial instead of an avatar"
-                  aria-pressed={!avatarUrl}
-                  className={`grid h-14 w-14 place-items-center rounded-full border-2 bg-neutral-900 font-montserrat text-lg font-bold text-[#ffd700] transition-all cursor-pointer ${
-                    !avatarUrl
-                      ? "border-[#ffd700] ring-4 ring-[#ffd700]/40"
-                      : "border-white/20 opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  {(displayName || currentUser.email || "A")[0].toUpperCase()}
+              <div className="profile-form-media-row">
+                <button type="button" className="profile-form-media-choice is-avatar" onClick={() => openAssetPicker("avatar")}>
+                  <span className="profile-form-media-choice__preview">
+                    {avatarUrl ? <img src={avatarUrl} alt="Selected profile avatar" /> : <strong>{(displayName || currentUser.email || "A")[0].toUpperCase()}</strong>}
+                  </span>
+                  <span className="profile-form-media-choice__copy">
+                    <strong>Profile avatar</strong>
+                    <small>{avatarUrl ? "Character image selected" : "Name initial selected"}</small>
+                  </span>
+                  <span className="profile-form-media-choice__action"><Camera size={15} /> Choose</span>
                 </button>
-                {AVATAR_PRESETS.map((preset, idx) => (
-                  <button
-                    type="button"
-                    key={preset}
-                    onClick={() => setAvatarUrl(preset)}
-                    aria-label={`Select avatar ${idx + 1}`}
-                    aria-pressed={avatarUrl === preset}
-                    className={`h-14 w-14 overflow-hidden rounded-full border-2 transition-all cursor-pointer hover:scale-105 ${
-                      avatarUrl === preset
-                        ? "border-[#ffd700] ring-4 ring-[#ffd700]/40 scale-105"
-                        : "border-white/20 opacity-70 hover:opacity-100"
-                    }`}
-                  >
-                    <img
-                      src={preset}
-                      alt=""
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            {/* Packaged banner picker */}
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold uppercase font-montserrat text-neutral-200">
-                  Header cover banner
-                </label>
-                <span className="text-xs font-semibold text-[#ffd700]">
-                  {BANNER_PRESETS.length} choices
-                </span>
-              </div>
-
-              <div className="grid max-h-72 grid-cols-2 gap-3 overflow-y-auto p-1 sm:grid-cols-4">
-                <button
-                  type="button"
-                  onClick={() => setBannerUrl("")}
-                  aria-label="Use no profile banner"
-                  aria-pressed={!bannerUrl}
-                  className={`grid h-20 place-items-center rounded-xl border-2 bg-[linear-gradient(135deg,#19191f,#08080b)] text-xs font-bold text-neutral-300 transition-all cursor-pointer ${
-                    !bannerUrl
-                      ? "border-[#ffd700] ring-4 ring-[#ffd700]/40"
-                      : "border-white/20 opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  No banner
+                <button type="button" className="profile-form-media-choice is-banner" onClick={() => openAssetPicker("banner")}>
+                  <span className="profile-form-media-choice__preview">
+                    {bannerUrl ? <img src={bannerUrl} alt="Selected profile cover" /> : <strong>ANIME ORBIT</strong>}
+                  </span>
+                  <span className="profile-form-media-choice__copy">
+                    <strong>Header cover</strong>
+                    <small>{bannerUrl ? "Wide cover image selected" : "Signature cover selected"}</small>
+                  </span>
+                  <span className="profile-form-media-choice__action"><Camera size={15} /> Choose</span>
                 </button>
-                {BANNER_PRESETS.map((preset, idx) => (
-                  <button
-                    type="button"
-                    key={preset}
-                    onClick={() => setBannerUrl(preset)}
-                    aria-label={`Select banner ${idx + 1}`}
-                    aria-pressed={bannerUrl === preset}
-                    className={`h-20 rounded-xl overflow-hidden cursor-pointer border-2 transition-all relative ${
-                      bannerUrl === preset
-                        ? "border-[#ffd700] ring-4 ring-[#ffd700]/40 scale-105"
-                        : "border-white/20 opacity-70 hover:opacity-100"
-                    }`}
-                  >
-                    <img
-                      src={preset}
-                      alt=""
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
               </div>
-            </div>
 
-            {/* Display Name (15 Char Restriction) */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="profile-form-grid">
+
+                <div className="profile-form-field">
+              <div className="profile-form-field__label">
                 <label
                   htmlFor="profile-display-name"
-                  className="block text-xs font-bold uppercase font-montserrat text-neutral-300"
                 >
-                  Display Name (Max 15 Characters)
+                  Display name
                 </label>
-                <span className="text-[11px] text-[#ffd700] font-mono">
+                <span>
                   {displayName.length}/15
                 </span>
               </div>
@@ -1138,60 +1261,64 @@ export const Profile: React.FC = () => {
                 maxLength={15}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value.slice(0, 15))}
-                placeholder="Enter display name (max 15 chars)"
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none"
+                placeholder="Your public display name"
               />
+              <small>This is the name other fans see.</small>
             </div>
 
-            {/* Unique User ID Tag */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
+            <div className="profile-form-field">
+              <div className="profile-form-field__label">
                 <label
                   htmlFor="profile-user-id"
-                  className="block text-xs font-bold uppercase font-montserrat text-neutral-300"
                 >
-                  Unique User ID (Pinpoint Identifier)
+                  Profile link
                 </label>
-                <span className="text-[11px] text-[#ffd700] font-mono">
-                  {userId.length}/15
+                <span>
+                  {userId.length}/24
                 </span>
               </div>
-              <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-[#ffd700] font-mono font-bold text-sm">
+              <div className="profile-form-field__prefixed">
+                <span>
                   @
                 </span>
                 <input
                   id="profile-user-id"
                   name="userId"
                   type="text"
-                  maxLength={15}
+                  maxLength={24}
                   value={userId}
                   onChange={(e) => handleUserIdChange(e.target.value)}
-                  placeholder="e.g. Ryuma777, Orbit_X1"
-                  className="w-full pl-8 pr-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none font-mono"
+                  placeholder="your-profile-link"
                 />
               </div>
               {userIdError ? (
-                <p className="text-xs text-red-400 mt-1 font-semibold">
-                  ⚠️ {userIdError}
+                <p className="is-error">
+                  {userIdError}
+                </p>
+              ) : userIdChecking ? (
+                <p className="is-checking">
+                  Checking availability...
                 </p>
               ) : (
-                <p className="text-[11px] text-neutral-400 mt-1">
-                  Must be ≤15 characters, contain at least 1 number and 1
-                  capital letter. Allowed:{" "}
-                  <code className="text-[#ffd700]">. @ - _</code>
+                <p>
+                  Used only for the unique link to your public profile.
                 </p>
               )}
             </div>
+              </div>
+            </fieldset>
+
+            <fieldset className="profile-form-section">
+              <legend><span>02</span> Personal details</legend>
 
             {/* Enhanced Date of Birth & Calendar Picker */}
-            <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3">
+            <div className="profile-form-field">
               <label
                 htmlFor="profile-birth-date"
-                className="flex items-center gap-2 text-xs font-bold uppercase font-montserrat text-neutral-200"
+                className="profile-form-field__title"
               >
                 <Calendar size={16} className="text-[#ffd700]" />
-                <span>Date of Birth</span>
+                <span>Date of birth</span>
               </label>
               <div className="relative">
                 <input
@@ -1201,7 +1328,6 @@ export const Profile: React.FC = () => {
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
                   style={{ colorScheme: "dark" }}
-                  className="w-full px-4 py-3 bg-[#12121a] border border-[#ffd700]/40 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none cursor-pointer shadow-inner focus:shadow-[0_0_15px_rgba(255,215,0,0.2)] transition-all"
                 />
               </div>
               {calculatedAge !== null ? (
@@ -1228,14 +1354,16 @@ export const Profile: React.FC = () => {
                 </p>
               )}
             </div>
+            </fieldset>
 
-            {/* Mature Anime Content Preference */}
-            <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
+            <fieldset className="profile-form-section">
+              <legend><span>03</span> Discovery preference</legend>
+            <div className="profile-form-preference">
               <div className="flex items-center justify-between">
                 <div>
                   <label
                     htmlFor="profile-allow-mature"
-                    className="text-sm font-bold font-montserrat text-white flex items-center gap-1.5 cursor-pointer"
+                    className="text-sm font-bold font-montserrat text-[#ffd700] flex items-center gap-1.5 cursor-pointer"
                   >
                     <ShieldAlert
                       size={16}
@@ -1243,7 +1371,7 @@ export const Profile: React.FC = () => {
                         isAdult ? "text-[#ffd700]" : "text-neutral-500"
                       }
                     />
-                    <span>Include 18+ Mature & R-17+ Content</span>
+                    <span>Include mature content</span>
                   </label>
                   <p className="text-xs text-neutral-400 mt-0.5">
                     {isAdult
@@ -1262,12 +1390,14 @@ export const Profile: React.FC = () => {
                 />
               </div>
             </div>
+            </fieldset>
 
-            {/* Favorite Genre */}
-            <div>
+            <fieldset className="profile-form-section">
+              <legend><span>04</span> Anime taste</legend>
+            <div className="profile-form-field">
               <label
                 htmlFor="profile-favorite-genre"
-                className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2"
+                className="profile-form-field__title"
               >
                 Favorite genre
               </label>
@@ -1293,45 +1423,68 @@ export const Profile: React.FC = () => {
                 ].map((genre) => ({ value: genre, label: genre }))}
               />
             </div>
+            </fieldset>
 
-            {/* Bio */}
-            <div>
+            <fieldset className="profile-form-section">
+              <legend><span>05</span> About your profile</legend>
+            <div className="profile-form-field">
               <label
                 htmlFor="profile-bio"
-                className="block text-xs font-bold uppercase font-montserrat text-neutral-300 mb-2"
+                className="profile-form-field__title"
               >
-                About You (Bio)
+                About you
               </label>
               <textarea
                 id="profile-bio"
                 name="bio"
-                rows={3}
+                rows={4}
+                maxLength={500}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                placeholder="Share your favorite anime, favorite characters, or watching style..."
-                className="w-full px-4 py-2.5 bg-white/5 border border-white/15 focus:border-[#ffd700] rounded-xl text-sm text-white outline-none resize-none"
+                placeholder="Share your favorite anime, characters, or watching style…"
               />
             </div>
+            </fieldset>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+            <footer className="profile-application-form__actions">
+              <p><CheckCircle2 size={16} /> Save once to return to your full profile.</p>
               <button
                 type="button"
-                onClick={() => setIsEditing(false)}
-                className="px-5 py-2.5 rounded-full border border-white/20 text-neutral-300 hover:text-white font-montserrat font-bold text-xs transition-all cursor-pointer"
+                onClick={closeEditSection}
+                className="profile-form-button is-secondary"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-2.5 rounded-full bg-[#ffd700] hover:bg-[#ffea00] text-black font-montserrat font-bold text-xs transition-all shadow-[0_0_15px_rgba(255,215,0,0.3)] hover:scale-105 cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                className="profile-form-button is-primary"
               >
                 <Save size={16} />
-                <span>{saving ? "Saving Changes..." : "Save Profile"}</span>
+                <span>{saving ? "Saving changes…" : "Save profile"}</span>
               </button>
-            </div>
+            </footer>
           </form>
         )}
+
+        <ProfileAssetDialog
+          kind="avatar"
+          open={avatarPickerOpen}
+          value={avatarUrl}
+          choices={AVATAR_PRESETS}
+          fallbackLabel={displayName || currentUser.email || "Anime fan"}
+          onChange={setAvatarUrl}
+          onClose={() => closeAssetPicker("avatar")}
+        />
+        <ProfileAssetDialog
+          kind="banner"
+          open={bannerPickerOpen}
+          value={bannerUrl}
+          choices={BANNER_PRESETS}
+          fallbackLabel={displayName || currentUser.email || "Anime fan"}
+          onChange={setBannerUrl}
+          onClose={() => closeAssetPicker("banner")}
+        />
       </div>
 
       <Footer />

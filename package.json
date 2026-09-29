@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "profile-assets": "node scripts/generate-profile-assets.mjs",
+    "seo-sitemap": "node scripts/generate-seo-sitemaps.mjs",
     "predev": "npm run profile-assets",
     "dev": "vite",
     "prestart": "npm run profile-assets",
     "start": "vite",
-    "prebuild": "npm run profile-assets",
+    "prebuild": "npm run profile-assets && npm run seo-sitemap",
     "build": "vite build",
     "preview": "vite preview"
   },

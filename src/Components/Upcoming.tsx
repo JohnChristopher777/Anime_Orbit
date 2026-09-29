@@ -38,6 +38,19 @@ export const Upcoming: React.FC = () => {
         description="Discover upcoming anime releases, new seasonal broadcasts, and highly anticipated movies across all genres on Anime Orbit."
         keywords="upcoming anime, new anime seasons, upcoming anime movies, anime release schedule, Anime Orbit"
         url="https://animeorbit.web.app/upcoming"
+        pageType="CollectionPage"
+        structuredData={{
+          "@type": "ItemList",
+          "@id": "https://animeorbit.web.app/upcoming#anime-list",
+          name: "Upcoming anime releases",
+          numberOfItems: visibleAnime.length,
+          itemListElement: visibleAnime.slice(0, 50).map((anime, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: anime.title_english || anime.title,
+            url: `https://animeorbit.web.app/anime/${anime.mal_id}`,
+          })),
+        }}
       />
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 flex flex-col gap-6 sm:gap-8 flex-1 w-full">
         {/* Header */}

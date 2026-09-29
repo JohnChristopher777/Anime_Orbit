@@ -1246,6 +1246,16 @@ export const NeuralDiscovery: React.FC = () => {
         description="Identify anime from screenshots, remembered scenes, dialogue, mood, or your saved favorites."
         keywords="anime screenshot search, anime scene finder, anime dialogue search, anime recommendations"
         url="https://animeorbit.web.app/discovery"
+        pageType="WebPage"
+        structuredData={{
+          "@type": "WebApplication",
+          "@id": "https://animeorbit.web.app/discovery#application",
+          name: "Anime Orbit Discovery",
+          description: "Identify anime from screenshots, scenes, dialogue, character traits, and voice casts.",
+          applicationCategory: "EntertainmentApplication",
+          operatingSystem: "Any",
+          url: "https://animeorbit.web.app/discovery",
+        }}
       />
       <main className="finder-shell">
         <header className="finder-header">

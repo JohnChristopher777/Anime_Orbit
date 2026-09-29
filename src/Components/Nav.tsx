@@ -207,10 +207,10 @@ export const Nav: React.FC = () => {
             <Link
               to="/"
               onClick={() => setSearch("")}
-              className="flex items-center gap-1 font-montserrat font-bold text-lg sm:text-2xl tracking-tight transition-transform hover:scale-105 whitespace-nowrap flex-shrink-0"
+              className="flex items-center gap-1 font-montserrat font-extrabold text-lg sm:text-2xl tracking-tight transition-transform hover:scale-105 whitespace-nowrap flex-shrink-0"
             >
-              <span className="text-[#ffd700] drop-shadow-[0_0_15px_rgba(255,215,0,0.6)]">
-                ANIME
+              <span className="text-[#ffd700] drop-shadow-[0_0_15px_rgba(255,215,0,0.6)] ">
+                ANiME
               </span>
               <span className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                 Orbit
@@ -424,20 +424,20 @@ export const Nav: React.FC = () => {
                 {userMenuOpen && (
                   <div className="absolute top-full right-0 mt-2 w-52 sm:w-56 bg-[#1a1a1a] border border-[#ffd700]/60 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.8),0_0_20px_rgba(255,215,0,0.15)] p-2 z-50 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-200">
                     <Link
-                      to="/digest"
-                      onClick={() => setUserMenuOpen(false)}
-                      className="nav-profile-digest md:hidden flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-200 hover:text-[#ffd700] hover:bg-[#ffd700]/10 rounded-xl transition-colors"
-                    >
-                      <span className="relative"><Bell size={16} />{unreadCount > 0 && <i aria-hidden="true" />}</span>
-                      <span>{unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications & Digest"}</span>
-                    </Link>
-                    <Link
                       to="/profile"
                       onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-200 hover:text-[#ffd700] hover:bg-[#ffd700]/10 rounded-xl transition-colors"
                     >
                       <User size={16} />
                       <span>Profile</span>
+                    </Link>
+                    <Link
+                      to="/digest"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="nav-profile-digest md:hidden flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-200 hover:text-[#ffd700] hover:bg-[#ffd700]/10 rounded-xl transition-colors"
+                    >
+                      <span className="relative"><Bell size={16} />{unreadCount > 0 && <i aria-hidden="true" />}</span>
+                      <span>{unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications & Digest"}</span>
                     </Link>
                     <Link
                       to="/favourites"

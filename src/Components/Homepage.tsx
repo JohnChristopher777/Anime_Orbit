@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   Binoculars,
@@ -15,6 +16,11 @@ import {
   Quote,
   RefreshCw,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  NotebookPen,
+  X,
 } from "lucide-react";
 import { useGlobalContext } from "../context/global";
 import HeroCarousel from "./HeroCarousel";
@@ -23,12 +29,210 @@ import AnimeRow from "./AnimeRow";
 import ProgressiveImage from "./ProgressiveImage";
 import CatalogGenreFilter from "./CatalogGenreFilter";
 import { getPopularVoiceActors } from "../services/anilist";
+import { useWatchlist, type WatchlistItem } from "../context/WatchlistContext";
+import ScoreSlider from "./ScoreSlider";
 
 import Footer from "./Footer";
 
 const Popular = lazy(() => import("./Popular"));
 const SeasonPolls = lazy(() => import("./SeasonPolls"));
 const FranchiseRankings = lazy(() => import("./FranchiseRankings"));
+
+const homeProgressTime = (item: WatchlistItem) => {
+  const time = Date.parse(item.updatedAt || item.startDate || item.addedAt || "");
+  return Number.isFinite(time) ? time : 0;
+};
+
+const HomeProgressEditor: React.FC<{
+  item: WatchlistItem;
+  onClose: () => void;
+  onSave: (updates: Parameters<ReturnType<typeof useWatchlist>["updateWatchlistEntry"]>[1]) => Promise<void>;
+}> = ({ item, onClose, onSave }) => {
+  const total = Number(item.episodes || 0);
+  const [progress, setProgress] = React.useState(Number(item.progress || 0));
+  const [score, setScore] = React.useState(Number(item.userScore || 0));
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const nextProgress = Math.max(0, total > 0 ? Math.min(total, progress) : progress);
+      const updates: Parameters<ReturnType<typeof useWatchlist>["updateWatchlistEntry"]>[1] = {
+        progress: nextProgress,
+      };
+      if (score > 0) updates.userScore = score;
+      await onSave(updates);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return createPortal(
+    <div className="home-progress-editor" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <form role="dialog" aria-modal="true" aria-labelledby="home-progress-editor-title" onSubmit={submit}>
+        <header>
+          <div><span>Quick progress log</span><h2 id="home-progress-editor-title">{item.title}</h2></div>
+          <button type="button" onClick={onClose} aria-label="Close progress editor"><X size={19} /></button>
+        </header>
+        <div className="home-progress-editor__episode">
+          <span>Episodes watched</span>
+          <div>
+            <button type="button" onClick={() => setProgress((value) => Math.max(0, value - 1))} aria-label="Subtract one episode">−</button>
+            <input type="number" min={0} max={total || undefined} value={progress} onChange={(event) => setProgress(Math.max(0, Number(event.target.value) || 0))} aria-label="Episodes watched" />
+            <button type="button" onClick={() => setProgress((value) => total > 0 ? Math.min(total, value + 1) : value + 1)} aria-label="Add one episode">+</button>
+          </div>
+          <small>{total > 0 ? `of ${total} episodes` : "Total episode count is not confirmed"}</small>
+        </div>
+        <ScoreSlider id="home-quick-score" label="Your score" value={score} onChange={setScore} disabled={saving} />
+        <footer>
+          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="submit" disabled={saving}><NotebookPen size={16} />{saving ? "Saving…" : "Save progress"}</button>
+        </footer>
+      </form>
+    </div>,
+    document.body,
+  );
+};
+
+const HomeProgressDeck: React.FC = () => {
+  const { watchlist, loading, updateWatchlistEntry } = useWatchlist();
+  const candidates = React.useMemo(
+    () =>
+      watchlist
+        .filter((item) => item.status === "Watching" || item.status === "Caught Up")
+        .sort((a, b) => {
+          if (Boolean(a.isCurrent) !== Boolean(b.isCurrent)) return a.isCurrent ? -1 : 1;
+          const statusA = a.status === "Watching" ? 0 : 1;
+          const statusB = b.status === "Watching" ? 0 : 1;
+          return statusA - statusB || homeProgressTime(b) - homeProgressTime(a);
+        }),
+    [watchlist],
+  );
+  const signature = candidates.map((item) => `${item.mal_id}:${item.status}:${Boolean(item.isCurrent)}:${item.updatedAt || ""}`).join("|");
+  const [deckIds, setDeckIds] = React.useState<number[]>([]);
+  const startX = React.useRef<number | null>(null);
+  const [dragX, setDragX] = React.useState(0);
+  const [editingItem, setEditingItem] = React.useState<WatchlistItem | null>(null);
+
+  React.useEffect(() => {
+    const nextIds = candidates.map((item) => item.mal_id);
+    setDeckIds((current) => {
+      const retained = current.filter((id) => nextIds.includes(id));
+      const added = nextIds.filter((id) => !retained.includes(id));
+      const currentId = candidates.find((item) => item.isCurrent)?.mal_id;
+      const merged = [...retained, ...added];
+      if (!currentId) return merged;
+      return [currentId, ...merged.filter((id) => id !== currentId)];
+    });
+  }, [signature]);
+
+  const ordered = deckIds
+    .map((id) => candidates.find((item) => item.mal_id === id))
+    .filter(Boolean) as WatchlistItem[];
+
+  const shuffle = (direction: "next" | "previous") => {
+    setDeckIds((current) => {
+      if (current.length < 2) return current;
+      return direction === "next"
+        ? [...current.slice(1), current[0]]
+        : [current[current.length - 1], ...current.slice(0, -1)];
+    });
+    setDragX(0);
+  };
+
+  if (loading || ordered.length === 0) return null;
+
+  return (
+    <section className="home-progress" aria-labelledby="home-progress-title">
+      <header className="home-progress__header">
+        <div>
+          <span><Play size={14} fill="currentColor" /> Your active queue</span>
+          <h2 id="home-progress-title">Any progress?</h2>
+          <p>Swipe the deck, then open a title to log where you are.</p>
+        </div>
+        <span className="home-progress__count">{ordered.length} active</span>
+      </header>
+
+      <div className="home-progress__deck-wrap">
+        <button type="button" className="home-progress__shuffle" aria-label="Previous active title" onClick={() => shuffle("previous")} disabled={ordered.length < 2}>
+          <ChevronLeft size={20} />
+        </button>
+        <div className="home-progress__deck" aria-live="polite">
+          {ordered.slice(0, 3).map((item, position) => {
+            const progress = Number(item.progress || 0);
+            const total = Number(item.episodes || 0);
+            const percent = total > 0 ? Math.min(100, (progress / total) * 100) : 0;
+            return (
+              <article
+                key={item.mal_id}
+                className={`home-progress__card ${position === 0 ? "is-front" : ""}`}
+                style={{
+                  "--deck-position": position,
+                  "--swipe-x": position === 0 ? `${dragX}px` : "0px",
+                } as React.CSSProperties}
+                onPointerDown={position === 0 ? (event) => {
+                  startX.current = event.clientX;
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                } : undefined}
+                onPointerMove={position === 0 ? (event) => {
+                  if (startX.current !== null) setDragX(event.clientX - startX.current);
+                } : undefined}
+                onPointerUp={position === 0 ? (event) => {
+                  const releasedX = startX.current === null ? dragX : event.clientX - startX.current;
+                  if (Math.abs(releasedX) >= 55) shuffle(releasedX < 0 ? "next" : "previous");
+                  else setDragX(0);
+                  startX.current = null;
+                } : undefined}
+                onPointerCancel={position === 0 ? () => {
+                  startX.current = null;
+                  setDragX(0);
+                } : undefined}
+              >
+                <ProgressiveImage
+                  src={item.image_url || item.image}
+                  alt=""
+                  wrapperClassName="home-progress__backdrop"
+                  className="h-full w-full object-cover"
+                />
+                <div className="home-progress__scrim" />
+                <ProgressiveImage
+                  src={item.image_url || item.image}
+                  alt={`${item.title} poster`}
+                  wrapperClassName="home-progress__poster"
+                  className="h-full w-full object-cover"
+                />
+                <div className="home-progress__content">
+                  <div className="home-progress__badges">
+                    <span data-status={item.status === "Caught Up" ? "caught-up" : "watching"}>{item.status}</span>
+                    {item.isCurrent && <b>Current</b>}
+                  </div>
+                  <h3>{item.title}</h3>
+                  <p>{progress}{total > 0 ? ` of ${total}` : ""} episodes watched</p>
+                  <div className="home-progress__bar" aria-label={`${Math.round(percent)} percent complete`}><i style={{ width: `${percent}%` }} /></div>
+                  <button type="button" className="home-progress__log" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setEditingItem(item); }}>
+                    <NotebookPen size={16} /> Log progress
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        <button type="button" className="home-progress__shuffle" aria-label="Next active title" onClick={() => shuffle("next")} disabled={ordered.length < 2}>
+          <ChevronRight size={20} />
+        </button>
+      </div>
+      {editingItem && <HomeProgressEditor key={editingItem.mal_id} item={editingItem} onClose={() => setEditingItem(null)} onSave={(updates) => updateWatchlistEntry(editingItem.mal_id, updates)} />}
+    </section>
+  );
+};
 
 const HOME_QUOTE_FALLBACKS = [
   {
@@ -586,6 +790,7 @@ export function Homepage() {
 
     return (
       <div className="home-catalog">
+        <HomeProgressDeck />
         <div className="home-catalog__filter">
           <div>
             <strong>Choose your genre</strong>

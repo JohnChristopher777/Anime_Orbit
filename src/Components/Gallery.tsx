@@ -12,6 +12,8 @@ export const Gallery: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [characterName, setCharacterName] = useState("Character");
+  const [characterDetails, setCharacterDetails] = useState<any>(null);
+  const [detailsUnavailable, setDetailsUnavailable] = useState(false);
   const [index, setIndex] = useState(0);
   const [optimizedPictures, setOptimizedPictures] = useState<any[]>([]);
   const [voiceRoles, setVoiceRoles] = useState<any[]>([]);
@@ -22,10 +24,18 @@ export const Gallery: React.FC = () => {
     if (!id) return;
     setIndex(0);
     setOptimizedPictures([]);
+    setCharacterDetails(null);
+    setDetailsUnavailable(false);
     Promise.allSettled([getCharacterDetails(id)]).then(([details]) => {
       if (!current) return;
-      if (details.status === "fulfilled") setCharacterName(details.value?.name?.full || "Unknown character");
-      else setCharacterName("Character");
+      if (details.status === "fulfilled" && details.value) {
+        setCharacterDetails(details.value);
+        setCharacterName(details.value?.name?.full || "Unknown character");
+      } else {
+        setCharacterDetails(null);
+        setCharacterName("Character");
+        setDetailsUnavailable(true);
+      }
     });
     void getAnimePictures(id);
     return () => { current = false; };
@@ -65,15 +75,54 @@ export const Gallery: React.FC = () => {
   };
   const currentImage = optimizedPictures[index]?.jpg?.image_url || optimizedPictures[index]?.image || "";
   const voiceActors = [...new Map(voiceRoles.flatMap((edge: any) => (edge.voiceActorRoles || []).map((role: any) => [role.voiceActor?.id, { ...role.voiceActor, latestMedia: edge.node }])).filter(([actorId]: any) => actorId)).values()] as any[];
+  const characterImage = currentImage || characterDetails?.image?.large || characterDetails?.image?.medium || "";
+  const characterSummary = String(characterDetails?.description || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 190) || `Browse artwork, Japanese and English voice actors, and related anime roles for ${characterName}.`;
+  const characterStructuredData = characterDetails
+    ? [
+        {
+          "@type": "Person",
+          "@id": `https://animeorbit.web.app/character/${id}#character`,
+          name: characterName,
+          alternateName: characterDetails.name?.native || undefined,
+          description: characterSummary,
+          image: characterImage || undefined,
+          url: `https://animeorbit.web.app/character/${id}`,
+        },
+        {
+          "@type": "ItemList",
+          "@id": `https://animeorbit.web.app/character/${id}#voice-cast`,
+          name: `Voice actors for ${characterName}`,
+          numberOfItems: voiceActors.length,
+          itemListElement: voiceActors.map((actor, actorIndex) => ({
+            "@type": "ListItem",
+            position: actorIndex + 1,
+            name: actor.name?.full || "Voice actor",
+            url: `https://animeorbit.web.app/voice-actor/${actor.id}`,
+          })),
+        },
+      ]
+    : undefined;
 
   return (
     <div className="character-gallery-page">
       <SEO
         title={`${characterName} - Character Artwork & Gallery`}
-        description={`Browse character artwork and related official images for ${characterName} on Anime Orbit.`}
-        keywords={`${characterName}, anime artwork, anime gallery, Anime Orbit`}
-        image={currentImage || "https://animeorbit.web.app/animeorbit.jpg"}
+        description={characterSummary}
+        keywords={`${characterName}, anime character, ${characterName} voice actor, anime artwork, character gallery, Anime Orbit`}
+        image={characterImage || "https://animeorbit.web.app/animeorbit.jpg"}
         url={`https://animeorbit.web.app/character/${id}`}
+        pageType="ItemPage"
+        structuredData={characterStructuredData}
+        breadcrumbs={[
+          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
+          { name: "Character finder", url: "https://animeorbit.web.app/discovery/characters" },
+          { name: characterName, url: `https://animeorbit.web.app/character/${id}` },
+        ]}
+        noIndex={detailsUnavailable && !loading && !optimizedPictures.length}
       />
 
       <main className="character-gallery-shell">

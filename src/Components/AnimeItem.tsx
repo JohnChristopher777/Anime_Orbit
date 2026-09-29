@@ -32,6 +32,7 @@ import {
   doc,
   arrayUnion,
   arrayRemove,
+  deleteDoc,
 } from "firebase/firestore";
 import {
   Star,
@@ -60,6 +61,8 @@ import {
   Reply,
   Send,
   Layers3,
+  MessageSquare,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Skeleton from "react-loading-skeleton";
@@ -74,6 +77,7 @@ import { statusAtKnownTotal } from "../utils/trackingStatus";
 import ScoreSlider from "./ScoreSlider";
 import { useProfileIdentity } from "../hooks/useProfileIdentity";
 import { resolveCommunityIdentity, usePublicCommunityIdentities } from "../hooks/usePublicCommunityIdentities";
+import { deleteCommunityEntryTree } from "../services/communityModeration";
 
 const PLATFORM_COLORS: Record<string, string> = {
   crunchyroll: "#f47521",
@@ -100,6 +104,18 @@ const getStreamTag = (link: any) => {
   if (details.includes("sub")) return "Sub";
   if (details.includes("hd")) return "HD";
   return link?.language || "Official";
+};
+
+const highlightedCommentText = (value: unknown, names: string[] = []) => {
+  const escapedNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))]
+    .sort((left, right) => right.length - left.length)
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const matcher = new RegExp(`(@(?:${escapedNames.length ? `${escapedNames.join("|")}|` : ""}[A-Za-z0-9_.-]+))`, "g");
+  return String(value || "").split(matcher).map((part, index) =>
+    part.startsWith("@")
+      ? <mark className="comment-mention" key={`${part}-${index}`}>{part}</mark>
+      : <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>,
+  );
 };
 
 export const AnimeItem: React.FC = () => {
@@ -147,6 +163,7 @@ export const AnimeItem: React.FC = () => {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [postingReply, setPostingReply] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState<Record<string, boolean>>({});
 
   // Reviews State
   const [reviews, setReviews] = useState<any[]>([]);
@@ -154,12 +171,17 @@ export const AnimeItem: React.FC = () => {
   const [newReviewRating, setNewReviewRating] = useState(10);
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [postingReview, setPostingReview] = useState(false);
+  const [reviewEditorOpen, setReviewEditorOpen] = useState(false);
   const [trailerLoaded, setTrailerLoaded] = useState(false);
   const { addToFavourites, removeFromFavourites, isFavourite } =
     useFavourites();
   const { currentUser } = useAuth();
   const profileIdentity = useProfileIdentity();
   const publicCommunityIdentities = usePublicCommunityIdentities([...comments, ...reviews]);
+  const mentionNames = useMemo(
+    () => Object.values(publicCommunityIdentities as Record<string, any>).flatMap((entry: any) => [entry?.displayName, entry?.profileHandle]).filter(Boolean),
+    [publicCommunityIdentities],
+  );
   const currentUserReview = useMemo(
     () => currentUser ? reviews.find((review) => review.userId === currentUser.uid) : null,
     [currentUser, reviews],
@@ -182,13 +204,33 @@ export const AnimeItem: React.FC = () => {
   }, [currentUserReview]);
 
   useEffect(() => {
+    const requestedReview = searchParams.get("editReview");
+    if (currentUserReview && requestedReview && (requestedReview === "mine" || requestedReview === currentUserReview.id)) {
+      setReviewEditorOpen(true);
+    }
+  }, [currentUserReview, searchParams]);
+
+  useEffect(() => {
     if (commentsLoading || activeTab !== "discussion" || !window.location.hash) return;
     const targetId = decodeURIComponent(window.location.hash.slice(1));
+    const targetCommentId = targetId.replace(/^comment-/, "");
+    const targetReply = comments.find((entry) => entry.id === targetCommentId && entry.parentId);
+    if (targetReply?.parentId) {
+      setExpandedReplies((current) => ({ ...current, [targetReply.parentId]: true }));
+    }
     const timer = window.setTimeout(() => {
       document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 120);
     return () => window.clearTimeout(timer);
   }, [commentsLoading, activeTab, comments.length]);
+
+  useEffect(() => {
+    if (reviewsLoading || activeTab !== "reviews" || !window.location.hash) return;
+    const targetId = decodeURIComponent(window.location.hash.slice(1));
+    if (!targetId.startsWith("review-")) return;
+    const timer = window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" }), 120);
+    return () => window.clearTimeout(timer);
+  }, [reviewsLoading, activeTab, reviews.length]);
 
   const {
     title,
@@ -783,10 +825,37 @@ export const AnimeItem: React.FC = () => {
         loadedReviewDraft.current = reviewId;
         toast.success("Review posted successfully!");
       }
+      setReviewEditorOpen(false);
     } catch {
       toast.error("Failed to post review. Try again!");
     } finally {
       setPostingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!currentUser || !window.confirm("Delete this review permanently?")) return;
+    try {
+      await deleteDoc(doc(db, "reviews", reviewId));
+      loadedReviewDraft.current = "";
+      setNewReviewText("");
+      setNewReviewRating(0);
+      setReviewEditorOpen(false);
+      toast.info("Review deleted");
+    } catch {
+      toast.error("The review could not be deleted.");
+    }
+  };
+
+  const handleDeleteComment = async (entry: any) => {
+    if (!currentUser) return;
+    const root = !entry.parentId;
+    if (!window.confirm(root ? "Delete this comment, every reply below it, and its notifications?" : "Delete this reply?")) return;
+    try {
+      await deleteCommunityEntryTree(entry, currentUser.uid);
+      toast.info(root ? "Comment thread deleted" : "Reply deleted");
+    } catch {
+      toast.error("The comment could not be deleted.");
     }
   };
 
@@ -840,28 +909,34 @@ export const AnimeItem: React.FC = () => {
   const cleanSynopsis = useMemo(() => {
     if (!synopsis)
       return "Explore full episode guides, characters, reviews, and stats on Anime Orbit.";
-    return synopsis.replace(/<[^>]+>/g, "").slice(0, 240) + "...";
+    const text = synopsis.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return text.length > 180 ? `${text.slice(0, 177).trimEnd()}...` : text;
   }, [synopsis]);
 
   const animeStructuredData = useMemo(() => {
     return {
-      "@context": "https://schema.org",
       "@type": type === "Movie" ? "Movie" : "TVSeries",
+      "@id": `https://animeorbit.web.app/anime/${id}#anime`,
       name: displayTitle,
       alternateName: title_japanese || undefined,
       description: cleanSynopsis,
       image: images?.jpg?.large_image_url || "",
-      aggregateRating: score
+      aggregateRating: score && anime?.scored_by
         ? {
             "@type": "AggregateRating",
             ratingValue: score,
             bestRating: "10",
             worstRating: "1",
-            ratingCount: anime?.scored_by || 1000,
+            ratingCount: anime.scored_by,
           }
         : undefined,
       genre: genres?.map((g: any) => g?.name || g),
       numberOfEpisodes: totalEpisodes || undefined,
+      datePublished: year ? `${year}` : undefined,
+      productionCompany: studios?.map((studio: any) => ({
+        "@type": "Organization",
+        name: studio?.name || studio,
+      })),
       url: `https://animeorbit.web.app/anime/${id}`,
     };
   }, [
@@ -873,6 +948,8 @@ export const AnimeItem: React.FC = () => {
     anime?.scored_by,
     genres,
     totalEpisodes,
+    year,
+    studios,
     id,
     type,
   ]);
@@ -987,6 +1064,12 @@ export const AnimeItem: React.FC = () => {
   if (loadError || !anime?.mal_id) {
     return (
       <Container>
+        <SEO
+          title="Anime title unavailable"
+          description="This anime detail page could not be found in the current catalogue."
+          url={`https://animeorbit.web.app/anime/${id}`}
+          noIndex
+        />
         <div className="min-h-[70vh] flex items-center justify-center px-5">
           <div className="max-w-sm text-center">
             <ProgressiveImage
@@ -1021,7 +1104,13 @@ export const AnimeItem: React.FC = () => {
         image={images?.jpg?.large_image_url || "/lost.jpg"}
         url={`https://animeorbit.web.app/anime/${id}`}
         type={type === "Movie" ? "video.movie" : "video.tv_show"}
+        pageType="ItemPage"
         structuredData={animeStructuredData}
+        breadcrumbs={[
+          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
+          { name: "Anime library", url: "https://animeorbit.web.app/popular" },
+          { name: displayTitle, url: `https://animeorbit.web.app/anime/${id}` },
+        ]}
       />
       <BackgroundImage
         style={{
@@ -2111,7 +2200,7 @@ export const AnimeItem: React.FC = () => {
                           ) : (
                             <div style={{ position: "relative" }}>
                               <CommentText>
-                                {comment.text || comment.content}
+                                {highlightedCommentText(comment.text || comment.content, mentionNames)}
                               </CommentText>
                               {isSpoiler && (
                                 <button
@@ -2121,17 +2210,7 @@ export const AnimeItem: React.FC = () => {
                                       [comment.id]: false,
                                     }))
                                   }
-                                  style={{
-                                    background: "none",
-                                    border: "none",
-                                    color: "#777",
-                                    fontSize: "0.7rem",
-                                    cursor: "pointer",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "0.3rem",
-                                    marginTop: "0.3rem",
-                                  }}
+                                  className="comment-hide-spoiler"
                                 >
                                   <EyeOff size={12} /> Hide Spoiler
                                 </button>
@@ -2168,7 +2247,7 @@ export const AnimeItem: React.FC = () => {
                                 setReplyingTo(
                                   replyingTo === comment.id ? null : comment.id,
                                 );
-                                setReplyText("");
+                                setReplyText(`@${commentIdentity.displayName} `);
                               }}
                               className="comment-action-label"
                             >
@@ -2191,6 +2270,7 @@ export const AnimeItem: React.FC = () => {
                               <Flag size={12} />
                               Report
                             </button>
+                            {currentUser?.uid === comment.userId && <button type="button" className="comment-delete-action" onClick={() => void handleDeleteComment(comment)}><Trash2 size={12} />Delete thread</button>}
                           </div>
 
                           {replyingTo === comment.id && (
@@ -2226,6 +2306,19 @@ export const AnimeItem: React.FC = () => {
                           )}
 
                           {replies.length > 0 && (
+                            <button
+                              type="button"
+                              className="comment-replies-toggle"
+                              aria-expanded={Boolean(expandedReplies[comment.id])}
+                              onClick={() => setExpandedReplies((current) => ({ ...current, [comment.id]: !current[comment.id] }))}
+                            >
+                              <MessageSquare size={13} />
+                              {expandedReplies[comment.id] ? "Hide" : "View"} {replies.length} {replies.length === 1 ? "reply" : "replies"}
+                              <ChevronRight size={13} className={expandedReplies[comment.id] ? "rotate-90" : ""} />
+                            </button>
+                          )}
+
+                          {replies.length > 0 && expandedReplies[comment.id] && (
                             <div className="mt-4 space-y-2 border-l border-white/10 pl-3 sm:pl-4">
                               {replies.map((reply) => {
                                 const replyIdentity = resolveCommunityIdentity(reply, publicCommunityIdentities);
@@ -2239,7 +2332,7 @@ export const AnimeItem: React.FC = () => {
                                     id={`comment-${reply.id}`}
                                     className="rounded-xl bg-white/[0.035] p-3"
                                   >
-                                    <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-start justify-between gap-3">
                                       <Link
                                         to={`/user/${encodeURIComponent(replyIdentity.profileHandle)}`}
                                         className="text-xs font-bold text-white transition-colors hover:text-[#ffd700]"
@@ -2255,7 +2348,7 @@ export const AnimeItem: React.FC = () => {
                                       </span>
                                     </div>
                                     <p className="mt-1.5 text-xs leading-relaxed text-neutral-300">
-                                      {reply.text || reply.content}
+                                      {highlightedCommentText(reply.text || reply.content, mentionNames)}
                                     </p>
                                     <div className="comment-actions mt-2 text-[10px]">
                                       <button
@@ -2289,6 +2382,7 @@ export const AnimeItem: React.FC = () => {
                                       >
                                         <Flag size={11} />
                                       </button>
+                                      {currentUser?.uid === reply.userId && <button type="button" className="comment-delete-action is-small" onClick={() => void handleDeleteComment(reply)}><Trash2 size={11} />Delete</button>}
                                     </div>
                                   </div>
                                 );
@@ -2310,13 +2404,18 @@ export const AnimeItem: React.FC = () => {
           <ReviewsContent>
             <SectionTitle>User Reviews & Ratings</SectionTitle>
 
-            {currentUser ? (
+            {currentUser ? currentUserReview && !reviewEditorOpen ? (
+              <div className="review-edit-window">
+                <div><strong>Your review is published</strong><span>Open the editor when you want to update or remove it.</span></div>
+                <button type="button" className="review-edit-action" onClick={() => setReviewEditorOpen(true)}>Edit review</button>
+              </div>
+            ) : (
               <ReviewForm onSubmit={handlePostReview}>
                 <ReviewFormHeader>
                   <section className="rating-editor-panel rating-editor-panel--review" aria-labelledby="review-rating-title">
                     <div className="rating-editor-panel__heading">
                       <div><span>{currentUserReview ? "Edit review" : "Rating"}</span><h3 id="review-rating-title">Your score for this anime</h3></div>
-                      <p>{currentUserReview ? "Each member has one review. Saving updates your existing post." : "Choose independently from the written review."}</p>
+                      <p>{currentUserReview ? "Saving updates your existing review. Delete is available only while editing." : "Choose independently from the written review."}</p>
                     </div>
                     <ScoreSlider id="anime-review-score" label="Personal score" value={newReviewRating} onChange={setNewReviewRating} disabled={postingReview} />
                   </section>
@@ -2328,12 +2427,13 @@ export const AnimeItem: React.FC = () => {
                   value={newReviewText}
                   onChange={(e) => setNewReviewText(e.target.value)}
                 />
-                <ReviewSubmitButton
-                  type="submit"
-                  disabled={postingReview || !newReviewText.trim()}
-                >
-                  {postingReview ? "Saving..." : currentUserReview ? "Update Review" : "Post Review"}
-                </ReviewSubmitButton>
+                <div className="review-editor-actions">
+                  <ReviewSubmitButton type="submit" disabled={postingReview || !newReviewText.trim()}>
+                    {postingReview ? "Saving..." : currentUserReview ? "Save review" : "Post review"}
+                  </ReviewSubmitButton>
+                  {currentUserReview && <button type="button" className="review-delete-action" onClick={() => void handleDeleteReview(currentUserReview.id)}><Trash2 size={13} />Delete review</button>}
+                  {currentUserReview && <button type="button" className="review-cancel-action" onClick={() => setReviewEditorOpen(false)}>Cancel</button>}
+                </div>
               </ReviewForm>
             ) : (
               <SignInPrompt onClick={() => setAuthModalOpen(true)}>
@@ -2347,7 +2447,7 @@ export const AnimeItem: React.FC = () => {
               ) : reviews.length > 0 ? (
                 reviews.map((rev) => {
                   const reviewIdentity = resolveCommunityIdentity(rev, publicCommunityIdentities);
-                  return <ReviewItemCard key={rev.id}>
+                   return <ReviewItemCard key={rev.id} id={`review-${rev.id}`}>
                     <ReviewItemHeader>
                       <ReviewIdentity>
                         <ReviewAvatar to={`/user/${encodeURIComponent(reviewIdentity.profileHandle)}`} aria-label={`View ${reviewIdentity.displayName}'s profile`}>
@@ -2370,6 +2470,7 @@ export const AnimeItem: React.FC = () => {
                       </ReviewScoreBadge>
                     </ReviewItemHeader>
                     <ReviewBodyText>{rev.text || rev.content}</ReviewBodyText>
+                    {currentUser?.uid === rev.userId && <button type="button" className="review-edit-action" onClick={() => { setReviewEditorOpen(true); window.setTimeout(() => document.getElementById("anime-review-textarea")?.scrollIntoView({ behavior: "smooth", block: "center" }), 40); }}>Edit review</button>}
                   </ReviewItemCard>;
                 })
               ) : (
@@ -3918,6 +4019,7 @@ const CommentHeader = styled.div`
     font-size: 0.75rem;
     color: #666;
   }
+
 `;
 
 const CommentText = styled.p`
@@ -4081,6 +4183,7 @@ const ReviewAuthorMeta = styled.div`
     font-size: 0.7rem;
     color: #666;
   }
+
 `;
 
 const ReviewScoreBadge = styled.div`

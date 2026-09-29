@@ -13,8 +13,9 @@ import {
   setDoc,
   updateDoc,
   where,
+  deleteDoc,
 } from "firebase/firestore";
-import { AlertTriangle, Eye, EyeOff, Flag, Heart, MessageCircle, Reply, Send, Star, ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertTriangle, ChevronRight, Eye, EyeOff, Flag, MessageCircle, Reply, Send, Star, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { db } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
@@ -23,6 +24,7 @@ import { checkRateLimit, sanitizeInput } from "../utils/security";
 import AuthModal from "./AuthModal";
 import ScoreSlider from "./ScoreSlider";
 import { resolveCommunityIdentity, usePublicCommunityIdentities } from "../hooks/usePublicCommunityIdentities";
+import { deleteCommunityEntryTree } from "../services/communityModeration";
 
 interface MangaCommunityProps {
   mangaId: string;
@@ -34,6 +36,18 @@ const dateLabel = (value: any, edited?: any) => {
   const stamp = edited?.toDate?.() || value?.toDate?.();
   if (!stamp) return "Recently";
   return `${edited ? "Edited " : ""}${stamp.toLocaleDateString()}`;
+};
+
+const highlightedCommentText = (value: unknown, names: string[] = []) => {
+  const escapedNames = [...new Set(names.map((name) => name.trim()).filter(Boolean))]
+    .sort((left, right) => right.length - left.length)
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const matcher = new RegExp(`(@(?:${escapedNames.length ? `${escapedNames.join("|")}|` : ""}[A-Za-z0-9_.-]+))`, "g");
+  return String(value || "").split(matcher).map((part, index) =>
+    part.startsWith("@")
+      ? <mark className="comment-mention" key={`${part}-${index}`}>{part}</mark>
+      : <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>,
+  );
 };
 
 const ProfileAvatar: React.FC<{ entry: any; size?: "small" | "normal" }> = ({ entry, size = "normal" }) => (
@@ -50,7 +64,7 @@ const ProfileAvatar: React.FC<{ entry: any; size?: "small" | "normal" }> = ({ en
 const MangaCommunity: React.FC<MangaCommunityProps> = ({ mangaId, title, image }) => {
   const { currentUser } = useAuth();
   const identity = useProfileIdentity();
-  const [activeTab, setActiveTab] = React.useState<"discussion" | "reviews">("discussion");
+  const [activeTab, setActiveTab] = React.useState<"discussion" | "reviews">(() => new URLSearchParams(window.location.search).get("tab") === "reviews" ? "reviews" : "discussion");
   const [comments, setComments] = React.useState<any[]>([]);
   const [reviews, setReviews] = React.useState<any[]>([]);
   const [loadingComments, setLoadingComments] = React.useState(true);
@@ -62,12 +76,18 @@ const MangaCommunity: React.FC<MangaCommunityProps> = ({ mangaId, title, image }
   const [replyingTo, setReplyingTo] = React.useState<string | null>(null);
   const [replyText, setReplyText] = React.useState("");
   const [postingReply, setPostingReply] = React.useState(false);
+  const [expandedReplies, setExpandedReplies] = React.useState<Record<string, boolean>>({});
   const [reviewText, setReviewText] = React.useState("");
   const [reviewScore, setReviewScore] = React.useState(10);
   const [savingReview, setSavingReview] = React.useState(false);
+  const [reviewEditorOpen, setReviewEditorOpen] = React.useState(false);
   const [authOpen, setAuthOpen] = React.useState(false);
   const loadedReviewDraft = React.useRef("");
   const publicCommunityIdentities = usePublicCommunityIdentities([...comments, ...reviews]);
+  const mentionNames = React.useMemo(
+    () => Object.values(publicCommunityIdentities as Record<string, any>).flatMap((entry: any) => [entry?.displayName, entry?.profileHandle]).filter(Boolean),
+    [publicCommunityIdentities],
+  );
   const displayEntry = (entry: any) => {
     const live = resolveCommunityIdentity(entry, publicCommunityIdentities);
     return { ...entry, userName: live.displayName, userAvatar: live.avatarUrl, profileHandle: live.profileHandle };
@@ -134,11 +154,27 @@ const MangaCommunity: React.FC<MangaCommunityProps> = ({ mangaId, title, image }
   }, [currentReview]);
 
   React.useEffect(() => {
+    const requestedReview = new URLSearchParams(window.location.search).get("editReview");
+    if (currentReview && requestedReview && (requestedReview === "mine" || requestedReview === currentReview.id)) setReviewEditorOpen(true);
+  }, [currentReview]);
+
+  React.useEffect(() => {
     if (loadingComments || activeTab !== "discussion" || !window.location.hash) return;
     const targetId = decodeURIComponent(window.location.hash.slice(1));
+    const targetCommentId = targetId.replace(/^comment-/, "");
+    const targetReply = comments.find((entry) => entry.id === targetCommentId && entry.parentId);
+    if (targetReply?.parentId) setExpandedReplies((current) => ({ ...current, [targetReply.parentId]: true }));
     const timer = window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" }), 140);
     return () => window.clearTimeout(timer);
   }, [loadingComments, activeTab, comments.length]);
+
+  React.useEffect(() => {
+    if (loadingReviews || activeTab !== "reviews" || !window.location.hash) return;
+    const targetId = decodeURIComponent(window.location.hash.slice(1));
+    if (!targetId.startsWith("review-")) return;
+    const timer = window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" }), 140);
+    return () => window.clearTimeout(timer);
+  }, [loadingReviews, activeTab, reviews.length]);
 
   const commonIdentity = {
     userId: currentUser?.uid,
@@ -290,14 +326,37 @@ const MangaCommunity: React.FC<MangaCommunityProps> = ({ mangaId, title, image }
         loadedReviewDraft.current = reviewId;
         toast.success("Review published.");
       }
+      setReviewEditorOpen(false);
     } catch { toast.error("Your review could not be saved."); }
     finally { setSavingReview(false); }
   };
 
+  const deleteReview = async (reviewId: string) => {
+    if (!currentUser || !window.confirm("Delete this review permanently?")) return;
+    try {
+      await deleteDoc(doc(db, "reviews", reviewId));
+      loadedReviewDraft.current = "";
+      setReviewText("");
+      setReviewScore(0);
+      setReviewEditorOpen(false);
+      toast.info("Review deleted");
+    } catch { toast.error("The review could not be deleted."); }
+  };
+
+  const deleteComment = async (entry: any) => {
+    if (!currentUser) return;
+    const root = !entry.parentId;
+    if (!window.confirm(root ? "Delete this comment, every reply below it, and its notifications?" : "Delete this reply?")) return;
+    try {
+      await deleteCommunityEntryTree(entry, currentUser.uid);
+      toast.info(root ? "Comment thread deleted" : "Reply deleted");
+    } catch { toast.error("The comment could not be deleted."); }
+  };
+
   const renderBody = (comment: any) => {
     const hidden = !readLatest && !revealed[comment.id];
-    if (!hidden) return <div className="manga-community__comment-text"><p>{comment.text || comment.content}</p>{!readLatest && <button type="button" onClick={() => setRevealed((value) => ({ ...value, [comment.id]: false }))}><EyeOff size={13} />Hide again</button>}</div>;
-    return <button type="button" className="manga-community__spoiler" onClick={() => setRevealed((value) => ({ ...value, [comment.id]: true }))}><p>{comment.text || comment.content}</p><span><Eye size={17} />Touch to reveal this manga discussion</span></button>;
+    if (!hidden) return <div className="manga-community__comment-text"><p>{highlightedCommentText(comment.text || comment.content, mentionNames)}</p>{!readLatest && <button type="button" className="comment-hide-spoiler" onClick={() => setRevealed((value) => ({ ...value, [comment.id]: false }))}><EyeOff size={13} />Hide again</button>}</div>;
+    return <button type="button" className="manga-community__spoiler" onClick={() => setRevealed((value) => ({ ...value, [comment.id]: true }))}><p>{highlightedCommentText(comment.text || comment.content, mentionNames)}</p><span><Eye size={17} />Touch to reveal this manga discussion</span></button>;
   };
 
   const rootComments = comments.filter((comment) => !comment.parentId);
@@ -322,15 +381,16 @@ const MangaCommunity: React.FC<MangaCommunityProps> = ({ mangaId, title, image }
             const replies = comments.filter((entry) => entry.parentId === comment.id);
             const liked = Boolean(currentUser && (comment.likes || []).includes(currentUser.uid));
             const disliked = Boolean(currentUser && (comment.dislikes || []).includes(currentUser.uid));
-            return <article id={`comment-${comment.id}`} key={comment.id} className="manga-community__comment"><ProfileAvatar entry={visibleComment} /><div className="manga-community__comment-main"><header><div><Link to={`/user/${encodeURIComponent(visibleComment.profileHandle || visibleComment.userId)}`}>{visibleComment.userName}</Link><span>Reader</span></div><time>{dateLabel(comment.createdAt)}</time></header>{renderBody(comment)}<div className="manga-community__actions"><button type="button" className={liked ? "is-liked" : ""} onClick={() => void reactToComment(comment, "like")}><ThumbsUp size={14} />{comment.likes?.length || 0}</button><button type="button" className={disliked ? "is-disliked" : ""} onClick={() => void reactToComment(comment, "dislike")}><ThumbsDown size={14} />{comment.dislikes?.length || 0}</button><button type="button" onClick={() => { if (!currentUser) return setAuthOpen(true); setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}><Reply size={14} />Reply</button><button type="button" onClick={() => void reactToComment(comment, "report")}><Flag size={13} />Report</button></div>
+            return <article id={`comment-${comment.id}`} key={comment.id} className="manga-community__comment"><ProfileAvatar entry={visibleComment} /><div className="manga-community__comment-main"><header><div><Link to={`/user/${encodeURIComponent(visibleComment.profileHandle || visibleComment.userId)}`}>{visibleComment.userName}</Link><span>Reader</span></div><time>{dateLabel(comment.createdAt)}</time></header>{renderBody(comment)}<div className="manga-community__actions"><button type="button" className={liked ? "is-liked" : ""} onClick={() => void reactToComment(comment, "like")}><ThumbsUp size={14} />{comment.likes?.length || 0}</button><button type="button" className={disliked ? "is-disliked" : ""} onClick={() => void reactToComment(comment, "dislike")}><ThumbsDown size={14} />{comment.dislikes?.length || 0}</button><button type="button" onClick={() => { if (!currentUser) return setAuthOpen(true); setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(`@${visibleComment.userName} `); }}><Reply size={14} />Reply</button><button type="button" onClick={() => void reactToComment(comment, "report")}><Flag size={13} />Report</button>{currentUser?.uid === comment.userId && <button type="button" className="comment-delete-action" onClick={() => void deleteComment(comment)}><Trash2 size={12} />Delete thread</button>}</div>
             {replyingTo === comment.id && <div className="manga-community__reply-box"><input autoFocus value={replyText} maxLength={1200} onChange={(event) => setReplyText(event.target.value)} placeholder={`Reply to ${visibleComment.userName}`} /><button type="button" disabled={postingReply || !replyText.trim()} onClick={() => void publishReply(comment)}><Send size={15} /></button></div>}
-            {replies.length > 0 && <div className="manga-community__replies">{replies.map((reply) => { const visibleReply = displayEntry(reply); return <article id={`comment-${reply.id}`} key={reply.id}><ProfileAvatar entry={visibleReply} size="small" /><div><header><Link to={`/user/${encodeURIComponent(visibleReply.profileHandle || visibleReply.userId)}`}>{visibleReply.userName}</Link><time>{dateLabel(reply.createdAt)}</time></header>{renderBody(reply)}<div className="manga-community__actions"><button type="button" onClick={() => void reactToComment(reply, "like")}><ThumbsUp size={12} />{reply.likes?.length || 0}</button><button type="button" onClick={() => { setReplyingTo(comment.id); setReplyText(`@${visibleReply.userName} `); }}><Reply size={12} />Reply</button></div></div></article>; })}</div>}
+            {replies.length > 0 && <button type="button" className="comment-replies-toggle" aria-expanded={Boolean(expandedReplies[comment.id])} onClick={() => setExpandedReplies((current) => ({ ...current, [comment.id]: !current[comment.id] }))}><MessageCircle size={13} />{expandedReplies[comment.id] ? "Hide" : "View"} {replies.length} {replies.length === 1 ? "reply" : "replies"}<ChevronRight size={13} className={expandedReplies[comment.id] ? "rotate-90" : ""} /></button>}
+            {replies.length > 0 && expandedReplies[comment.id] && <div className="manga-community__replies">{replies.map((reply) => { const visibleReply = displayEntry(reply); return <article id={`comment-${reply.id}`} key={reply.id}><ProfileAvatar entry={visibleReply} size="small" /><div><header><Link to={`/user/${encodeURIComponent(visibleReply.profileHandle || visibleReply.userId)}`}>{visibleReply.userName}</Link><time>{dateLabel(reply.createdAt)}</time></header>{renderBody(reply)}<div className="manga-community__actions"><button type="button" onClick={() => void reactToComment(reply, "like")}><ThumbsUp size={12} />{reply.likes?.length || 0}</button><button type="button" onClick={() => { setReplyingTo(comment.id); setReplyText(`@${visibleReply.userName} `); }}><Reply size={12} />Reply</button>{currentUser?.uid === reply.userId && <button type="button" className="comment-delete-action is-small" onClick={() => void deleteComment(reply)}><Trash2 size={11} />Delete</button>}</div></div></article>; })}</div>}
             </div></article>;
           }) : <p className="manga-community__empty">No comments yet. Start the reader discussion.</p>}
         </div>
       </div> : <div className="manga-community__panel">
-        {currentUser ? <form className="manga-community__review-form" onSubmit={saveReview}><div><span>{currentReview ? "Edit your review" : "Your review"}</span><h3>One review per reader</h3><p>{currentReview ? "Saving replaces your existing review; it does not create a duplicate." : "You can return and edit this review later."}</p></div><ScoreSlider id="manga-review-score" label="Manga score" value={reviewScore} onChange={setReviewScore} disabled={savingReview} /><textarea value={reviewText} maxLength={3000} onChange={(event) => setReviewText(event.target.value)} placeholder="Write your manga review..." /><button disabled={savingReview || !reviewText.trim()}>{savingReview ? "Saving..." : currentReview ? "Update review" : "Publish review"}</button></form> : <button type="button" className="manga-community__signin" onClick={() => setAuthOpen(true)}>Sign in to review this manga</button>}
-        <div className="manga-community__reviews">{loadingReviews ? <p className="manga-community__empty">Loading reviews...</p> : reviews.length ? reviews.map((review) => { const visibleReview = displayEntry(review); return <article key={review.id}><ProfileAvatar entry={visibleReview} /><div><header><div><Link to={`/user/${encodeURIComponent(visibleReview.profileHandle || visibleReview.userId)}`}>{visibleReview.userName}</Link><time>{dateLabel(review.createdAt, review.updatedAt)}</time></div><b><Star size={13} fill="currentColor" />{Number(review.rating || 0).toFixed(2).replace(/\.00$/, ".0")}</b></header><p>{review.text || review.content}</p></div></article>; }) : <p className="manga-community__empty">No reviews yet. Be the first reader to review it.</p>}</div>
+        {currentUser ? currentReview && !reviewEditorOpen ? <div className="review-edit-window"><div><strong>Your review is published</strong><span>Open the editor when you want to update or remove it.</span></div><button type="button" className="review-edit-action" onClick={() => setReviewEditorOpen(true)}>Edit review</button></div> : <form className="manga-community__review-form" onSubmit={saveReview}><div><span>{currentReview ? "Edit your review" : "Your review"}</span><h3>One review per reader</h3><p>{currentReview ? "Saving updates your existing review. Delete is available only while editing." : "You can return and edit this review later."}</p></div><ScoreSlider id="manga-review-score" label="Manga score" value={reviewScore} onChange={setReviewScore} disabled={savingReview} /><textarea id="manga-review-textarea" value={reviewText} maxLength={3000} onChange={(event) => setReviewText(event.target.value)} placeholder="Write your manga review..." /><div className="review-editor-actions"><button disabled={savingReview || !reviewText.trim()}>{savingReview ? "Saving..." : currentReview ? "Save review" : "Publish review"}</button>{currentReview && <button type="button" className="review-delete-action" onClick={() => void deleteReview(currentReview.id)}><Trash2 size={13} />Delete review</button>}{currentReview && <button type="button" className="review-cancel-action" onClick={() => setReviewEditorOpen(false)}>Cancel</button>}</div></form> : <button type="button" className="manga-community__signin" onClick={() => setAuthOpen(true)}>Sign in to review this manga</button>}
+        <div className="manga-community__reviews">{loadingReviews ? <p className="manga-community__empty">Loading reviews...</p> : reviews.length ? reviews.map((review) => { const visibleReview = displayEntry(review); return <article id={`review-${review.id}`} key={review.id}><ProfileAvatar entry={visibleReview} /><div><header><div><Link to={`/user/${encodeURIComponent(visibleReview.profileHandle || visibleReview.userId)}`}>{visibleReview.userName}</Link><time>{dateLabel(review.createdAt, review.updatedAt)}</time></div><b><Star size={13} fill="currentColor" />{Number(review.rating || 0).toFixed(2).replace(/\.00$/, ".0")}</b></header><p>{review.text || review.content}</p>{currentUser?.uid === review.userId && <button type="button" className="review-edit-action" onClick={() => { setReviewEditorOpen(true); window.setTimeout(() => document.getElementById("manga-review-textarea")?.scrollIntoView({ behavior: "smooth", block: "center" }), 40); }}>Edit review</button>}</div></article>; }) : <p className="manga-community__empty">No reviews yet. Be the first reader to review it.</p>}</div>
       </div>}
       <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
     </section>

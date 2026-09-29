@@ -37,10 +37,12 @@ service cloud.firestore {
       }
 
       match /tierSheets/{sheetId} {
-        allow read, write: if isOwner(userId)
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
           && sheetId in ['slot-1', 'slot-2', 'slot-3', 'slot-4', 'slot-5']
-          && request.resource.data.keys().hasOnly(['name', 'animeTiers', 'mangaTiers', 'updatedAt'])
-          && isValidString(request.resource.data.name, 1, 40)
+          && request.resource.data.keys().hasOnly(['name', 'animeName', 'mangaName', 'animeTiers', 'mangaTiers', 'updatedAt'])
+          && isValidString(request.resource.data.animeName, 1, 40)
+          && isValidString(request.resource.data.mangaName, 1, 40)
           && request.resource.data.animeTiers is list
           && request.resource.data.animeTiers.size() <= 20
           && request.resource.data.mangaTiers is list
@@ -121,6 +123,20 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
+    // Case-insensitive, atomic reservation for public profile IDs.
+    match /handles/{handleKey} {
+      allow read: if true;
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && !exists(/databases/$(database)/documents/handles/$(handleKey))
+        && request.resource.data.keys().hasOnly(['uid', 'handle', 'updatedAt']);
+      allow update: if isAuthenticated()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'handle', 'updatedAt']);
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
     // Root collections for atomic user data (Watchlists, Tierlists, Favourites)
     match /favourites/{userId} {
       allow read, write: if isOwner(userId);
@@ -185,7 +201,11 @@ service cloud.firestore {
             && request.resource.data.get('likes', []).size() <= 10000
             && request.resource.data.get('dislikes', []).size() <= 10000
             && request.resource.data.get('reports', []).size() <= 1000));
-      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated()
+        && (resource.data.userId == request.auth.uid
+          || (resource.data.parentId is string
+            && exists(/databases/$(database)/documents/comments/$(resource.data.parentId))
+            && get(/databases/$(database)/documents/comments/$(resource.data.parentId)).data.userId == request.auth.uid));
     }
 
     match /{document=**} {

@@ -46,6 +46,7 @@ export const MangaDetails: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [trackerBusy, setTrackerBusy] = useState(false);
   const [chapterPage, setChapterPage] = useState(1);
+  const [chaptersExpanded, setChaptersExpanded] = useState(false);
   const [chapterGuideItems, setChapterGuideItems] = useState<any[]>([]);
   const [chapterTotal, setChapterTotal] = useState(0);
   const [chapterGuideLoading, setChapterGuideLoading] = useState(false);
@@ -59,6 +60,10 @@ export const MangaDetails: React.FC = () => {
   useEffect(() => {
     setChapterProgress(Number(trackedMangaEntry?.progress || 0));
   }, [trackedMangaEntry?.mal_id, trackedMangaEntry?.progress]);
+
+  useEffect(() => {
+    setChaptersExpanded(false);
+  }, [chapterPage]);
 
   useEffect(() => {
     if (!trackedMangaEntry || !chapterTotal || (Number(trackedMangaEntry.chapters || 0) === chapterTotal && trackedMangaEntry.releaseStatus === (manga?.status || ""))) return;
@@ -169,6 +174,12 @@ export const MangaDetails: React.FC = () => {
   if (!manga) {
     return (
       <div className="min-h-screen bg-[#0a0a0e] text-white font-inter flex flex-col">
+        <SEO
+          title="Manga title unavailable"
+          description="This manga detail page could not be found in the current catalogue."
+          url={`https://animeorbit.web.app/manga/${id}`}
+          noIndex
+        />
         <div className="max-w-md mx-auto px-4 py-32 text-center space-y-4 flex-1">
           <BookOpen size={56} className="mx-auto text-neutral-600" />
           <h2 className="text-2xl font-bold font-montserrat text-white">Manga Details Not Found</h2>
@@ -256,15 +267,50 @@ export const MangaDetails: React.FC = () => {
     : chapterGuideItems;
   const selectedChapterIndex = visibleChapters.findIndex((chapter: any) => Number(chapter.number) === selectedChapterNumber);
   const selectedChapter = selectedChapterIndex >= 0 ? visibleChapters[selectedChapterIndex] : null;
+  const mangaSynopsis = String(manga.synopsis || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const mangaDescription = mangaSynopsis
+    ? `${manga.title}: ${mangaSynopsis.length > 175 ? `${mangaSynopsis.slice(0, 172).trimEnd()}...` : mangaSynopsis}`
+    : `Explore chapters, publication details, adaptations, characters, and community reviews for ${manga.title}.`;
+  const mangaStructuredData = {
+    "@type": "BookSeries",
+    "@id": `https://animeorbit.web.app/manga/${id}#manga`,
+    name: manga.title,
+    alternateName: manga.title_japanese || undefined,
+    description: mangaDescription,
+    image: posterImg || undefined,
+    genre: manga.genres || undefined,
+    numberOfItems: knownChapterCount || undefined,
+    datePublished: manga.startDate?.year
+      ? `${manga.startDate.year}-${String(manga.startDate.month || 1).padStart(2, "0")}-${String(manga.startDate.day || 1).padStart(2, "0")}`
+      : undefined,
+    author: Array.isArray(manga.authors)
+      ? manga.authors.map((author: any) => ({
+          "@type": "Person",
+          name: author?.name || author?.node?.name?.full || author,
+        }))
+      : undefined,
+    url: `https://animeorbit.web.app/manga/${id}`,
+  };
 
   return (
     <div className="manga-detail-page min-h-screen bg-[#0a0a0e] text-white font-inter flex flex-col overflow-x-hidden">
       <SEO
-        title={`${manga.title} - Manga Origins, Story & Chapters | Anime Orbit`}
-        description={`${manga.title}: ${manga.synopsis?.slice(0, 150)}...`}
-        keywords={`${manga.title}, manga adaptation, manga chapters, original manga story, Anime Orbit`}
+        title={`${manga.title} - Chapters, Story & Adaptations | Anime Orbit`}
+        description={mangaDescription}
+        keywords={`${manga.title}, ${manga.genres?.join(", ") || "manga"}, manga chapters, manga characters, manga adaptations, Anime Orbit`}
         image={posterImg}
         url={`https://animeorbit.web.app/manga/${id}`}
+        type="article"
+        pageType="ItemPage"
+        structuredData={mangaStructuredData}
+        breadcrumbs={[
+          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
+          { name: "Manga library", url: "https://animeorbit.web.app/manga" },
+          { name: manga.title, url: `https://animeorbit.web.app/manga/${id}` },
+        ]}
       />
 
       {/* Back Button */}
@@ -519,10 +565,11 @@ export const MangaDetails: React.FC = () => {
                 })}
               </div>}
               <div className="manga-chapter-guide__grid">
-                {visibleChapters.map((chapter: any) => <button type="button" key={chapter.number} className={chapter.number === knownChapterCount ? "is-latest" : ""} onClick={() => setSelectedChapterNumber(Number(chapter.number))} aria-label={`Open details for chapter ${chapter.number}`}>
+                {(chaptersExpanded ? visibleChapters : visibleChapters.slice(0, 3)).map((chapter: any) => <button type="button" key={chapter.number} className={chapter.number === knownChapterCount ? "is-latest" : ""} onClick={() => setSelectedChapterNumber(Number(chapter.number))} aria-label={`Open details for chapter ${chapter.number}`}>
                   <span><Hash size={12} />{chapter.number}</span><div><h3>{chapter.title || `Chapter ${chapter.number}`}</h3><p>{chapter.summary || (chapter.metadataAvailable ? "No synopsis was published for this chapter." : "Chapter details are not published in the connected catalogues.")}</p>{chapter.aired && <time dateTime={chapter.aired}>{new Date(chapter.aired).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</time>}</div>
                 </button>)}
               </div>
+              {visibleChapters.length > 3 && <button type="button" className="manga-chapter-guide__toggle" aria-expanded={chaptersExpanded} onClick={() => setChaptersExpanded((expanded) => !expanded)}>{chaptersExpanded ? "Show only the first 3 chapters" : `See ${visibleChapters.length - 3} more chapters`} <ChevronRight size={15} /></button>}
               {chapterPageCount > 1 && <div className="manga-chapter-guide__pager"><button disabled={chapterPage === 1} onClick={() => setChapterPage((page) => Math.max(1, page - 1))}><ChevronLeft size={14} /> Previous</button><span>Page {chapterPage} of {chapterPageCount}</span><button disabled={chapterPage === chapterPageCount} onClick={() => setChapterPage((page) => Math.min(chapterPageCount, page + 1))}>Next <ChevronRight size={14} /></button></div>}
             </> : <div className="manga-chapter-guide__empty">This publishing entry does not have a confirmed chapter total yet.</div>}
           </section>
