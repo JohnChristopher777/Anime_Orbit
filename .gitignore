@@ -41,4 +41,5 @@ ui-debug.log
 Thumbs.db
 
 # Documentation
-.md
+/Docs
+*.md
