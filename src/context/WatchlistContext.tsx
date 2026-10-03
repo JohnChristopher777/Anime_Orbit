@@ -14,6 +14,14 @@ import { useAuth } from "./AuthContext";
 import { toast } from "react-toastify";
 import { isOngoingMediaStatus, statusAtKnownTotal } from "../utils/trackingStatus";
 
+export interface ProgressNote {
+  id?: string;
+  progress: number;
+  note: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface WatchlistItem {
   id?: string;
   mal_id: number;
@@ -33,6 +41,7 @@ export interface WatchlistItem {
   startDate?: string;
   endDate?: string;
   personalNotes?: string;
+  progressNotes?: ProgressNote[];
   progress?: number;
   userScore?: number | null;
   isCurrent?: boolean;
@@ -86,11 +95,11 @@ interface WatchlistContextType {
   isWatched: (animeId: number) => boolean;
   updateAnimeStatus: (anime: any, status: string | null) => Promise<void>;
   getAnimeStatus: (animeId: number) => string | null;
-  updateWatchlistEntry: (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "episodes" | "releaseStatus" | "isCurrent">>) => Promise<void>;
+  updateWatchlistEntry: (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progressNotes" | "progress" | "userScore" | "episodes" | "releaseStatus" | "isCurrent">>) => Promise<void>;
   setCurrentAnime: (animeId: number | null) => Promise<void>;
   addMangaToWatchlist: (manga: any) => Promise<void>;
   removeMangaFromWatchlist: (mangaId: number) => Promise<void>;
-  updateMangaWatchlistEntry: (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "chapters" | "releaseStatus">>) => Promise<void>;
+  updateMangaWatchlistEntry: (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progressNotes" | "progress" | "userScore" | "chapters" | "releaseStatus">>) => Promise<void>;
   restoreDeletedItem: (originalKey: string) => Promise<void>;
   permanentlyDeleteItem: (originalKey: string) => Promise<void>;
   emptyTrash: () => Promise<void>;
@@ -440,7 +449,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     return item ? (item.status || "Plan to Watch") : null;
   };
 
-  const updateWatchlistEntry = async (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "episodes" | "releaseStatus" | "isCurrent">>) => {
+  const updateWatchlistEntry = async (animeId: number, updates: Partial<Pick<WatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progressNotes" | "progress" | "userScore" | "episodes" | "releaseStatus" | "isCurrent">>) => {
     if (!currentUser) return;
     try {
       const currentItem = watchlist.find((item) => item.mal_id === animeId);
@@ -584,7 +593,7 @@ export const WatchlistProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
-  const updateMangaWatchlistEntry = async (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progress" | "userScore" | "chapters" | "releaseStatus">>) => {
+  const updateMangaWatchlistEntry = async (mangaId: number, updates: Partial<Pick<MangaWatchlistItem, "status" | "startDate" | "endDate" | "personalNotes" | "progressNotes" | "progress" | "userScore" | "chapters" | "releaseStatus">>) => {
     if (!currentUser) return;
     try {
       const currentItem = mangaWatchlist.find((item) => item.mal_id === mangaId);

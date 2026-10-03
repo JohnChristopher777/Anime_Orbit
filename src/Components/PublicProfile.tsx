@@ -14,8 +14,14 @@ import {
   BookOpen,
   CheckCircle2,
   Clock3,
+  Disc3,
+  Film,
   Heart,
-  Library,
+  Layers3,
+  List,
+  PlayCircle,
+  Radio,
+  Sparkles,
   Star,
   Tag,
   Tv,
@@ -33,6 +39,7 @@ interface PublicMedia {
   title: string;
   image: string;
   format: string;
+  duration: number;
   status: string;
   progress: number;
   total: number;
@@ -56,6 +63,7 @@ interface PublicUserData {
     library: number;
     completed: number;
     watching: number;
+    caughtUp: number;
     planned: number;
     averageScore: number;
   };
@@ -70,6 +78,7 @@ const safeMedia = (value: unknown): PublicMedia[] =>
       title: sanitizeInput(item?.title || "Untitled", 120),
       image: safeImageUrl(item?.image),
       format: sanitizeInput(item?.format || item?.mediaType || "Anime", 30),
+      duration: Math.max(0, Math.min(1440, Number(item?.duration) || 0)),
       status: sanitizeInput(item?.status || "Plan to Watch", 30),
       progress: Math.max(0, Number(item?.progress) || 0),
       total: Math.max(0, Number(item?.total) || 0),
@@ -102,6 +111,9 @@ const shapeProfile = (data: any): PublicUserData => {
       library: Number(stats.library) || watchlist.length,
       completed: Number(stats.completed) || 0,
       watching: Number(stats.watching) || 0,
+      caughtUp:
+        Number(stats.caughtUp) ||
+        watchlist.filter((item) => item.status.toLowerCase().replace(/[^a-z]/g, "") === "caughtup").length,
       planned: Number(stats.planned) || 0,
       averageScore: Number(stats.averageScore) || 0,
     },
@@ -311,6 +323,37 @@ const PublicProfile: React.FC = () => {
         ? `${userData.displayName}'s library leans toward manga ${mangaTasteRatio}%,${genres[0] ? ` led by ${genres.slice(0, 3).map(([genre]) => genre).join(", ")}` : " with a growing range of genres"}.`
         : `${userData.displayName} keeps a balanced anime and manga library ${animeTasteRatio}% anime and ${mangaTasteRatio}% manga ${genres[0] ? `, with the strongest interest in ${genres.slice(0, 3).map(([genre]) => genre).join(", ")}` : ""}.`;
 
+  const animeLibrary = userData.watchlist.filter((item) => item.mediaType === "ANIME");
+  const normalizeStatus = (value: string) => value.toLowerCase().replace(/[^a-z]/g, "");
+  const animeWatching = animeLibrary.filter((item) => normalizeStatus(item.status) === "watching").length;
+  const animeCaughtUp = animeLibrary.filter((item) => normalizeStatus(item.status) === "caughtup").length;
+  const animeCompleted = animeLibrary.filter((item) => ["completed", "watched"].includes(normalizeStatus(item.status))).length;
+  const animeFavourites = userData.favourites.filter((item) => item.mediaType === "ANIME").length;
+  const viewingBreakdown = animeLibrary.reduce(
+    (totals, item) => {
+      const format = String(item.format || "TV").trim().toUpperCase().replace(/[\s-]+/g, "_");
+      const completed = ["completed", "watched"].includes(normalizeStatus(item.status));
+      const watchedUnits = Math.floor(completed ? Math.max(item.progress, item.total || 1) : item.progress);
+      if (!watchedUnits) return totals;
+
+      if (format === "MOVIE") totals.movies += watchedUnits;
+      else if (format === "OVA") totals.ova += watchedUnits;
+      else if (format === "ONA") totals.ona += watchedUnits;
+      else if (format === "SPECIAL") totals.specials += watchedUnits;
+      else if (format === "TV" || format === "TV_SHORT") totals.tvEpisodes += watchedUnits;
+      else totals.other += watchedUnits;
+
+      const fallbackDuration = format === "MOVIE" ? 100 : format === "MUSIC" ? 4 : 24;
+      totals.minutes += watchedUnits * (item.duration || fallbackDuration);
+      return totals;
+    },
+    { tvEpisodes: 0, movies: 0, ova: 0, ona: 0, specials: 0, other: 0, minutes: 0 },
+  );
+  const watchHours = (viewingBreakdown.minutes / 60).toFixed(2);
+  const scrollToPublicLibrary = (sectionId: "public-watchlist" | "public-favourites") => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="public-profile-page">
       <SEO
@@ -389,51 +432,42 @@ const PublicProfile: React.FC = () => {
           </div>
         </section>
 
-        <section
-          className="public-profile-stats"
-          aria-label="Public library summary"
-        >
-          <article>
-            <Library />
+        <section className="profile-insights public-profile-activity" aria-labelledby="public-profile-activity-title">
+          <div className="profile-insights__header">
+            <div><h2 id="public-profile-activity-title">Profile overview</h2></div>
             <div>
-              <strong>{userData.stats.library}</strong>
-              <span>Library titles</span>
+              <button type="button" onClick={() => scrollToPublicLibrary("public-watchlist")}>View watchlist</button>
+              <button type="button" onClick={() => scrollToPublicLibrary("public-favourites")}>View favorites</button>
             </div>
-          </article>
-          <article>
-            <Clock3 />
+          </div>
+          <div className="profile-insights__stats">
+            <div><List size={18} aria-hidden="true" /><strong>{animeLibrary.length}</strong><span>Tracked</span></div>
+            <div><PlayCircle size={18} aria-hidden="true" /><strong>{animeWatching}</strong><span>Watching</span></div>
+            <div><Radio size={18} aria-hidden="true" /><strong>{animeCaughtUp}</strong><span>Caught up</span></div>
+            <div><CheckCircle2 size={18} aria-hidden="true" /><strong>{animeCompleted}</strong><span>Completed</span></div>
+            <div><Heart size={18} aria-hidden="true" /><strong>{animeFavourites}</strong><span>Favorites</span></div>
+          </div>
+          <section className="profile-viewing-breakdown" aria-labelledby="public-viewing-breakdown-title">
+            <header>
+              <div><h3 id="public-viewing-breakdown-title">Complete Watch Activity</h3></div>
+              <p>Calculated from this member's public watchlist progress.</p>
+            </header>
             <div>
-              <strong>{userData.stats.watching}</strong>
-              <span>Watching / reading</span>
+              <article><Tv aria-hidden="true" /><strong>{viewingBreakdown.tvEpisodes}</strong><span>TV episodes</span></article>
+              <article><Film aria-hidden="true" /><strong>{viewingBreakdown.movies}</strong><span>Movies</span></article>
+              <article><Disc3 aria-hidden="true" /><strong>{viewingBreakdown.ova}</strong><span>OVA episodes</span></article>
+              <article><Radio aria-hidden="true" /><strong>{viewingBreakdown.ona}</strong><span>ONA episodes</span></article>
+              <article><Sparkles aria-hidden="true" /><strong>{viewingBreakdown.specials}</strong><span>Specials</span></article>
+              <article><Layers3 aria-hidden="true" /><strong>{viewingBreakdown.other}</strong><span>Other</span></article>
+              <article className="is-hours"><Clock3 aria-hidden="true" /><strong>{watchHours}<small> hrs</small></strong><span>Actual watch time</span></article>
             </div>
-          </article>
-          <article>
-            <CheckCircle2 />
-            <div>
-              <strong>{userData.stats.completed}</strong>
-              <span>Completed</span>
-            </div>
-          </article>
-          <article>
-            <Heart />
-            <div>
-              <strong>{userData.stats.favourites}</strong>
-              <span>Favourites</span>
-            </div>
-          </article>
-          <article>
-            <Star />
-            <div>
-              <strong>{userData.stats.averageScore || "—"}</strong>
-              <span>Average rating</span>
-            </div>
-          </article>
+          </section>
         </section>
 
         <section className="public-profile-taste public-profile-taste--primary" aria-labelledby="public-taste-title">
           <header>
             <div>
-              <span>Profile overview</span>
+              <span>Taste profile</span>
               <h2 id="public-taste-title">Anime & manga taste balance</h2>
             </div>
             <b>{tasteTotal} unique titles</b>
@@ -459,7 +493,7 @@ const PublicProfile: React.FC = () => {
           </div>
         </section>
 
-        <section className="public-profile-library">
+        <section className="public-profile-library" id="public-favourites">
           <header>
             <div>
               <span>
@@ -485,7 +519,7 @@ const PublicProfile: React.FC = () => {
             </p>
           )}
         </section>
-        <section className="public-profile-library">
+        <section className="public-profile-library" id="public-watchlist">
           <header>
             <div>
               <span>

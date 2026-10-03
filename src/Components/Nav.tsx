@@ -199,7 +199,8 @@ export const Nav: React.FC = () => {
             <button
               onClick={() => setSidebarOpen(true)}
               aria-label="Open Navigation Menu"
-              className="p-1.5 sm:p-2 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/20 hover:border-[#ffd700] hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex-shrink-0"
+              aria-expanded={sidebarOpen}
+              className="hidden md:inline-flex p-1.5 sm:p-2 rounded-xl bg-[#ffd700]/10 border border-[#ffd700]/30 text-[#ffd700] hover:bg-[#ffd700]/20 hover:border-[#ffd700] hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex-shrink-0"
             >
               <Menu size={18} className="sm:w-5 sm:h-5" />
             </button>
@@ -490,6 +491,18 @@ export const Nav: React.FC = () => {
                 <span>Sign In</span>
               </button>
             )}
+
+            {/* Mobile catalogue trigger stays at the far-right edge, matching
+                the direction from which the drawer enters. */}
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open Navigation Menu"
+              aria-expanded={sidebarOpen}
+              className="md:hidden inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[#ffd700]/35 bg-[#ffd700]/10 text-[#ffd700] transition-all duration-200 hover:border-[#ffd700] hover:bg-[#ffd700]/20 active:scale-95"
+            >
+              <Menu size={18} />
+            </button>
           </div>
         </div>
 

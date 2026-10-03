@@ -11,6 +11,11 @@ const numberInRange = (value: unknown, minimum: number, maximum: number) => {
   return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : 0;
 };
 
+const durationInMinutes = (value: unknown) => {
+  const parsed = Number(String(value ?? "").match(/[\d.]+/)?.[0] || 0);
+  return Number.isFinite(parsed) ? Math.min(1440, Math.max(0, parsed)) : 0;
+};
+
 const publicMedia = (item: any, fallbackType: "ANIME" | "MANGA") => {
   const mediaType = item.mediaType === "MANGA" || item.type === "Manga" ? "MANGA" : fallbackType;
   const total = mediaType === "MANGA" ? item.chapters : item.episodes;
@@ -20,6 +25,7 @@ const publicMedia = (item: any, fallbackType: "ANIME" | "MANGA") => {
     title: sanitizeInput(item.title_english || item.title || "Untitled", 120),
     image: safeImageUrl(item.image || item.image_url || item.images?.jpg?.large_image_url || item.images?.jpg?.image_url),
     format: sanitizeInput(item.format || item.type || mediaType, 30),
+    duration: durationInMinutes(item.duration),
     status: sanitizeInput(item.status || "Favourite", 30),
     progress: numberInRange(item.progress, 0, 100000),
     total: numberInRange(total, 0, 100000),
@@ -62,6 +68,7 @@ const PublicProfileSync: React.FC = () => {
       const status = (value: string) => value.toLowerCase().replace(/[^a-z]/g, "");
       const completed = publicWatchlist.filter((item) => ["completed", "watched", "read"].includes(status(item.status))).length;
       const watching = publicWatchlist.filter((item) => ["watching", "reading"].includes(status(item.status))).length;
+      const caughtUp = publicWatchlist.filter((item) => status(item.status) === "caughtup").length;
       const planned = publicWatchlist.filter((item) => status(item.status).startsWith("plan")).length;
       const rated = publicWatchlist.filter((item) => item.userScore > 0);
       const now = new Date().toISOString();
@@ -90,6 +97,7 @@ const PublicProfileSync: React.FC = () => {
             library: publicWatchlist.length,
             completed,
             watching,
+            caughtUp,
             planned,
             averageScore: rated.length
               ? Math.round((rated.reduce((sum, item) => sum + item.userScore, 0) / rated.length) * 100) / 100

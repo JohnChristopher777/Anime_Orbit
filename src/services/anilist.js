@@ -1,3 +1,5 @@
+import { serverApiUrl } from "./serverApi";
+
 const ANILIST_API_URL = import.meta.env.VITE_ANILIST_API_URL || "https://graphql.anilist.co";
 const KITSU_API_URL = "https://kitsu.io/api/edge";
 const JIKAN_API_URL = "https://api.jikan.moe/v4";
@@ -84,7 +86,7 @@ async function queryMangaMetadata(malId, title, offset = 0, limit = 50) {
   if (title) params.set("title", title);
   params.set("offset", String(Math.max(0, offset)));
   params.set("limit", String(Math.min(50, Math.max(1, limit))));
-  const request = fetch(`/api/manga-metadata?${params.toString()}`, {
+  const request = fetch(serverApiUrl("manga-metadata", params), {
     signal: controller.signal,
     headers: { Accept: "application/json" },
   }).then(async (response) => {
@@ -584,6 +586,49 @@ function mapAniListEpisodesToJikan(streamingEpisodes, totalEpisodes) {
   return finalEpisodes;
 }
 
+const streamUrlKey = (value = "") => {
+  try {
+    const parsed = new URL(value);
+    return `${parsed.hostname}${parsed.pathname}`.toLowerCase().replace(/\/$/, "");
+  } catch {
+    return String(value).trim().toLowerCase();
+  }
+};
+
+// Some provider feeds attach a prequel's streaming list to its sequel (for
+// example, AniList currently returns 86 Part 1's Crunchyroll entries for Part
+// 2). Compare stable provider URLs before trusting those titles and images.
+async function reliableStreamingEpisodes(media) {
+  const current = Array.isArray(media?.streamingEpisodes) ? media.streamingEpisodes : [];
+  if (!current.length) return current;
+  const prequelId = media?.relations?.edges?.find(
+    (edge) => edge?.relationType === "PREQUEL" && edge?.node?.type === "ANIME",
+  )?.node?.id;
+  if (!prequelId) return current;
+
+  try {
+    const data = await queryAniList(`
+      query PrequelStreams($id: Int) {
+        Media(id: $id, type: ANIME) {
+          streamingEpisodes { title thumbnail url site }
+        }
+      }
+    `, { id: Number(prequelId) });
+    const previous = Array.isArray(data?.Media?.streamingEpisodes)
+      ? data.Media.streamingEpisodes
+      : [];
+    if (!previous.length) return current;
+
+    const previousUrls = new Set(previous.map((episode) => streamUrlKey(episode?.url)).filter(Boolean));
+    const currentUrls = current.map((episode) => streamUrlKey(episode?.url)).filter(Boolean);
+    const overlap = currentUrls.filter((url) => previousUrls.has(url)).length;
+    const duplicated = overlap >= 3 && overlap / Math.max(1, currentUrls.length) >= 0.6;
+    return duplicated ? [] : current;
+  } catch {
+    return current;
+  }
+}
+
 const ANIME_FIELDS = `
   id
   description
@@ -1069,14 +1114,17 @@ export async function getAnimeDetailsCombined(id) {
     externalLinks: media.externalLinks || []
   };
 
-  const guide = await getMediaGuidePage({
-    mediaType: "ANIME",
-    malId: media.idMal,
-    title: mappedAnime.title,
-    fallbackCount: mappedAnime.episodes,
-    page: 1,
-    perPage: 50,
-  });
+  const [guide, streamingEpisodes] = await Promise.all([
+    getMediaGuidePage({
+      mediaType: "ANIME",
+      malId: media.idMal,
+      title: mappedAnime.title,
+      fallbackCount: mappedAnime.episodes,
+      page: 1,
+      perPage: 50,
+    }),
+    reliableStreamingEpisodes(media),
+  ]);
   mappedAnime.episodes = Math.max(positiveNumber(mappedAnime.episodes), guide.totalCount) || null;
   mappedAnime.kitsuId = guide.kitsuId;
   if (!mappedAnime.trailer && guide.trailerId) {
@@ -1086,8 +1134,17 @@ export async function getAnimeDetailsCombined(id) {
       embed_url: `https://www.youtube.com/embed/${guide.trailerId}`,
     };
   }
+  if (mappedAnime.trailer) {
+    // AniList and Kitsu sometimes point at different official uploads. Keep
+    // both so a region-restricted uploader does not leave the trailer section
+    // unusable for an otherwise valid title.
+    mappedAnime.trailer.youtube_ids = [
+      mappedAnime.trailer.youtube_id,
+      guide.trailerId,
+    ].filter((trailerId, index, values) => trailerId && values.indexOf(trailerId) === index);
+  }
 
-  const episodeList = mapAniListEpisodesToJikan(media.streamingEpisodes, mappedAnime.episodes);
+  const episodeList = mapAniListEpisodesToJikan(streamingEpisodes, mappedAnime.episodes);
   guide.items.forEach((item) => {
     const index = item.number - 1;
     if (index < 0 || index >= episodeList.length) return;
@@ -1601,6 +1658,7 @@ export async function getFranchiseDetails(id) {
       Page(page: 1, perPage: 50) {
         media(id_in: $ids) {
           id
+          idMal
           type
           title { english romaji native userPreferred }
           description
@@ -1612,6 +1670,7 @@ export async function getFranchiseDetails(id) {
           countryOfOrigin
           status
           episodes
+          nextAiringEpisode { episode }
           duration
           chapters
           volumes
@@ -1629,43 +1688,94 @@ export async function getFranchiseDetails(id) {
     }
   `;
 
-  for (let depth = 0; depth < 3 && frontier.length; depth += 1) {
-    const data = await queryAniList(query, { ids: frontier.slice(0, 50) });
-    const next = [];
-    (data.Page?.media || []).forEach((media) => {
-      nodes.set(media.id, media);
-      (media.relations?.edges || []).forEach((edge) => {
-        if (!edge.node?.id || !allowedRelations.has(edge.relationType)) return;
-        edges.push({ from: media.id, to: edge.node.id, relationType: edge.relationType });
-        if (!nodes.has(edge.node.id) && !next.includes(edge.node.id) && nodes.size + next.length < 50) next.push(edge.node.id);
+  const requested = new Set();
+  const maxFranchiseNodes = 120;
+  for (let depth = 0; depth < 4 && frontier.length && nodes.size < maxFranchiseNodes; depth += 1) {
+    const level = [...new Set(frontier)]
+      .filter((mediaId) => !requested.has(mediaId))
+      .slice(0, maxFranchiseNodes - nodes.size);
+    const next = new Set();
+    for (let offset = 0; offset < level.length; offset += 50) {
+      const ids = level.slice(offset, offset + 50);
+      ids.forEach((mediaId) => requested.add(mediaId));
+      const data = await queryAniList(query, { ids });
+      (data.Page?.media || []).forEach((media) => {
+        nodes.set(media.id, media);
+        (media.relations?.edges || []).forEach((edge) => {
+          if (!edge.node?.id || !allowedRelations.has(edge.relationType)) return;
+          edges.push({ from: media.id, to: edge.node.id, relationType: edge.relationType });
+          if (
+            !nodes.has(edge.node.id) &&
+            !requested.has(edge.node.id) &&
+            nodes.size + next.size < maxFranchiseNodes
+          ) next.add(edge.node.id);
+        });
       });
-    });
-    frontier = next;
+    }
+    frontier = [...next];
   }
 
   if (!nodes.size) return null;
   const dateNumber = (date) => date?.year ? Number(`${date.year}${String(date.month || 1).padStart(2, "0")}${String(date.day || 1).padStart(2, "0")}`) : Number.MAX_SAFE_INTEGER;
-  const entries = [...nodes.values()].map((media) => ({
-    mal_id: media.id,
-    mediaType: media.type,
-    title: media.title?.english || media.title?.romaji || media.title?.userPreferred || "Untitled",
-    title_japanese: media.title?.native || "",
-    synopsis: stripHtml(media.description || ""),
-    banner_image: media.bannerImage || "",
-    image: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || "",
-    score: media.averageScore ? (media.averageScore / 10).toFixed(1) : null,
-    popularity: Number(media.popularity || 0),
-    countryOfOrigin: media.countryOfOrigin,
-    format: mapMediaFormat(media.format, media.countryOfOrigin, media.type) || media.type,
-    status: mapStatus(media.status),
-    episodes: media.episodes || null,
-    duration: media.duration || null,
-    chapters: media.chapters || null,
-    volumes: media.volumes || null,
-    genres: media.genres || [],
-    startDate: media.startDate,
-    endDate: media.endDate,
-  })).sort((a, b) => dateNumber(a.startDate) - dateNumber(b.startDate));
+  const entries = [...nodes.values()].map((media) => {
+    const currentlyReleasedEpisodes = media.nextAiringEpisode?.episode
+      ? Math.max(0, Number(media.nextAiringEpisode.episode) - 1)
+      : 0;
+    const mediaStatus = media.type === "MANGA"
+      ? ({
+          FINISHED: "Finished Publishing",
+          RELEASING: "Currently Publishing",
+          NOT_YET_RELEASED: "Not yet published",
+          CANCELLED: "Cancelled",
+          HIATUS: "On Hiatus",
+        }[media.status] || media.status || "N/A")
+      : mapStatus(media.status);
+    return {
+      mal_id: media.id,
+      externalMalId: media.idMal || null,
+      mediaType: media.type,
+      title: media.title?.english || media.title?.romaji || media.title?.userPreferred || "Untitled",
+      title_japanese: media.title?.native || "",
+      synopsis: stripHtml(media.description || ""),
+      banner_image: media.bannerImage || "",
+      image: media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || "",
+      score: media.averageScore ? (media.averageScore / 10).toFixed(1) : null,
+      popularity: Number(media.popularity || 0),
+      countryOfOrigin: media.countryOfOrigin,
+      rawFormat: media.format,
+      format: mapMediaFormat(media.format, media.countryOfOrigin, media.type) || media.type,
+      status: mediaStatus,
+      isOngoing: media.status === "RELEASING",
+      episodes: Number(media.episodes || currentlyReleasedEpisodes) || null,
+      episodeCountIsCurrent: !media.episodes && currentlyReleasedEpisodes > 0,
+      duration: media.duration || null,
+      chapters: media.chapters || null,
+      chapterCountIsCurrent: false,
+      volumes: media.volumes || null,
+      genres: media.genres || [],
+      startDate: media.startDate,
+      endDate: media.endDate,
+    };
+  }).sort((a, b) => dateNumber(a.startDate) - dateNumber(b.startDate));
+
+  // AniList intentionally leaves the final chapter count blank while manga are
+  // publishing. Resolve the currently available chapter number for the most
+  // relevant ongoing entries instead of silently adding zero to the franchise.
+  const unresolvedManga = entries
+    .filter((entry) => entry.mediaType === "MANGA" && !entry.chapters && entry.isOngoing)
+    .sort((left, right) => right.popularity - left.popularity)
+    .slice(0, 12);
+  await Promise.all(unresolvedManga.map(async (entry) => {
+    try {
+      const metadata = await getMangaDexMetadata(entry.externalMalId, entry.title, 0, 1);
+      if (positiveNumber(metadata.chapterCount)) {
+        entry.chapters = positiveNumber(metadata.chapterCount);
+        entry.chapterCountIsCurrent = true;
+      }
+    } catch {
+      // Keep the total explicitly partial when a live source is unavailable.
+    }
+  }));
 
   const totalPopularity = entries.reduce((sum, entry) => sum + entry.popularity, 0);
   const weightedScore = totalPopularity
@@ -1674,6 +1784,20 @@ export async function getFranchiseDetails(id) {
   const animeEntries = entries.filter((entry) => entry.mediaType === "ANIME");
   const mangaEntries = entries.filter((entry) => entry.mediaType === "MANGA");
   const root = entries.find((entry) => entry.mal_id === rootId) || entries[0];
+  const totalEpisodes = animeEntries.reduce((sum, entry) => sum + Number(entry.episodes || 0), 0);
+  const totalChapters = mangaEntries.reduce((sum, entry) => sum + Number(entry.chapters || 0), 0);
+  const unknownAnimeEpisodeEntries = animeEntries.filter(
+    (entry) => !entry.episodes && ["TV", "TV_SHORT", "OVA", "ONA", "SPECIAL"].includes(entry.rawFormat),
+  ).length;
+  const unknownMangaChapterEntries = mangaEntries.filter((entry) => !entry.chapters).length;
+  const watchMinutes = animeEntries.reduce((sum, entry) => {
+    const episodes = Number(entry.episodes || 0);
+    const duration = Number(entry.duration || 0);
+    if (entry.rawFormat === "MOVIE") return sum + (duration || 120);
+    if (episodes > 0) return sum + episodes * (duration || 24);
+    if (duration > 0 && ["SPECIAL", "OVA", "ONA", "MUSIC"].includes(entry.rawFormat)) return sum + duration;
+    return sum;
+  }, 0);
 
   return {
     root,
@@ -1683,9 +1807,13 @@ export async function getFranchiseDetails(id) {
     edges,
     combinedScore: weightedScore ? weightedScore.toFixed(1) : null,
     totalPopularity,
-    totalEpisodes: animeEntries.reduce((sum, entry) => sum + Number(entry.episodes || (entry.format === "MOVIE" ? 1 : 0)), 0),
-    totalChapters: mangaEntries.reduce((sum, entry) => sum + Number(entry.chapters || 0), 0),
-    watchMinutes: animeEntries.reduce((sum, entry) => sum + (entry.format === "MOVIE" ? 120 : Number(entry.episodes || 0) * Number(entry.duration || 24)), 0),
+    totalEpisodes,
+    totalChapters,
+    watchMinutes,
+    episodeTotalIsGrowing: animeEntries.some((entry) => entry.episodeCountIsCurrent || entry.isOngoing),
+    chapterTotalIsGrowing: mangaEntries.some((entry) => entry.chapterCountIsCurrent || entry.isOngoing),
+    unknownAnimeEpisodeEntries,
+    unknownMangaChapterEntries,
     firstRelease: entries[0]?.startDate || null,
     latestRelease: entries[entries.length - 1]?.endDate || entries[entries.length - 1]?.startDate || null,
   };

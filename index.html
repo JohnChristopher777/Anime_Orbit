@@ -7,6 +7,13 @@
     <meta name="theme-color" content="#000000" />
     <meta name="color-scheme" content="dark" />
     <meta name="format-detection" content="telephone=no" />
+    <!-- Applied before first paint: crawler copy stays in the source, while
+         visitors only ever see the real React interface. -->
+    <style id="critical-prehydration-css">
+      html, body, #root { min-height: 100%; background: #08080c; }
+      body { margin: 0; }
+      [data-seo-fallback="true"] { display: none !important; }
+    </style>
 
     <!-- Primary Meta Tags for Search Engines & SEO -->
     <title>Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking</title>

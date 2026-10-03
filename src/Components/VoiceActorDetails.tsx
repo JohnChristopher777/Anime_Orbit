@@ -243,6 +243,7 @@ const VoiceActorDetails: React.FC = () => {
           <header className="voice-detail-hero">
             <ProgressiveImage
               src={actor?.image?.large || actor?.image?.medium}
+              fallbackSrc="/noimage.jpg"
               alt={actor?.name?.full || "Voice actor"}
               wrapperClassName="voice-detail-portrait"
               className="h-full w-full object-cover"
@@ -333,6 +334,7 @@ const VoiceActorDetails: React.FC = () => {
                   <article key={`${edge.node?.id}-${character.id}`}>
                     <ProgressiveImage
                       src={character.image?.large || character.image?.medium}
+                      fallbackSrc="/noimage.jpg"
                       alt={character.name?.full}
                       wrapperClassName="voice-role-character"
                       className="h-full w-full object-cover"

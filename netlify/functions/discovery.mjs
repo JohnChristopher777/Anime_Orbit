@@ -1,12 +1,14 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { corsHeaders, corsPreflight } from "../lib/cors.mjs";
 
-const JSON_HEADERS = {
+const jsonHeaders = (event) => ({
+  ...corsHeaders(event, "POST, OPTIONS"),
   "content-type": "application/json; charset=utf-8",
   "cache-control": "no-store",
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
-};
+});
 
 // Keep the server-only Gemini credential from becoming an unbounded public
 // relay. Netlify enforces this before the function invokes the model.
@@ -122,12 +124,14 @@ const promptFor = (kind, text) => {
 };
 
 export const handler = async (event) => {
-  if (event.httpMethod !== "POST") return { statusCode: 405, headers: JSON_HEADERS, body: JSON.stringify({ error: "POST required" }) };
-  if (String(event.body || "").length > 5_500_000) return { statusCode: 413, headers: JSON_HEADERS, body: JSON.stringify({ error: "Request is too large" }) };
+  const preflight = corsPreflight(event, "POST, OPTIONS");
+  if (preflight) return preflight;
+  if (event.httpMethod !== "POST") return { statusCode: 405, headers: jsonHeaders(event), body: JSON.stringify({ error: "POST required" }) };
+  if (String(event.body || "").length > 5_500_000) return { statusCode: 413, headers: jsonHeaders(event), body: JSON.stringify({ error: "Request is too large" }) };
   const apiKey = process.env.GEMINI_API_KEY;
   // Discovery has catalogue and Trace.moe fallbacks in the client. A missing or
   // temporarily unavailable Gemini service must not turn those searches into a 503.
-  if (!apiKey) return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(unavailablePayload("AI discovery is not configured")) };
+  if (!apiKey) return { statusCode: 200, headers: jsonHeaders(event), body: JSON.stringify(unavailablePayload("AI discovery is not configured")) };
 
   try {
     const body = JSON.parse(event.body || "{}");
@@ -170,8 +174,8 @@ export const handler = async (event) => {
     parsed.visibleText = String(parsed.visibleText || "").slice(0, 800);
     parsed.matches = Array.isArray(parsed.matches) ? parsed.matches.slice(0, 6).filter((match) => match?.title) : [];
     parsed.configured = true;
-    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(parsed) };
+    return { statusCode: 200, headers: jsonHeaders(event), body: JSON.stringify(parsed) };
   } catch (error) {
-    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(unavailablePayload(error?.message || "AI discovery failed")) };
+    return { statusCode: 200, headers: jsonHeaders(event), body: JSON.stringify(unavailablePayload(error?.message || "AI discovery failed")) };
   }
 };

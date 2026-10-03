@@ -78,7 +78,7 @@ export default function FranchiseDetails() {
     );
 
   const formatGroup = (entry: any) => {
-    const format = String(entry.format || "").toUpperCase();
+    const format = String(entry.rawFormat || entry.format || "").toUpperCase().replace(/\s+/g, "_");
     if (format === "NOVEL") return "novel";
     if (format === "MOVIE") return "movie";
     if (["SPECIAL", "OVA", "ONA", "TV_SHORT", "MUSIC"].includes(format))
@@ -106,6 +106,11 @@ export default function FranchiseDetails() {
       : data.entries.filter(
           (entry: any) => formatGroup(entry) === timelineFilter,
         );
+  const growingTotal = (value: number, isGrowing: boolean, unknownCount: number) => {
+    const numericValue = Number(value || 0);
+    if (!numericValue) return "—";
+    return `${numericValue.toLocaleString()}${isGrowing || unknownCount > 0 ? "+" : ""}`;
+  };
   const franchiseDescription = `Explore ${data.entries.length} connected ${data.title} anime and manga releases in chronological order, from ${data.firstRelease?.year || "the first release"} to ${data.latestRelease?.year || "the latest entry"}.`;
   const franchiseStructuredData = [
     {
@@ -181,7 +186,7 @@ export default function FranchiseDetails() {
               <span>
                 <Layers3 size={14} /> Complete franchise
               </span>
-              <h1>{data.title}</h1>
+              <h1 className={data.title.length > 28 ? "is-long-title" : ""}>{data.title}</h1>
               <p>
                 {data.entries.length} connected releases in chronological order.
               </p>
@@ -214,13 +219,19 @@ export default function FranchiseDetails() {
           <div>
             <Play size={16} />
             <span>
-              Anime episodes<strong>{data.totalEpisodes || "—"}</strong>
+              Anime episodes
+              <strong title={data.episodeTotalIsGrowing ? "Currently released episodes; this total will continue growing" : undefined}>
+                {growingTotal(data.totalEpisodes, data.episodeTotalIsGrowing, data.unknownAnimeEpisodeEntries)}
+              </strong>
             </span>
           </div>
           <div>
             <BookOpen size={16} />
             <span>
-              Manga chapters<strong>{data.totalChapters || "—"}</strong>
+              Manga chapters
+              <strong title={data.chapterTotalIsGrowing ? "Currently available chapters; this total will continue growing" : undefined}>
+                {growingTotal(data.totalChapters, data.chapterTotalIsGrowing, data.unknownMangaChapterEntries)}
+              </strong>
             </span>
           </div>
           <div>
@@ -229,7 +240,7 @@ export default function FranchiseDetails() {
               Approx. watch time
               <strong>
                 {data.watchMinutes
-                  ? `${Math.round(data.watchMinutes / 60)} hours`
+                  ? `≈ ${Math.round(data.watchMinutes / 60).toLocaleString()} hours${data.episodeTotalIsGrowing ? "+" : ""}`
                   : "—"}
               </strong>
             </span>

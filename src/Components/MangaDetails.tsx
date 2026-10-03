@@ -62,6 +62,11 @@ export const MangaDetails: React.FC = () => {
   }, [trackedMangaEntry?.mal_id, trackedMangaEntry?.progress]);
 
   useEffect(() => {
+    setChapterPage(1);
+    setChaptersExpanded(false);
+  }, [id]);
+
+  useEffect(() => {
     setChaptersExpanded(false);
   }, [chapterPage]);
 
@@ -561,16 +566,16 @@ export const MangaDetails: React.FC = () => {
                   const rangeStart = pageIndex * chapterPageSize + 1;
                   const rangeEnd = Math.min(knownChapterCount, rangeStart + chapterPageSize - 1);
                   const pageNumber = pageIndex + 1;
-                  return <button key={pageNumber} type="button" className={chapterPage === pageNumber ? "is-active" : ""} aria-pressed={chapterPage === pageNumber} onClick={() => setChapterPage(pageNumber)}>{rangeStart} - {rangeEnd}</button>;
+                  return <button key={pageNumber} type="button" className={chapterPage === pageNumber ? "is-active" : ""} aria-pressed={chapterPage === pageNumber} onClick={() => { setChaptersExpanded(false); setChapterPage(pageNumber); }}>{rangeStart} - {rangeEnd}</button>;
                 })}
               </div>}
               <div className="manga-chapter-guide__grid">
-                {(chaptersExpanded ? visibleChapters : visibleChapters.slice(0, 3)).map((chapter: any) => <button type="button" key={chapter.number} className={chapter.number === knownChapterCount ? "is-latest" : ""} onClick={() => setSelectedChapterNumber(Number(chapter.number))} aria-label={`Open details for chapter ${chapter.number}`}>
+                {(chaptersExpanded ? visibleChapters : visibleChapters.slice(0, 4)).map((chapter: any) => <button type="button" key={chapter.number} className={chapter.number === knownChapterCount ? "is-latest" : ""} onClick={() => setSelectedChapterNumber(Number(chapter.number))} aria-label={`Open details for chapter ${chapter.number}`}>
                   <span><Hash size={12} />{chapter.number}</span><div><h3>{chapter.title || `Chapter ${chapter.number}`}</h3><p>{chapter.summary || (chapter.metadataAvailable ? "No synopsis was published for this chapter." : "Chapter details are not published in the connected catalogues.")}</p>{chapter.aired && <time dateTime={chapter.aired}>{new Date(chapter.aired).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</time>}</div>
                 </button>)}
               </div>
-              {visibleChapters.length > 3 && <button type="button" className="manga-chapter-guide__toggle" aria-expanded={chaptersExpanded} onClick={() => setChaptersExpanded((expanded) => !expanded)}>{chaptersExpanded ? "Show only the first 3 chapters" : `See ${visibleChapters.length - 3} more chapters`} <ChevronRight size={15} /></button>}
-              {chapterPageCount > 1 && <div className="manga-chapter-guide__pager"><button disabled={chapterPage === 1} onClick={() => setChapterPage((page) => Math.max(1, page - 1))}><ChevronLeft size={14} /> Previous</button><span>Page {chapterPage} of {chapterPageCount}</span><button disabled={chapterPage === chapterPageCount} onClick={() => setChapterPage((page) => Math.min(chapterPageCount, page + 1))}>Next <ChevronRight size={14} /></button></div>}
+              {visibleChapters.length > 4 && <button type="button" className="manga-chapter-guide__toggle" aria-expanded={chaptersExpanded} onClick={() => setChaptersExpanded((expanded) => !expanded)}>{chaptersExpanded ? "Show only the first 4 chapters" : `See ${visibleChapters.length - 4} more chapters`} <ChevronRight size={15} /></button>}
+              {chapterPageCount > 1 && <div className="manga-chapter-guide__pager"><button disabled={chapterPage === 1} onClick={() => { setChaptersExpanded(false); setChapterPage((page) => Math.max(1, page - 1)); }}><ChevronLeft size={14} /> Previous</button><span>Page {chapterPage} of {chapterPageCount}</span><button disabled={chapterPage === chapterPageCount} onClick={() => { setChaptersExpanded(false); setChapterPage((page) => Math.min(chapterPageCount, page + 1)); }}>Next <ChevronRight size={14} /></button></div>}
             </> : <div className="manga-chapter-guide__empty">This publishing entry does not have a confirmed chapter total yet.</div>}
           </section>
 

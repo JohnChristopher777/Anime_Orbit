@@ -88,8 +88,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Drawer */}
       <div
-        className={`fixed top-0 left-0 w-72 h-[100dvh] bg-[#121214]/95 backdrop-blur-xl border-r border-white/10 text-white z-[1110] flex flex-col transition-transform duration-300 ease-out shadow-2xl overflow-hidden ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 right-0 md:right-auto md:left-0 w-72 h-[100dvh] bg-[#121214]/95 backdrop-blur-xl border-l md:border-l-0 md:border-r border-white/10 text-white z-[1110] flex flex-col transition-transform duration-300 ease-out shadow-2xl overflow-hidden ${
+          isOpen ? "translate-x-0" : "translate-x-full md:-translate-x-full"
         }`}
       >
         <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-white/10 bg-[#121214] px-5">

@@ -92,6 +92,11 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ trendingAnime = [], 
 
   const anime = slides[activeIndex] || slides[0];
   const title = anime.title_english || anime.title || "Featured anime";
+  const titleSizeClass = title.length > 75
+    ? "hero-title--very-long"
+    : title.length > 44
+      ? "hero-title--long"
+      : "";
   const heroImage = isMobile ? getPosterImage(anime) : getHeroImage(anime);
 
   const onTouchEnd = (event: React.TouchEvent) => {
@@ -124,7 +129,7 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ trendingAnime = [], 
       <div className="hero-shade" />
 
       <div className="hero-content" key={`copy-${anime.mal_id}`}>
-        <h1>{title}</h1>
+        <h1 className={titleSizeClass}>{title}</h1>
         <div className="hero-meta">
           {anime.score && <span className="hero-score"><Star size={14} fill="currentColor" /> {anime.score}</span>}
           {anime.type && <span>{anime.type}</span>}

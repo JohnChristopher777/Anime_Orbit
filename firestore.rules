@@ -16,6 +16,20 @@ service cloud.firestore {
       return val is string && val.size() >= minLen && val.size() <= maxLen;
     }
 
+    // A reaction update may only add or remove the signed-in user's UID.
+    // This prevents clients from fabricating another member's vote.
+    function changesOnlyOwnMembership(before, after) {
+      return before is list
+        && after is list
+        && after.hasOnly(before.concat([request.auth.uid]))
+        && before.hasOnly(after.concat([request.auth.uid]));
+    }
+
+    function onlyAddsOwnMembership(before, after) {
+      return changesOnlyOwnMembership(before, after)
+        && before.hasOnly(after);
+    }
+
     // Private account documents and personal media collections.
     match /users/{userId} {
       allow read, write: if isOwner(userId);
@@ -188,7 +202,10 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated() 
         && request.resource.data.userId == request.auth.uid
-        && isValidString(request.resource.data.content, 1, 2000);
+        && isValidString(request.resource.data.content, 1, 2000)
+        && request.resource.data.get('likes', []) == []
+        && request.resource.data.get('dislikes', []) == []
+        && request.resource.data.get('reports', []) == [];
       allow update: if isAuthenticated() 
         && ((resource.data.userId == request.auth.uid
           && request.resource.data.userId == request.auth.uid
@@ -200,7 +217,21 @@ service cloud.firestore {
             && request.resource.data.get('reports', []) is list
             && request.resource.data.get('likes', []).size() <= 10000
             && request.resource.data.get('dislikes', []).size() <= 10000
-            && request.resource.data.get('reports', []).size() <= 1000));
+            && request.resource.data.get('reports', []).size() <= 1000
+            && changesOnlyOwnMembership(
+              resource.data.get('likes', []),
+              request.resource.data.get('likes', [])
+            )
+            && changesOnlyOwnMembership(
+              resource.data.get('dislikes', []),
+              request.resource.data.get('dislikes', [])
+            )
+            && onlyAddsOwnMembership(
+              resource.data.get('reports', []),
+              request.resource.data.get('reports', [])
+            )
+            && !(request.auth.uid in request.resource.data.get('likes', [])
+              && request.auth.uid in request.resource.data.get('dislikes', []))));
       allow delete: if isAuthenticated()
         && (resource.data.userId == request.auth.uid
           || (resource.data.parentId is string

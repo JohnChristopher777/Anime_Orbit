@@ -31,6 +31,8 @@ import Footer from "./Footer";
 import ProgressiveImage from "./ProgressiveImage";
 import SEO from "./SEO";
 import VoiceCastExplorer from "./VoiceCastExplorer";
+import { serverApiUrl } from "../services/serverApi";
+import { nextLinearItem, POPULAR_QUOTE_ROTATION } from "../data/popularQuotes";
 
 type FinderTab =
   | "scene"
@@ -218,80 +220,7 @@ const SCENE_SIGNALS = [
   },
 ];
 
-const DIALOGUE_INDEX: DialogueResult[] = [
-  {
-    id: 21,
-    anime: "One Piece",
-    character: "Monkey D. Luffy",
-    line: "If you don't take risks, you can't create a future.",
-  },
-  {
-    id: 1535,
-    anime: "Death Note",
-    character: "Light Yagami",
-    line: "I will take a potato chip and eat it.",
-  },
-  {
-    id: 16498,
-    anime: "Attack on Titan",
-    character: "Mikasa Ackerman",
-    line: "The world is cruel, but also very beautiful.",
-  },
-  {
-    id: 101348,
-    anime: "Vinland Saga",
-    character: "Thors",
-    line: "You have no enemies.",
-  },
-  {
-    id: 9253,
-    anime: "Steins;Gate",
-    character: "Rintaro Okabe",
-    line: "No one knows what the future holds. That's why its potential is infinite.",
-  },
-  {
-    id: 101922,
-    anime: "Demon Slayer",
-    character: "Kyojuro Rengoku",
-    line: "Set your heart ablaze.",
-  },
-  {
-    id: 20,
-    anime: "Naruto",
-    character: "Naruto Uzumaki",
-    line: "I never go back on my word.",
-  },
-  {
-    id: 11061,
-    anime: "Hunter x Hunter",
-    character: "Gon Freecss",
-    line: "If you want to get to know someone, find out what makes them angry.",
-  },
-  {
-    id: 5114,
-    anime: "Fullmetal Alchemist: Brotherhood",
-    character: "Edward Elric",
-    line: "A lesson without pain is meaningless.",
-  },
-  {
-    id: 30,
-    anime: "Neon Genesis Evangelion",
-    character: "Misato Katsuragi",
-    line: "Sometimes you need a little wishful thinking just to keep on living.",
-  },
-  {
-    id: 1,
-    anime: "Cowboy Bebop",
-    character: "Spike Spiegel",
-    line: "Whatever happens, happens.",
-  },
-  {
-    id: 20583,
-    anime: "Haikyu!!",
-    character: "Tobio Kageyama",
-    line: "The only ones who will remain on the court are the strong.",
-  },
-];
+const DIALOGUE_INDEX: DialogueResult[] = POPULAR_QUOTE_ROTATION;
 
 const tokenize = (value: string) =>
   value
@@ -313,6 +242,73 @@ const tokenize = (value: string) =>
           "you",
         ].includes(word),
     );
+
+const enrichDialogueArtwork = async (rows: DialogueResult[]): Promise<DialogueResult[]> => {
+  const uniqueAnime = [...new Set(rows.map((row) => row.anime).filter(Boolean))];
+  const uniqueCharacters = [
+    ...new Set(
+      rows
+        .map((row) => row.character)
+        .filter((name) => name && name !== "Unknown character"),
+    ),
+  ];
+  const [resolvedAnime, resolvedCharacters] = await Promise.all([
+    Promise.allSettled(
+      uniqueAnime.map(async (anime) => ({
+        anime,
+        results: await searchAnime(anime, 1),
+      })),
+    ),
+    Promise.allSettled(
+      uniqueCharacters.map(async (character) => ({
+        character,
+        results: await searchCharacters(character, 3),
+      })),
+    ),
+  ]);
+  const animeMatches = new Map<string, { id: number; image?: string }>();
+  resolvedAnime.forEach((result) => {
+    if (result.status !== "fulfilled" || !result.value.results?.[0]?.mal_id) return;
+    const anime = result.value.results[0];
+    animeMatches.set(result.value.anime.toLowerCase(), {
+      id: anime.mal_id,
+      image: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url,
+    });
+  });
+  const characterMatches = new Map<string, { id: number; image?: string }>();
+  resolvedCharacters.forEach((result) => {
+    if (result.status !== "fulfilled" || !result.value.results?.length) return;
+    const animeName =
+      rows.find((row) => row.character === result.value.character)?.anime.toLowerCase() || "";
+    const match =
+      result.value.results.find((candidate: any) =>
+        candidate.media?.nodes?.some((media: any) =>
+          [media.title?.english, media.title?.romaji]
+            .filter(Boolean)
+            .some(
+              (title: string) =>
+                animeName.includes(title.toLowerCase()) ||
+                title.toLowerCase().includes(animeName),
+            ),
+        ),
+      ) || result.value.results[0];
+    characterMatches.set(result.value.character.toLowerCase(), {
+      id: match.id,
+      image: match.image?.large || match.image?.medium,
+    });
+  });
+  return rows.map((row) => {
+    const anime = animeMatches.get(row.anime.toLowerCase());
+    const character = characterMatches.get(row.character.toLowerCase());
+    return {
+      ...row,
+      id: row.id || anime?.id,
+      animeImage: row.animeImage || anime?.image,
+      characterId: row.characterId || character?.id,
+      characterImage: row.characterImage || character?.image,
+    };
+  });
+};
 
 const formatTime = (seconds: number) => {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
@@ -370,7 +366,7 @@ const blobToBase64 = (blob: Blob): Promise<string> =>
 const askGemini = async (
   payload: Record<string, unknown>,
 ): Promise<AiDiscoveryResult> => {
-  const response = await fetch("/api/discovery", {
+  const response = await fetch(serverApiUrl("discovery"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
@@ -488,17 +484,11 @@ export const NeuralDiscovery: React.FC = () => {
   const [vibeLoading, setVibeLoading] = React.useState(false);
   const [vibeError, setVibeError] = React.useState("");
   const [genreWeights, setGenreWeights] = React.useState(DEFAULT_GENRE_WEIGHTS);
-
-  const [personalResults, setPersonalResults] = React.useState<any[]>([]);
-  const [personalLoading, setPersonalLoading] = React.useState(false);
+  const [includePlanned, setIncludePlanned] = React.useState(false);
   const [libraryHydrating, setLibraryHydrating] = React.useState(false);
   const [libraryDetails, setLibraryDetails] = React.useState<any[]>([]);
-  const [libraryReadyKey, setLibraryReadyKey] = React.useState("");
-  const [personalError, setPersonalError] = React.useState("");
-  const initialVibeLoaded = React.useRef(false);
-  const personalTasteLoaded = React.useRef("");
   const hydratedLibraryKey = React.useRef("");
-  const recommendationOffset = React.useRef(0);
+  const dialogueDefaultsLoaded = React.useRef(false);
 
   React.useEffect(
     () => () => {
@@ -507,18 +497,22 @@ export const NeuralDiscovery: React.FC = () => {
     [imagePreview],
   );
 
-  const savedLibraryIds = React.useMemo(
+  const plannedWatchlist = React.useMemo(
+    () => watchlist.filter((item: any) => /plan to watch/i.test(String(item.status || ""))),
+    [watchlist],
+  );
+  const plannedLibraryIds = React.useMemo(
     () =>
       [
         ...new Set(
-          [...favourites, ...watchlist]
+          plannedWatchlist
             .map((item: any) => Number(item.mal_id))
             .filter((id) => Number.isFinite(id) && id > 0),
         ),
       ].sort((a, b) => a - b),
-    [favourites, watchlist],
+    [plannedWatchlist],
   );
-  const savedLibraryKey = savedLibraryIds.join("|");
+  const plannedLibraryKey = plannedLibraryIds.join("|");
   const excludedLibraryIds = React.useMemo(
     () => [
       ...new Set(
@@ -526,48 +520,48 @@ export const NeuralDiscovery: React.FC = () => {
           ...favourites.map((item: any) => Number(item.mal_id)),
           ...watchlist
             .filter(
-              (item: any) => !/plan to watch/i.test(String(item.status || "")),
+              (item: any) =>
+                !includePlanned ||
+                !/plan to watch/i.test(String(item.status || "")),
             )
             .map((item: any) => Number(item.mal_id)),
         ].filter((id) => Number.isFinite(id) && id > 0),
       ),
     ],
-    [favourites, watchlist],
+    [favourites, watchlist, includePlanned],
   );
 
   React.useEffect(() => {
-    if (!savedLibraryKey) {
+    if (!plannedLibraryKey) {
       setLibraryDetails([]);
-      setLibraryReadyKey("");
       return;
     }
     if (
       activeTab !== "recommendations" ||
-      hydratedLibraryKey.current === savedLibraryKey
+      hydratedLibraryKey.current === plannedLibraryKey
     )
       return;
     let current = true;
-    hydratedLibraryKey.current = savedLibraryKey;
+    hydratedLibraryKey.current = plannedLibraryKey;
     setLibraryHydrating(true);
     setLibraryDetails([]);
-    getAnimeListByIds(savedLibraryIds.slice(0, 50))
+    getAnimeListByIds(plannedLibraryIds.slice(0, 50))
       .then((items: any[]) => {
         if (current) setLibraryDetails(Array.isArray(items) ? items : []);
       })
       .finally(() => {
         if (current) {
-          setLibraryReadyKey(savedLibraryKey);
           setLibraryHydrating(false);
         }
       });
     return () => {
       current = false;
     };
-  }, [activeTab, savedLibraryIds, savedLibraryKey]);
+  }, [activeTab, plannedLibraryIds, plannedLibraryKey]);
 
   const taste = React.useMemo(() => {
     const counts = new Map<string, number>();
-    [...favourites, ...watchlist, ...libraryDetails].forEach((item: any) => {
+    libraryDetails.forEach((item: any) => {
       (item.genres || []).forEach((rawGenre: any) => {
         const genre = typeof rawGenre === "string" ? rawGenre : rawGenre?.name;
         if (genre) counts.set(genre, (counts.get(genre) || 0) + 1);
@@ -577,7 +571,7 @@ export const NeuralDiscovery: React.FC = () => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([genre]) => genre);
-  }, [favourites, watchlist, libraryDetails]);
+  }, [libraryDetails]);
 
   const selectImage = (file?: File) => {
     if (!file) return;
@@ -747,7 +741,7 @@ export const NeuralDiscovery: React.FC = () => {
     }
   }, []);
 
-  const discoverWeighted = async () => {
+  const discoverWeighted = React.useCallback(async () => {
     setVibeLoading(true);
     setVibeError("");
     try {
@@ -758,9 +752,12 @@ export const NeuralDiscovery: React.FC = () => {
         strongest.map(([genre]) => getAnimeByGenre(genre, 20, 1, "SCORE_DESC")),
       );
       const excluded = new Set(excludedLibraryIds);
-      const candidates = responses.flatMap((entry) =>
-        entry.status === "fulfilled" ? entry.value.media || [] : [],
-      );
+      const candidates = [
+        ...responses.flatMap((entry) =>
+          entry.status === "fulfilled" ? entry.value.media || [] : [],
+        ),
+        ...(includePlanned ? libraryDetails : []),
+      ];
       const unique = [
         ...new Map(
           candidates
@@ -789,7 +786,7 @@ export const NeuralDiscovery: React.FC = () => {
     } finally {
       setVibeLoading(false);
     }
-  };
+  }, [genreWeights, excludedLibraryIds, includePlanned, libraryDetails]);
 
   const findScene = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -953,7 +950,7 @@ export const NeuralDiscovery: React.FC = () => {
     try {
       let remoteRows: DialogueResult[] = [];
       try {
-        const response = await fetch(`/api/anime-quotes?q=${encodeURIComponent(query)}`);
+        const response = await fetch(serverApiUrl("anime-quotes", new URLSearchParams({ q: query })));
         const payload = await response.json();
         remoteRows = (payload?.quotes || []).map((quote: any) => ({
           anime: quote.anime,
@@ -1005,82 +1002,7 @@ export const NeuralDiscovery: React.FC = () => {
         })
         .sort((left, right) => right.relevance - left.relevance)
         .map(({ row }) => row);
-      const uniqueAnime = [...new Set(combined.map((row) => row.anime))];
-      const uniqueCharacters = [
-        ...new Set(
-          combined
-            .map((row) => row.character)
-            .filter((name) => name && name !== "Unknown character"),
-        ),
-      ];
-      const [resolved, resolvedCharacters] = await Promise.all([
-        Promise.allSettled(
-          uniqueAnime.map(async (anime) => ({
-            anime,
-            results: await searchAnime(anime, 1),
-          })),
-        ),
-        Promise.allSettled(
-          uniqueCharacters.map(async (character) => ({
-            character,
-            results: await searchCharacters(character, 3),
-          })),
-        ),
-      ]);
-      const animeMatches = new Map<string, { id: number; image?: string }>();
-      resolved.forEach((result) => {
-        if (
-          result.status === "fulfilled" &&
-          result.value.results?.[0]?.mal_id
-        ) {
-          const anime = result.value.results[0];
-          animeMatches.set(result.value.anime.toLowerCase(), {
-            id: anime.mal_id,
-            image:
-              anime.images?.jpg?.large_image_url ||
-              anime.images?.jpg?.image_url,
-          });
-        }
-      });
-      const characterMatches = new Map<
-        string,
-        { id: number; image?: string }
-      >();
-      resolvedCharacters.forEach((result) => {
-        if (result.status !== "fulfilled" || !result.value.results?.length)
-          return;
-        const animeName =
-          combined
-            .find((row) => row.character === result.value.character)
-            ?.anime.toLowerCase() || "";
-        const match =
-          result.value.results.find((candidate: any) =>
-            candidate.media?.nodes?.some((media: any) =>
-              [media.title?.english, media.title?.romaji]
-                .filter(Boolean)
-                .some(
-                  (title: string) =>
-                    animeName.includes(title.toLowerCase()) ||
-                    title.toLowerCase().includes(animeName),
-                ),
-            ),
-          ) || result.value.results[0];
-        characterMatches.set(result.value.character.toLowerCase(), {
-          id: match.id,
-          image: match.image?.large || match.image?.medium,
-        });
-      });
-      const results = combined.map((row) => {
-        const anime = animeMatches.get(row.anime.toLowerCase());
-        const character = characterMatches.get(row.character.toLowerCase());
-        return {
-          ...row,
-          id: row.id || anime?.id,
-          animeImage: anime?.image,
-          characterId: character?.id,
-          characterImage: character?.image,
-        };
-      });
+      const results = await enrichDialogueArtwork(combined);
       setDialogueResults(results);
       if (!results.length)
         setDialogueError(
@@ -1107,41 +1029,11 @@ export const NeuralDiscovery: React.FC = () => {
     setDialogueLoading(true);
     setDialogueError("");
     try {
-      const response = await fetch("/api/anime-quotes");
-      const payload = await response.json();
-      const quote = (payload?.quote?.line
-        ? payload.quote
-        : DIALOGUE_INDEX[Math.floor(Math.random() * DIALOGUE_INDEX.length)]) as DialogueResult;
+      const quote = nextLinearItem(DIALOGUE_INDEX, "popular-quotes") || DIALOGUE_INDEX[0];
       setDialogueQuery(quote.line);
-      const [animeRows, characterRows] = await Promise.all([
-        searchAnime(quote.anime, 1),
-        searchCharacters(quote.character, 3),
-      ]);
-      const anime = animeRows?.[0];
-      const character =
-        characterRows?.find((candidate: any) =>
-          candidate.media?.nodes?.some((media: any) =>
-            [media.title?.english, media.title?.romaji]
-              .filter(Boolean)
-              .some(
-                (title: string) =>
-                  quote.anime.toLowerCase().includes(title.toLowerCase()) ||
-                  title.toLowerCase().includes(quote.anime.toLowerCase()),
-              ),
-          ),
-        ) || characterRows?.[0];
+      const [resolvedQuote] = await enrichDialogueArtwork([quote]);
       setDialogueInsight(null);
-      setDialogueResults([
-        {
-          ...quote,
-          id: anime?.mal_id,
-          animeImage:
-            anime?.images?.jpg?.large_image_url ||
-            anime?.images?.jpg?.image_url,
-          characterId: character?.id,
-          characterImage: character?.image?.large || character?.image?.medium,
-        },
-      ]);
+      setDialogueResults([resolvedQuote]);
       setDialogueLoading(false);
     } catch (error: any) {
       setDialogueError(
@@ -1151,84 +1043,33 @@ export const NeuralDiscovery: React.FC = () => {
     }
   };
 
-  const buildRecommendations = React.useCallback(async () => {
-    if (!savedLibraryIds.length) return;
-    setPersonalLoading(true);
-    setPersonalError("");
-    setPersonalResults([]);
-    try {
-      const responses = taste.length
-        ? await Promise.allSettled(
-            taste.map((genre) =>
-              getAnimeByGenre(genre, 18, 1, "POPULARITY_DESC"),
-            ),
-          )
-        : [];
-      const savedIds = new Set(excludedLibraryIds);
-      const candidates = responses.flatMap((response) =>
-        response.status === "fulfilled" ? response.value.media || [] : [],
-      );
-      if (!candidates.length) {
-        const fallback = await getPopularAnime(36, 1);
-        candidates.push(...(fallback.media || []));
-      }
-      const unique = [
-        ...new Map(
-          candidates
-            .filter((item: any) => !savedIds.has(Number(item.mal_id)))
-            .map((item: any) => [item.mal_id, item]),
-        ).values(),
-      ] as any[];
-      unique.sort((a, b) => {
-        const matches = (item: any) =>
-          (item.genres || []).filter((raw: any) =>
-            taste.includes(typeof raw === "string" ? raw : raw?.name),
-          ).length;
-        return (
-          matches(b) - matches(a) || Number(b.score || 0) - Number(a.score || 0)
-        );
+  React.useEffect(() => {
+    if (activeTab !== "dialogue" || dialogueDefaultsLoaded.current) return;
+    dialogueDefaultsLoaded.current = true;
+    let current = true;
+    setDialogueLoading(true);
+    enrichDialogueArtwork(DIALOGUE_INDEX.slice(0, 6))
+      .then((rows) => {
+        if (current) setDialogueResults(rows);
+      })
+      .catch(() => {
+        if (current) setDialogueResults(DIALOGUE_INDEX.slice(0, 6));
+      })
+      .finally(() => {
+        if (current) setDialogueLoading(false);
       });
-      const offset = unique.length
-        ? recommendationOffset.current % unique.length
-        : 0;
-      recommendationOffset.current += 7;
-      const rotated = [...unique.slice(offset), ...unique.slice(0, offset)];
-      setPersonalResults(rotated.slice(0, 18));
-      setVibeResults(rotated.slice(0, 18));
-      if (!unique.length)
-        setPersonalError("No new recommendations were returned.");
-    } catch {
-      setPersonalError("Recommendations could not connect. Please try again.");
-    } finally {
-      setPersonalLoading(false);
-    }
-  }, [taste, savedLibraryIds, excludedLibraryIds]);
+    return () => {
+      current = false;
+    };
+  }, [activeTab]);
 
   React.useEffect(() => {
-    if (activeTab === "recommendations" && !initialVibeLoaded.current) {
-      initialVibeLoaded.current = true;
-      discoverGenre("Action");
-    }
-  }, [activeTab, discoverGenre]);
-
-  React.useEffect(() => {
-    const recommendationKey = `${savedLibraryKey}:${taste.join("|")}`;
-    if (
-      activeTab === "recommendations" &&
-      savedLibraryKey &&
-      libraryReadyKey === savedLibraryKey &&
-      personalTasteLoaded.current !== recommendationKey
-    ) {
-      personalTasteLoaded.current = recommendationKey;
-      buildRecommendations();
-    }
-  }, [
-    activeTab,
-    taste,
-    savedLibraryKey,
-    libraryReadyKey,
-    buildRecommendations,
-  ]);
+    if (activeTab !== "recommendations") return;
+    const timer = window.setTimeout(() => {
+      void discoverWeighted();
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [activeTab, discoverWeighted]);
 
   const tabs: { id: FinderTab; label: string; icon: React.ElementType }[] = [
     { id: "scene", label: "Scene Finder", icon: ImageIcon },
@@ -1515,9 +1356,8 @@ export const NeuralDiscovery: React.FC = () => {
                 <span>Vibe + your taste</span>
                 <h2>Shape the show you want</h2>
                 <p>
-                  Start with a mood, then tune the qualities. Watching and
-                  completed titles are excluded automatically; Plan to Watch
-                  remains eligible.
+                  Start with a mood, then tune the qualities. Saved activity
+                  stays excluded unless you choose to blend in Plan to Watch.
                 </p>
               </div>
               <label>
@@ -1551,14 +1391,7 @@ export const NeuralDiscovery: React.FC = () => {
                   <span>Preference mixer</span>
                   <h3>Balance the genres</h3>
                 </div>
-                <button
-                  type="button"
-                  onClick={discoverWeighted}
-                  disabled={vibeLoading}
-                >
-                  <Sparkles size={15} />
-                  Use this mix
-                </button>
+                <small>{vibeLoading || (includePlanned && libraryHydrating) ? "Updating results…" : "Results update automatically"}</small>
               </header>
               <div>
                 {Object.entries(genreWeights).map(([genre, weight]) => (
@@ -1588,33 +1421,37 @@ export const NeuralDiscovery: React.FC = () => {
                   </label>
                 ))}
               </div>
+              <label className="discovery-plan-toggle">
+                <input
+                  type="checkbox"
+                  checked={includePlanned}
+                  onChange={(event) => setIncludePlanned(event.target.checked)}
+                  disabled={!plannedLibraryIds.length}
+                />
+                <span aria-hidden="true"><i /></span>
+                <div>
+                  <strong>Include your Plan to Watch titles</strong>
+                  <small>
+                    {plannedLibraryIds.length
+                      ? `${plannedLibraryIds.length} planned ${plannedLibraryIds.length === 1 ? "title" : "titles"} can join this mix. Other statuses stay excluded.`
+                      : "Add a Plan to Watch title to enable this option. Other statuses are never imported here."}
+                  </small>
+                </div>
+              </label>
             </div>
-            {savedLibraryIds.length > 0 ? (
-              <button
-                className="finder-refresh discovery-library-refresh"
-                type="button"
-                onClick={buildRecommendations}
-                disabled={personalLoading || libraryHydrating}
-              >
-                <RefreshCw size={15} className={personalLoading ? "animate-spin" : ""} />
-                Refresh from my library
-              </button>
-            ) : (
-              <p className="discovery-provider-note">Add anime to Favorites or Watchlist to personalize these results.</p>
-            )}
             </div>
             <div className="discovery-workbench-output">
             <div className="discovery-output-heading">
-              <div><span>Ranked results</span><h2>{taste.length ? `Built around ${taste.join(", ")}` : `${selectedGenre} anime`}</h2></div>
+              <div><span>Ranked results</span><h2>{includePlanned && taste.length ? `Mix + planned ${taste.join(", ")}` : `${selectedGenre} anime`}</h2></div>
               {vibeResults.length > 0 && <strong>{vibeResults.length} picks</strong>}
             </div>
-            {taste.length > 0 && (
-              <div className="finder-taste">Based on {taste.map((genre) => <span key={genre}><CheckCircle2 size={13} />{genre}</span>)}</div>
+            {includePlanned && taste.length > 0 && (
+              <div className="finder-taste">Planned-title signals {taste.map((genre) => <span key={genre}><CheckCircle2 size={13} />{genre}</span>)}</div>
             )}
-            {(vibeError || personalError) && (
+            {vibeError && (
               <div className="finder-error">
                 <AlertCircle size={17} />
-                {vibeError || personalError}
+                {vibeError}
               </div>
             )}
             {vibeLoading && !vibeResults.length ? (
@@ -1645,7 +1482,7 @@ export const NeuralDiscovery: React.FC = () => {
                 disabled={dialogueLoading}
               >
                 <RefreshCw size={15} />
-                Random quote
+                Next popular quote
               </button>
             </div>
             <form className="finder-search" onSubmit={findDialogue}>
@@ -1711,6 +1548,7 @@ export const NeuralDiscovery: React.FC = () => {
                     {entry.characterImage || entry.animeImage ? (
                       <ProgressiveImage
                         src={entry.characterImage || entry.animeImage}
+                        fallbackSrc="/noimage.jpg"
                         alt={entry.character}
                         wrapperClassName="finder-dialogue-results__portrait"
                         className="h-full w-full object-cover"
@@ -1723,11 +1561,12 @@ export const NeuralDiscovery: React.FC = () => {
                     <div>
                       <p>“{entry.line}”</p>
                       <span>
-                        {entry.character} · {entry.anime}
+                        <strong className="finder-dialogue-results__character">{entry.character}</strong>
+                        <small> · {entry.anime}
                         {entry.episode ? ` · Episode ${entry.episode}` : ""}
                         {entry.confidence
                           ? ` · ${entry.confidence}% match`
-                          : ""}
+                          : ""}</small>
                       </span>
                       {entry.reason && <small>{entry.reason}</small>}
                     </div>

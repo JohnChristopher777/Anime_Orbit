@@ -29,8 +29,9 @@ import AnimeRow from "./AnimeRow";
 import ProgressiveImage from "./ProgressiveImage";
 import CatalogGenreFilter from "./CatalogGenreFilter";
 import { getPopularVoiceActors } from "../services/anilist";
-import { useWatchlist, type WatchlistItem } from "../context/WatchlistContext";
+import { useWatchlist, type MangaWatchlistItem, type WatchlistItem } from "../context/WatchlistContext";
 import ScoreSlider from "./ScoreSlider";
+import { nextLinearItem, POPULAR_QUOTE_ROTATION } from "../data/popularQuotes";
 
 import Footer from "./Footer";
 
@@ -44,14 +45,19 @@ const homeProgressTime = (item: WatchlistItem) => {
 };
 
 const HomeProgressEditor: React.FC<{
-  item: WatchlistItem;
+  item: WatchlistItem | MangaWatchlistItem;
+  mediaType: "anime" | "manga";
   onClose: () => void;
-  onSave: (updates: Parameters<ReturnType<typeof useWatchlist>["updateWatchlistEntry"]>[1]) => Promise<void>;
-}> = ({ item, onClose, onSave }) => {
-  const total = Number(item.episodes || 0);
+  onSave: (updates: { progress: number; userScore?: number; progressNotes?: Array<{ progress: number; note: string; createdAt: string }> }) => Promise<void>;
+}> = ({ item, mediaType, onClose, onSave }) => {
+  const total = Number(mediaType === "manga" ? (item as MangaWatchlistItem).chapters || 0 : item.episodes || 0);
+  const unit = mediaType === "manga" ? "chapter" : "episode";
   const [progress, setProgress] = React.useState(Number(item.progress || 0));
   const [score, setScore] = React.useState(Number(item.userScore || 0));
+  const [thought, setThought] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const safeProgress = Math.max(0, total > 0 ? Math.min(total, progress) : progress);
+  const reachedFinal = total > 0 && safeProgress >= total;
 
   React.useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => event.key === "Escape" && onClose();
@@ -63,11 +69,22 @@ const HomeProgressEditor: React.FC<{
     event.preventDefault();
     setSaving(true);
     try {
-      const nextProgress = Math.max(0, total > 0 ? Math.min(total, progress) : progress);
-      const updates: Parameters<ReturnType<typeof useWatchlist>["updateWatchlistEntry"]>[1] = {
-        progress: nextProgress,
-      };
-      if (score > 0) updates.userScore = score;
+      const updates: { progress: number; userScore?: number; progressNotes?: Array<{ progress: number; note: string; createdAt: string }> } = { progress: safeProgress };
+      const cleanThought = thought.trim().slice(0, 600);
+      if (cleanThought) {
+        updates.progressNotes = [
+          ...(Array.isArray(item.progressNotes) ? item.progressNotes : []),
+          {
+            id: typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            progress: safeProgress,
+            note: cleanThought,
+            createdAt: new Date().toISOString(),
+          },
+        ].slice(-100);
+      }
+      if (reachedFinal && score > 0) updates.userScore = score;
       await onSave(updates);
       onClose();
     } finally {
@@ -79,21 +96,30 @@ const HomeProgressEditor: React.FC<{
     <div className="home-progress-editor" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <form role="dialog" aria-modal="true" aria-labelledby="home-progress-editor-title" onSubmit={submit}>
         <header>
-          <div><span>Quick progress log</span><h2 id="home-progress-editor-title">{item.title}</h2></div>
+          <div><span>Quick {mediaType === "manga" ? "reading" : "progress"} log</span><h2 id="home-progress-editor-title">{item.title}</h2></div>
           <button type="button" onClick={onClose} aria-label="Close progress editor"><X size={19} /></button>
         </header>
         <div className="home-progress-editor__episode">
-          <span>Episodes watched</span>
+          <span>{mediaType === "manga" ? "Chapters read" : "Episodes watched"}</span>
           <div>
-            <button type="button" onClick={() => setProgress((value) => Math.max(0, value - 1))} aria-label="Subtract one episode">−</button>
-            <input type="number" min={0} max={total || undefined} value={progress} onChange={(event) => setProgress(Math.max(0, Number(event.target.value) || 0))} aria-label="Episodes watched" />
-            <button type="button" onClick={() => setProgress((value) => total > 0 ? Math.min(total, value + 1) : value + 1)} aria-label="Add one episode">+</button>
+            <button type="button" onClick={() => setProgress((value) => Math.max(0, value - 1))} aria-label={`Subtract one ${unit}`}>−</button>
+            <input type="number" min={0} max={total || undefined} value={progress} onChange={(event) => setProgress(Math.max(0, Number(event.target.value) || 0))} aria-label={`${unit} progress`} />
+            <button type="button" onClick={() => setProgress((value) => total > 0 ? Math.min(total, value + 1) : value + 1)} aria-label={`Add one ${unit}`}>+</button>
           </div>
-          <small>{total > 0 ? `of ${total} episodes` : "Total episode count is not confirmed"}</small>
+          <small>{total > 0 ? `of ${total} ${mediaType === "manga" ? "chapters" : "episodes"}` : `Total ${unit} count is not confirmed`}</small>
         </div>
-        <ScoreSlider id="home-quick-score" label="Your score" value={score} onChange={setScore} disabled={saving} />
+        <label className="home-progress-editor__thought">
+          <span>Thought at {unit} {safeProgress}</span>
+          <textarea value={thought} maxLength={600} onChange={(event) => setThought(event.target.value)} placeholder={`What stood out at this ${unit}? This will be saved to the title's progress memories.`} />
+          <small>Optional · attached to this exact {unit} count</small>
+        </label>
+        {reachedFinal ? (
+          <ScoreSlider id="home-quick-score" label="Final rating" value={score} onChange={setScore} disabled={saving} />
+        ) : (
+          <p className="home-progress-editor__rating-note">Rating unlocks when you reach the confirmed final {unit}.</p>
+        )}
         <footer>
-          <button type="button" onClick={onClose}>Cancel</button>
+          <Link to={`/watchlist?media=${mediaType}&edit=${item.mal_id}`} onClick={onClose}>Open full {mediaType === "manga" ? "reading list" : "watchlist"}</Link>
           <button type="submit" disabled={saving}><NotebookPen size={16} />{saving ? "Saving…" : "Save progress"}</button>
         </footer>
       </form>
@@ -103,8 +129,8 @@ const HomeProgressEditor: React.FC<{
 };
 
 const HomeProgressDeck: React.FC = () => {
-  const { watchlist, loading, updateWatchlistEntry } = useWatchlist();
-  const candidates = React.useMemo(
+  const { watchlist, mangaWatchlist, loading, updateWatchlistEntry, updateMangaWatchlistEntry } = useWatchlist();
+  const animeCandidates = React.useMemo(
     () =>
       watchlist
         .filter((item) => item.status === "Watching" || item.status === "Caught Up")
@@ -116,11 +142,40 @@ const HomeProgressDeck: React.FC = () => {
         }),
     [watchlist],
   );
-  const signature = candidates.map((item) => `${item.mal_id}:${item.status}:${Boolean(item.isCurrent)}:${item.updatedAt || ""}`).join("|");
+  const mangaCandidates = React.useMemo(
+    () =>
+      mangaWatchlist
+        .filter((item) => item.status === "Reading" || item.status === "Caught Up")
+        .sort((a, b) => {
+          const statusA = a.status === "Reading" ? 0 : 1;
+          const statusB = b.status === "Reading" ? 0 : 1;
+          return statusA - statusB || homeProgressTime(b) - homeProgressTime(a);
+        }),
+    [mangaWatchlist],
+  );
+  // Start with Anime while the watchlists are still hydrating. The fallback
+  // effect below moves to Manga only when there truly are no Anime entries.
+  const [mediaType, setMediaType] = React.useState<"anime" | "manga">("anime");
+  const candidates = mediaType === "anime" ? animeCandidates : mangaCandidates;
+  const signature = `${mediaType}:` + candidates.map((item) => `${item.mal_id}:${item.status}:${Boolean(item.isCurrent)}:${item.updatedAt || ""}`).join("|");
   const [deckIds, setDeckIds] = React.useState<number[]>([]);
   const startX = React.useRef<number | null>(null);
   const [dragX, setDragX] = React.useState(0);
-  const [editingItem, setEditingItem] = React.useState<WatchlistItem | null>(null);
+  const [sliding, setSliding] = React.useState<"next" | "previous" | null>(null);
+  const slideTimer = React.useRef<number | null>(null);
+  const mediaSwitchTimer = React.useRef<number | null>(null);
+  const mediaSettleTimer = React.useRef<number | null>(null);
+  const mediaChosenByUser = React.useRef(false);
+  const [mediaSwitching, setMediaSwitching] = React.useState(false);
+  const [editingItem, setEditingItem] = React.useState<WatchlistItem | MangaWatchlistItem | null>(null);
+
+  React.useEffect(() => {
+    if (loading || mediaChosenByUser.current) return;
+    // Firestore listeners can resolve a few milliseconds apart. Keep Anime as
+    // the true default even if Manga happens to arrive first.
+    if (animeCandidates.length && mediaType !== "anime") setMediaType("anime");
+    else if (!animeCandidates.length && mangaCandidates.length && mediaType !== "manga") setMediaType("manga");
+  }, [loading, mediaType, animeCandidates.length, mangaCandidates.length]);
 
   React.useEffect(() => {
     const nextIds = candidates.map((item) => item.mal_id);
@@ -134,45 +189,90 @@ const HomeProgressDeck: React.FC = () => {
     });
   }, [signature]);
 
+  React.useEffect(() => () => {
+    if (slideTimer.current !== null) window.clearTimeout(slideTimer.current);
+    if (mediaSwitchTimer.current !== null) window.clearTimeout(mediaSwitchTimer.current);
+    if (mediaSettleTimer.current !== null) window.clearTimeout(mediaSettleTimer.current);
+  }, []);
+
   const ordered = deckIds
     .map((id) => candidates.find((item) => item.mal_id === id))
-    .filter(Boolean) as WatchlistItem[];
+    .filter(Boolean) as Array<WatchlistItem | MangaWatchlistItem>;
 
   const shuffle = (direction: "next" | "previous") => {
-    setDeckIds((current) => {
-      if (current.length < 2) return current;
-      return direction === "next"
+    if (sliding || ordered.length < 2) return;
+    setSliding(direction);
+    slideTimer.current = window.setTimeout(() => {
+      setDeckIds((current) => direction === "next"
         ? [...current.slice(1), current[0]]
-        : [current[current.length - 1], ...current.slice(0, -1)];
-    });
-    setDragX(0);
+        : [current[current.length - 1], ...current.slice(0, -1)]);
+      setDragX(0);
+      setSliding(null);
+      slideTimer.current = null;
+    }, 230);
   };
 
-  if (loading || ordered.length === 0) return null;
+  const switchMedia = (nextType: "anime" | "manga") => {
+    if (nextType === mediaType || mediaSwitching) return;
+    const nextCandidates = nextType === "anime" ? animeCandidates : mangaCandidates;
+    if (!nextCandidates.length) return;
+    mediaChosenByUser.current = true;
+    setMediaSwitching(true);
+    mediaSwitchTimer.current = window.setTimeout(() => {
+      const nextIds = nextCandidates.map((item) => item.mal_id);
+      const currentId = nextCandidates.find((item) => item.isCurrent)?.mal_id;
+      setDeckIds(currentId ? [currentId, ...nextIds.filter((entry) => entry !== currentId)] : nextIds);
+      setDragX(0);
+      setSliding(null);
+      setMediaType(nextType);
+      mediaSwitchTimer.current = null;
+      mediaSettleTimer.current = window.setTimeout(() => {
+        setMediaSwitching(false);
+        mediaSettleTimer.current = null;
+      }, 40);
+    }, 140);
+  };
+
+  if (loading || (!animeCandidates.length && !mangaCandidates.length) || ordered.length === 0) return null;
 
   return (
     <section className="home-progress" aria-labelledby="home-progress-title">
       <header className="home-progress__header">
         <div>
           <span><Play size={14} fill="currentColor" /> Your active queue</span>
-          <h2 id="home-progress-title">Any progress?</h2>
+          <div className="home-progress__headline">
+            <h2 id="home-progress-title">Any progress?</h2>
+            <div className="home-progress__headline-actions">
+              {animeCandidates.length > 0 && mangaCandidates.length > 0 && (
+                <div className="home-progress__media-toggle" aria-label="Choose progress media">
+                  <button type="button" className={mediaType === "anime" ? "is-active" : ""} onClick={() => switchMedia("anime")} disabled={mediaSwitching}>Anime</button>
+                  <button type="button" className={mediaType === "manga" ? "is-active" : ""} onClick={() => switchMedia("manga")} disabled={mediaSwitching}>Manga</button>
+                </div>
+              )}
+              <span className="home-progress__count">{ordered.length} active</span>
+              <div className="home-progress__controls" aria-label="Active title controls">
+                <button type="button" className="home-progress__shuffle" aria-label="Previous active title" onClick={() => shuffle("previous")} disabled={ordered.length < 2 || Boolean(sliding)}>
+                  <ChevronLeft size={20} />
+                </button>
+                <button type="button" className="home-progress__shuffle" aria-label="Next active title" onClick={() => shuffle("next")} disabled={ordered.length < 2 || Boolean(sliding)}>
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </div>
+          </div>
           <p>Swipe the deck, then open a title to log where you are.</p>
         </div>
-        <span className="home-progress__count">{ordered.length} active</span>
       </header>
 
       <div className="home-progress__deck-wrap">
-        <button type="button" className="home-progress__shuffle" aria-label="Previous active title" onClick={() => shuffle("previous")} disabled={ordered.length < 2}>
-          <ChevronLeft size={20} />
-        </button>
-        <div className="home-progress__deck" aria-live="polite">
+        <div className="home-progress__deck" aria-live="polite" data-sliding={sliding || undefined} data-media-switching={mediaSwitching || undefined}>
           {ordered.slice(0, 3).map((item, position) => {
             const progress = Number(item.progress || 0);
-            const total = Number(item.episodes || 0);
+            const total = Number(mediaType === "manga" ? (item as MangaWatchlistItem).chapters || 0 : item.episodes || 0);
             const percent = total > 0 ? Math.min(100, (progress / total) * 100) : 0;
             return (
               <article
-                key={item.mal_id}
+                key={`${mediaType}-${item.mal_id}`}
                 className={`home-progress__card ${position === 0 ? "is-front" : ""}`}
                 style={{
                   "--deck-position": position,
@@ -212,10 +312,10 @@ const HomeProgressDeck: React.FC = () => {
                 <div className="home-progress__content">
                   <div className="home-progress__badges">
                     <span data-status={item.status === "Caught Up" ? "caught-up" : "watching"}>{item.status}</span>
-                    {item.isCurrent && <b>Current</b>}
+                    {mediaType === "anime" && item.isCurrent && <b>Current</b>}
                   </div>
-                  <h3>{item.title}</h3>
-                  <p>{progress}{total > 0 ? ` of ${total}` : ""} episodes watched</p>
+                  <h3><Link to={`/${mediaType}/${item.mal_id}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>{item.title}</Link></h3>
+                  <p>{progress}{total > 0 ? ` of ${total}` : ""} {mediaType === "manga" ? "chapters read" : "episodes watched"}</p>
                   <div className="home-progress__bar" aria-label={`${Math.round(percent)} percent complete`}><i style={{ width: `${percent}%` }} /></div>
                   <button type="button" className="home-progress__log" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setEditingItem(item); }}>
                     <NotebookPen size={16} /> Log progress
@@ -225,32 +325,11 @@ const HomeProgressDeck: React.FC = () => {
             );
           })}
         </div>
-        <button type="button" className="home-progress__shuffle" aria-label="Next active title" onClick={() => shuffle("next")} disabled={ordered.length < 2}>
-          <ChevronRight size={20} />
-        </button>
       </div>
-      {editingItem && <HomeProgressEditor key={editingItem.mal_id} item={editingItem} onClose={() => setEditingItem(null)} onSave={(updates) => updateWatchlistEntry(editingItem.mal_id, updates)} />}
+      {editingItem && <HomeProgressEditor key={`${mediaType}-${editingItem.mal_id}`} item={editingItem} mediaType={mediaType} onClose={() => setEditingItem(null)} onSave={(updates) => mediaType === "manga" ? updateMangaWatchlistEntry(editingItem.mal_id, updates) : updateWatchlistEntry(editingItem.mal_id, updates)} />}
     </section>
   );
 };
-
-const HOME_QUOTE_FALLBACKS = [
-  {
-    line: "If you don't take risks, you can't create a future.",
-    character: "Monkey D. Luffy",
-    anime: "One Piece",
-  },
-  {
-    line: "Set your heart ablaze.",
-    character: "Kyojuro Rengoku",
-    anime: "Demon Slayer",
-  },
-  {
-    line: "Whatever happens, happens.",
-    character: "Spike Spiegel",
-    anime: "Cowboy Bebop",
-  },
-];
 
 type HomeQuote = { line: string; character: string; anime: string };
 type VoiceConnection = {
@@ -272,7 +351,7 @@ type VoiceConnection = {
 };
 
 const DiscoverySpotlight: React.FC = () => {
-  const [quote, setQuote] = React.useState<HomeQuote>(HOME_QUOTE_FALLBACKS[0]);
+  const [quote, setQuote] = React.useState<HomeQuote>(POPULAR_QUOTE_ROTATION[0]);
   const [voiceFact, setVoiceFact] = React.useState<VoiceConnection | null>(
     null,
   );
@@ -280,24 +359,10 @@ const DiscoverySpotlight: React.FC = () => {
 
   const refresh = React.useCallback(async () => {
     setLoading(true);
-    const [quoteResult, castResult] = await Promise.allSettled([
-      fetch("/api/anime-quotes").then((response) => response.json()),
-      getPopularVoiceActors(12, "Japanese"),
-    ]);
-
-    const remoteQuote =
-      quoteResult.status === "fulfilled" ? quoteResult.value?.quote : null;
-    setQuote(
-      remoteQuote?.line && remoteQuote?.character && remoteQuote?.anime
-        ? {
-            line: remoteQuote.line,
-            character: remoteQuote.character,
-            anime: remoteQuote.anime,
-          }
-        : HOME_QUOTE_FALLBACKS[
-            Math.floor(Math.random() * HOME_QUOTE_FALLBACKS.length)
-          ],
-    );
+    setQuote(nextLinearItem(POPULAR_QUOTE_ROTATION, "popular-quotes") || POPULAR_QUOTE_ROTATION[0]);
+    const castResult = await Promise.resolve(getPopularVoiceActors(12, "Japanese"))
+      .then((value) => ({ status: "fulfilled" as const, value }))
+      .catch((reason) => ({ status: "rejected" as const, reason }));
 
     if (castResult.status === "fulfilled") {
       const connections = castResult.value.flatMap((actor: any) => {
@@ -333,9 +398,7 @@ const DiscoverySpotlight: React.FC = () => {
         ];
       });
       if (connections.length)
-        setVoiceFact(
-          connections[Math.floor(Math.random() * connections.length)],
-        );
+        setVoiceFact(nextLinearItem(connections, "popular-voice-facts") || connections[0]);
     }
     setLoading(false);
   }, []);
@@ -346,6 +409,7 @@ const DiscoverySpotlight: React.FC = () => {
 
   return (
     <section
+      id="home-discovery"
       className="home-discovery-pulse"
       aria-labelledby="home-discovery-title"
     >
@@ -379,7 +443,7 @@ const DiscoverySpotlight: React.FC = () => {
         <article className="home-discovery-quote">
           <Quote size={25} />
           <div>
-            <span>Random quote</span>
+            <span>Popular quote trail</span>
             <blockquote>“{quote.line}”</blockquote>
             <p>
               {quote.character} <small>from {quote.anime}</small>
@@ -404,9 +468,10 @@ const DiscoverySpotlight: React.FC = () => {
                 >
                   <ProgressiveImage
                     src={voiceFact.first.characterImage}
+                    fallbackSrc="/noimage.jpg"
                     alt={voiceFact.first.character}
                     wrapperClassName="home-discovery-voice__character"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 </Link>
                 <Link
@@ -416,9 +481,10 @@ const DiscoverySpotlight: React.FC = () => {
                 >
                   <ProgressiveImage
                     src={voiceFact.second.characterImage}
+                    fallbackSrc="/noimage.jpg"
                     alt={voiceFact.second.character}
                     wrapperClassName="home-discovery-voice__character"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 </Link>
               </>

@@ -136,8 +136,8 @@ const VoiceCastExplorer: React.FC = () => {
               const recent = actor.latestMedia || actor.characterMedia?.edges?.[0]?.node;
               const character = actor.matchedCharacter || actor.characterMedia?.edges?.[0]?.characters?.[0];
               return <Link to={`/voice-actor/${actor.id}`} key={actor.id} className="cast-person-card">
-                <ProgressiveImage src={actor.image?.large || actor.image?.medium} alt={actor.name?.full} wrapperClassName="cast-person-card__image" className="h-full w-full object-cover" />
-                <div><span>{actor.languageV2 || language} voice actor</span><h3>{actor.name?.full}</h3><p>{character?.name?.full ? `${character.name.full} · ${recent?.title?.english || recent?.title?.romaji || "Anime role"}` : "Open complete role history"}</p></div><ArrowRight size={17} />
+                <ProgressiveImage src={actor.image?.large || actor.image?.medium} fallbackSrc="/noimage.jpg" alt={actor.name?.full} wrapperClassName="cast-person-card__image" className="h-full w-full object-cover" />
+                <div><span>{actor.languageV2 || language} voice actor</span><h3>{actor.name?.full}</h3><p>{character?.name?.full ? <><strong className="cast-person-card__character">{character.name.full}</strong> · {recent?.title?.english || recent?.title?.romaji || "Anime role"}</> : "Open complete role history"}</p></div><ArrowRight size={17} />
               </Link>;
             })}
           </div>
@@ -146,7 +146,7 @@ const VoiceCastExplorer: React.FC = () => {
             {characters.map((character) => {
               const anime = character.media?.nodes?.[0];
               return <button type="button" key={character.id} className="cast-person-card" onClick={() => { setQuery(character.name?.full || ""); void runSearch("character", character.name?.full || "", language); }}>
-                <ProgressiveImage src={character.image?.large || character.image?.medium} alt={character.name?.full} wrapperClassName="cast-person-card__image" className="h-full w-full object-cover" />
+                <ProgressiveImage src={character.image?.large || character.image?.medium} fallbackSrc="/noimage.jpg" alt={character.name?.full} wrapperClassName="cast-person-card__image" className="h-full w-full object-cover" />
                 <div><span>{anime?.title?.english || anime?.title?.romaji || "Character"}</span><h3>{character.name?.full}</h3><p>Find {language.toLowerCase()} voice actors</p></div><ArrowRight size={17} />
               </button>;
             })}

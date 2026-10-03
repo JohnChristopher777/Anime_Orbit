@@ -11,6 +11,11 @@
     ],
     "redirects": [
       {
+        "source": "/neural-search",
+        "destination": "/discovery",
+        "type": 301
+      },
+      {
         "source": "/index.html",
         "destination": "/",
         "type": 301
@@ -23,6 +28,20 @@
       }
     ],
     "headers": [
+      {
+        "source": "/sitemap*.xml",
+        "headers": [
+          { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
+          { "key": "Cache-Control", "value": "public, max-age=300" }
+        ]
+      },
+      {
+        "source": "/robots.txt",
+        "headers": [
+          { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+          { "key": "Cache-Control", "value": "public, max-age=300" }
+        ]
+      },
       {
         "source": "/about",
         "headers": [
@@ -38,7 +57,10 @@
       },
       {
         "source": "/watchlist",
-        "headers": [{ "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" }]
+        "headers": [
+          { "key": "X-Robots-Tag", "value": "noindex, follow, noarchive" },
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
       },
       {
         "source": "/favourites",
@@ -85,7 +107,7 @@
           },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
+            "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://www.youtube.com https://www.youtube-nocookie.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
           },
           {
             "key": "Strict-Transport-Security",
@@ -120,6 +142,15 @@
           {
             "key": "Cache-Control",
             "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
           }
         ]
       },

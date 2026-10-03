@@ -173,6 +173,7 @@ export const AnimeItem: React.FC = () => {
   const [postingReview, setPostingReview] = useState(false);
   const [reviewEditorOpen, setReviewEditorOpen] = useState(false);
   const [trailerLoaded, setTrailerLoaded] = useState(false);
+  const [trailerCandidateIndex, setTrailerCandidateIndex] = useState(0);
   const { addToFavourites, removeFromFavourites, isFavourite } =
     useFavourites();
   const { currentUser } = useAuth();
@@ -209,6 +210,11 @@ export const AnimeItem: React.FC = () => {
       setReviewEditorOpen(true);
     }
   }, [currentUserReview, searchParams]);
+
+  useEffect(() => {
+    setTrailerLoaded(false);
+    setTrailerCandidateIndex(0);
+  }, [id]);
 
   useEffect(() => {
     if (commentsLoading || activeTab !== "discussion" || !window.location.hash) return;
@@ -1437,7 +1443,7 @@ export const AnimeItem: React.FC = () => {
             </InfoGrid>
 
             {(() => {
-              const ytId =
+              const primaryYtId =
                 trailer?.youtube_id ||
                 trailer?.id ||
                 (trailer?.embed_url
@@ -1445,6 +1451,19 @@ export const AnimeItem: React.FC = () => {
                       /(?:embed\/|v=|\/vi\/|youtu\.be\/|\/v\/)([^?&#]+)/,
                     )?.[1]
                   : null);
+              const trailerCandidates = [
+                primaryYtId,
+                ...(Array.isArray(trailer?.youtube_ids)
+                  ? trailer.youtube_ids
+                  : []),
+              ].filter(
+                (candidate, index, values) =>
+                  candidate && values.indexOf(candidate) === index,
+              );
+              const ytId =
+                trailerCandidates[
+                  Math.min(trailerCandidateIndex, trailerCandidates.length - 1)
+                ] || null;
               const cleanEmbedUrl = ytId
                 ? `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`
                 : "";
@@ -1511,51 +1530,72 @@ export const AnimeItem: React.FC = () => {
                     <SectionTitle style={{ margin: 0 }}>
                       Official Trailer & Preview
                     </SectionTitle>
-                    <a
-                      href={directWatchUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "0.4rem",
-                        background: "rgba(255, 0, 0, 0.15)",
-                        border: "1px solid rgba(255, 77, 77, 0.4)",
-                        color: "#ff6b6b",
-                        padding: "0.35rem 0.9rem",
-                        borderRadius: "20px",
-                        fontFamily: "Montserrat, sans-serif",
-                        fontWeight: 700,
-                        fontSize: "0.75rem",
-                        textDecoration: "none",
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <ExternalLink size={13} />
-                      <span>Watch on YouTube</span>
-                    </a>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {trailerCandidates.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTrailerCandidateIndex(
+                              (current) => (current + 1) % trailerCandidates.length,
+                            );
+                            setTrailerLoaded(true);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-bold text-white transition hover:border-[#ffd700]/50 hover:text-[#ffd700]"
+                        >
+                          <Play size={12} fill="currentColor" />
+                          Try another official preview
+                        </button>
+                      )}
+                      <a
+                        href={directWatchUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-red-400/40 bg-red-500/15 px-3.5 py-2 text-xs font-bold text-red-300 transition hover:border-red-400/70 hover:bg-red-500/20 hover:text-red-200"
+                      >
+                        <ExternalLink size={13} />
+                        Watch on YouTube
+                      </a>
+                    </div>
                   </div>
 
                   {trailerLoaded ? (
-                    <div style={{ position: "relative", width: "100%" }}>
+                    <div
+                      style={{
+                        position: "relative",
+                        width: "100%",
+                        maxWidth: "800px",
+                      }}
+                    >
                       <TrailerIframe
                         src={cleanEmbedUrl}
                         title={`${displayTitle} Official Trailer`}
                         loading="lazy"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        referrerPolicy="strict-origin-when-cross-origin"
                         allowFullScreen
                       />
                     </div>
                   ) : (
                     <div
                       onClick={() => setTrailerLoaded(true)}
-                      className="relative w-full aspect-video rounded-2xl overflow-hidden border border-[#ffd700]/40 cursor-pointer group bg-black shadow-2xl flex items-center justify-center"
+                      className="relative w-full max-w-[800px] aspect-video rounded-2xl overflow-hidden border border-[#ffd700]/40 cursor-pointer group bg-black shadow-2xl flex items-center justify-center"
                       style={{
                         backgroundImage: `url(${anime.banner_image || images?.jpg?.large_image_url || ""})`,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                       }}
                     >
+                      <img
+                        src={`https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg`}
+                        alt={`${displayTitle} official trailer preview`}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        loading="lazy"
+                        onError={(event) => {
+                          const image = event.currentTarget;
+                          const fallback = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+                          if (image.src !== fallback) image.src = fallback;
+                        }}
+                      />
                       <div className="absolute inset-0 bg-black/60 group-hover:bg-black/40 transition-colors" />
                       <div className="relative z-10 flex flex-col items-center gap-3">
                         <div className="w-16 h-16 rounded-full bg-[#ffd700] text-black flex items-center justify-center shadow-[0_0_25px_rgba(255,215,0,0.7)] group-hover:scale-110 transition-transform">
@@ -1604,10 +1644,10 @@ export const AnimeItem: React.FC = () => {
                     }}
                   >
                     <ExternalLink size={18} />
-                    <span>Where to watch</span>
+                    <span>Planning to watch?</span>
                   </h4>
                   <span style={{ fontSize: "0.75rem", color: "#888" }}>
-                    Links supplied for this series
+                   Providers streaming this series includes
                   </span>
                 </div>
                 <div
@@ -1750,6 +1790,7 @@ export const AnimeItem: React.FC = () => {
                   <CharacterCard key={idx} $role={char.role}>
                     <ProgressiveImage
                       src={char.character?.images?.jpg?.image_url}
+                      fallbackSrc="/noimage.jpg"
                       alt={char.character?.name}
                       wrapperClassName="anime-character-image"
                       className="w-full h-full object-cover"
@@ -1961,19 +2002,17 @@ export const AnimeItem: React.FC = () => {
                       return (
                         <RelationCard key={entry.mal_id} to={targetUrl}>
                           <RelationCoverWrapper>
-                            {entry.image ? (
-                              <img
-                                src={entry.image}
-                                alt={entry.name}
-                                loading="lazy"
-                                decoding="async"
-                                onError={(event) => {
-                                  event.currentTarget.src = "/lost.jpg";
-                                }}
-                              />
-                            ) : (
-                              <div className="no-image">No Image</div>
-                            )}
+                            <img
+                              src={entry.image || "/noimage.jpg"}
+                              className={entry.image ? undefined : "is-placeholder"}
+                              alt={entry.image ? entry.name : `${entry.name} placeholder artwork`}
+                              loading="lazy"
+                              decoding="async"
+                              onError={(event) => {
+                                event.currentTarget.onerror = null;
+                                event.currentTarget.src = "/noimage.jpg";
+                              }}
+                            />
                             <RelationBadge>{relation.relation}</RelationBadge>
                             {entry.score && (
                               <RelationScoreBadge>
@@ -2626,13 +2665,26 @@ const EpisodesView: React.FC<{
   const [resolvedEpisodes, setResolvedEpisodes] = useState(episodes);
   const [selectedEpisodeNumber, setSelectedEpisodeNumber] = useState<number | string | null>(null);
   const observerRef = useRef<HTMLDivElement>(null);
+  const guideTopRef = useRef<HTMLDivElement>(null);
 
   const batchSize = 50;
   const count = resolvedEpisodes.length;
 
   useEffect(() => {
     setResolvedEpisodes(episodes);
+    setSelectedBatch(0);
+    setRenderLimit(24);
   }, [episodes]);
+
+  const moveToBatch = (nextBatch: number, returnToTop = false) => {
+    setSelectedBatch(Math.max(0, Math.min(batches.length - 1, nextBatch)));
+    if (returnToTop) {
+      window.setTimeout(
+        () => guideTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        40,
+      );
+    }
+  };
 
   useEffect(() => {
     if (!animeTitle || count === 0) return;
@@ -2736,7 +2788,7 @@ const EpisodesView: React.FC<{
 
   return (
     <EpisodesContent>
-      <EpisodesHeaderRow>
+      <EpisodesHeaderRow ref={guideTopRef}>
         <div
           style={{
             display: "flex",
@@ -2757,7 +2809,7 @@ const EpisodesView: React.FC<{
                 ariaLabel="Jump to episode range"
                 className="w-44"
                 value={String(selectedBatch)}
-                onChange={(value) => setSelectedBatch(Number(value))}
+                onChange={(value) => moveToBatch(Number(value))}
                 options={batches.map((batch) => ({
                   value: String(batch.index),
                   label: `Episodes ${batch.label}`,
@@ -2793,7 +2845,7 @@ const EpisodesView: React.FC<{
             <BatchButton
               key={b.index}
               $active={selectedBatch === b.index}
-              onClick={() => setSelectedBatch(b.index)}
+              onClick={() => moveToBatch(b.index)}
             >
               {b.label}
             </BatchButton>
@@ -2902,6 +2954,28 @@ const EpisodesView: React.FC<{
               </button>
             )}
           </div>
+          {batches.length > 1 && !searchQuery.trim() && (
+            <EpisodeBottomPager aria-label="Episode range navigation">
+              <button
+                type="button"
+                disabled={selectedBatch === 0}
+                onClick={() => moveToBatch(selectedBatch - 1, true)}
+              >
+                <ChevronLeft size={15} /> Previous range
+              </button>
+              <span>
+                Episodes {batches[selectedBatch]?.label || ""}
+                <small>Range {selectedBatch + 1} of {batches.length}</small>
+              </span>
+              <button
+                type="button"
+                disabled={selectedBatch >= batches.length - 1}
+                onClick={() => moveToBatch(selectedBatch + 1, true)}
+              >
+                Next range <ChevronRight size={15} />
+              </button>
+            </EpisodeBottomPager>
+          )}
         </>
       ) : (
         <EmptyState>
@@ -3492,6 +3566,66 @@ const BatchButton = styled.button<{ $active: boolean }>`
   white-space: nowrap;
 `;
 
+const EpisodeBottomPager = styled.nav`
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(130px, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 215, 0, 0.24);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.07), rgba(255, 255, 255, 0.025));
+
+  button {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(255, 215, 0, 0.34);
+    border-radius: 999px;
+    background: rgba(255, 215, 0, 0.09);
+    color: #ffe052;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+  }
+
+  button:disabled {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.025);
+    color: #62626a;
+    cursor: default;
+  }
+
+  > span {
+    display: grid;
+    gap: 0.15rem;
+    color: #fff;
+    text-align: center;
+    font-family: "Montserrat", sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  small {
+    color: #777780;
+    font-size: 0.62rem;
+    font-weight: 600;
+  }
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr 1fr;
+
+    > span {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+
+    button { width: 100%; padding-inline: 0.6rem; }
+  }
+`;
+
 const EpisodeGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -3536,6 +3670,10 @@ const EpisodeMediaWrapper = styled.div`
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+
+  img.is-placeholder {
+    object-fit: contain;
   }
 `;
 
@@ -3650,7 +3788,7 @@ const CharacterCard = styled.div<{ $role?: string }>`
   align-items: center;
 
   .anime-character-image {
-    width: 95px;
+    width: 105px;
     height: 140px;
     flex: 0 0 auto;
     border-radius: 8px;

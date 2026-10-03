@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { getPopularCharacters, searchCharacters } from "../services/anilist";
 import Footer from "./Footer";
 import ProgressiveImage from "./ProgressiveImage";
+import { serverApiUrl } from "../services/serverApi";
 import SEO from "./SEO";
 
 const POPULAR_FALLBACK_NAMES = ["Luffy Monkey", "Satoru Gojou", "Levi", "Naruto Uzumaki"];
@@ -169,8 +170,8 @@ export const CharacterFinderWorkspace: React.FC = () => {
       const [popularResult, directResult, catalogueResult, aiResult, seededResult] = await Promise.allSettled([
         requests[0],
         requests[1] || Promise.resolve([]),
-        name.trim() ? fetch(`/api/characters?q=${encodeURIComponent(name.trim())}`).then((response) => response.json()) : Promise.resolve({ characters: [] }),
-        fetch("/api/discovery", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "character", text: clues }) }).then((response) => response.json()),
+        name.trim() ? fetch(serverApiUrl("characters", new URLSearchParams({ q: name.trim() }))).then((response) => response.json()) : Promise.resolve({ characters: [] }),
+        fetch(serverApiUrl("discovery"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "character", text: clues }) }).then((response) => response.json()),
         Promise.allSettled(seededNames.map((candidate) => searchCharacters(candidate, 2))),
       ]);
       const popular = popularResult.status === "fulfilled" ? popularResult.value || [] : [];
@@ -247,7 +248,7 @@ export const CharacterFinderWorkspace: React.FC = () => {
       {error && <div className="finder-error">{error}</div>}
       {loading ? <div className="discovery-result-skeleton"><i /><i /><i /><i /></div> : <div className="character-workbench-results">{results.map((character) => {
         const anime = character.media?.nodes?.[0];
-        return <Link to={`/character/${character.id}`} key={character.id}><ProgressiveImage src={character.image?.large || character.image?.medium} alt={character.name?.full} wrapperClassName="character-workbench-image" className="h-full w-full object-cover" /><div><b className={character.__resultKind === "Related suggestion" ? "is-related" : ""}>{character.__resultKind || "Popular character"}</b><h3>{character.name?.full}</h3>{character.name?.native && <p>{character.name.native}</p>}<span>{anime?.title?.english || anime?.title?.romaji || "Anime unavailable"}</span><small>Artwork, voice cast and appearances</small></div><ArrowRight size={17} /></Link>;
+        return <Link to={`/character/${character.id}`} key={character.id}><ProgressiveImage src={character.image?.large || character.image?.medium} fallbackSrc="/noimage.jpg" alt={character.name?.full} wrapperClassName="character-workbench-image" className="h-full w-full object-cover" /><div><b className={character.__resultKind === "Related suggestion" ? "is-related" : ""}>{character.__resultKind || "Popular character"}</b><h3>{character.name?.full}</h3>{character.name?.native && <p>{character.name.native}</p>}<span>{anime?.title?.english || anime?.title?.romaji || "Anime unavailable"}</span><small>Artwork, voice cast and appearances</small></div><ArrowRight size={17} /></Link>;
       })}</div>}
     </div>
   </section>;

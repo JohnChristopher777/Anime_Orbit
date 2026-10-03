@@ -29,6 +29,9 @@ import {
   Clock3,
   Layers3,
   Pin,
+  MessageSquare,
+  Highlighter,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -59,6 +62,27 @@ interface TrackerFieldsProps {
     userScore?: number | null;
   }) => Promise<void>;
   onCancel: () => void;
+}
+
+interface ProgressLogTarget {
+  id: number;
+  mediaType: "anime" | "manga";
+  item: WatchlistItem | MangaWatchlistItem;
+}
+
+interface ProgressLogDialogProps {
+  title: string;
+  targets: ProgressLogTarget[];
+  onClose: () => void;
+  onUpdate: (
+    target: ProgressLogTarget,
+    progressNotes: NonNullable<WatchlistItem["progressNotes"]>,
+    progress: number,
+  ) => Promise<void>;
+  onPersonalNoteUpdate: (
+    target: ProgressLogTarget,
+    personalNotes: string,
+  ) => Promise<void>;
 }
 
 const statusToken = (status = "") => status.toLowerCase().replace(/\s+/g, "-");
@@ -296,6 +320,486 @@ const TrackerFields: React.FC<TrackerFieldsProps> = ({
   );
 };
 
+const progressLogTargetKey = (target: Pick<ProgressLogTarget, "id" | "mediaType">) =>
+  `${target.mediaType}-${target.id}`;
+
+const createProgressLogId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `log-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+const diaryDateValue = (value?: string) => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+};
+
+const highlightedDiaryText = (value = "") =>
+  value.split(/(==.*?==)/g).filter(Boolean).map((part, index) =>
+    part.startsWith("==") && part.endsWith("==")
+      ? <mark key={`${part}-${index}`}>{part.slice(2, -2)}</mark>
+      : <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>,
+  );
+
+const plainDiaryText = (value = "") => value.replace(/==(.+?)==/g, "$1");
+
+const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
+  title,
+  targets,
+  onClose,
+  onUpdate,
+  onPersonalNoteUpdate,
+}) => {
+  const [selectedTargetKey, setSelectedTargetKey] = useState(
+    targets[0] ? progressLogTargetKey(targets[0]) : "",
+  );
+  const [entryProgress, setEntryProgress] = useState(
+    Number(targets[0]?.item.progress || 0),
+  );
+  const [entryDate, setEntryDate] = useState(diaryDateValue());
+  const [entryText, setEntryText] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<{
+    targetKey: string;
+    sourceIndex: number;
+  } | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [afterThought, setAfterThought] = useState(
+    targets[0]?.item.personalNotes || "",
+  );
+  const [savingAfterThought, setSavingAfterThought] = useState(false);
+  const [afterThoughtEditing, setAfterThoughtEditing] = useState(false);
+  const entryTextRef = React.useRef<HTMLTextAreaElement>(null);
+  const afterThoughtRef = React.useRef<HTMLTextAreaElement>(null);
+
+  const selectedTarget =
+    targets.find((target) => progressLogTargetKey(target) === selectedTargetKey) ||
+    targets[0];
+  const selectedTotal = Number(
+    selectedTarget?.mediaType === "manga"
+      ? (selectedTarget.item as MangaWatchlistItem).chapters || 0
+      : selectedTarget?.item.episodes || 0,
+  );
+  const selectedUnit = selectedTarget?.mediaType === "manga" ? "Chapter" : "Episode";
+
+  const timeline = useMemo(
+    () =>
+      targets
+        .flatMap((target) =>
+          (Array.isArray(target.item.progressNotes)
+            ? target.item.progressNotes
+            : []
+          ).map((entry, sourceIndex) => ({
+            ...entry,
+            sourceIndex,
+            target,
+            targetKey: progressLogTargetKey(target),
+            entryKey:
+              entry.id ||
+              `${progressLogTargetKey(target)}-${sourceIndex}-${entry.createdAt || entry.progress}`,
+          })),
+        )
+        .sort((left, right) =>
+          Date.parse(left.createdAt || "") - Date.parse(right.createdAt || "") ||
+          Number(left.progress || 0) - Number(right.progress || 0),
+        ),
+    [targets],
+  );
+  const afterThoughtCount = targets.filter((target) =>
+    progressLogTargetKey(target) === progressLogTargetKey(selectedTarget)
+      ? Boolean(afterThought.trim())
+      : Boolean(target.item.personalNotes?.trim()),
+  ).length;
+  const journalEntryCount = timeline.length + afterThoughtCount;
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!selectedTarget) return;
+    if (!editingEntry)
+      setEntryProgress(Number(selectedTarget.item.progress || 0));
+  }, [selectedTargetKey, selectedTarget?.item.progress, editingEntry]);
+
+  useEffect(() => {
+    setAfterThought(selectedTarget?.item.personalNotes || "");
+    setAfterThoughtEditing(false);
+  }, [selectedTargetKey]);
+
+  const resetEditor = () => {
+    setEditingEntry(null);
+    setEntryText("");
+    setEntryDate(diaryDateValue());
+    setEntryProgress(Number(selectedTarget?.item.progress || 0));
+    setComposerOpen(false);
+  };
+
+  const startEntry = () => {
+    setEditingEntry(null);
+    setEntryText("");
+    setEntryDate(diaryDateValue());
+    setEntryProgress(Number(selectedTarget?.item.progress || 0));
+    setComposerOpen(true);
+    window.setTimeout(() => entryTextRef.current?.focus(), 60);
+  };
+
+  const highlightSelection = (
+    value: string,
+    update: (next: string) => void,
+    ref: React.RefObject<HTMLTextAreaElement | null>,
+  ) => {
+    const field = ref.current;
+    if (!field || field.selectionStart === field.selectionEnd) {
+      toast.info("Select the words you want to highlight first");
+      return;
+    }
+    const start = field.selectionStart;
+    const end = field.selectionEnd;
+    const next = `${value.slice(0, start)}==${value.slice(start, end)}==${value.slice(end)}`;
+    update(next);
+    window.setTimeout(() => {
+      field.focus();
+      field.setSelectionRange(start, end + 4);
+    }, 0);
+  };
+
+  const saveEntry = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedTarget || !entryText.trim()) return;
+    const notes = Array.isArray(selectedTarget.item.progressNotes)
+      ? [...selectedTarget.item.progressNotes]
+      : [];
+    const safeProgress = Math.max(
+      0,
+      selectedTotal > 0
+        ? Math.min(selectedTotal, Number(entryProgress) || 0)
+        : Number(entryProgress) || 0,
+    );
+    const now = new Date().toISOString();
+    const journalDate = entryDate
+      ? new Date(`${entryDate}T12:00:00`).toISOString()
+      : now;
+    if (
+      editingEntry &&
+      editingEntry.targetKey === progressLogTargetKey(selectedTarget) &&
+      notes[editingEntry.sourceIndex]
+    ) {
+      notes[editingEntry.sourceIndex] = {
+        ...notes[editingEntry.sourceIndex],
+        id: notes[editingEntry.sourceIndex].id || createProgressLogId(),
+        progress: safeProgress,
+        note: entryText.trim().slice(0, 600),
+        createdAt: journalDate,
+        updatedAt: now,
+      };
+    } else {
+      notes.push({
+        id: createProgressLogId(),
+        progress: safeProgress,
+        note: entryText.trim().slice(0, 600),
+        createdAt: journalDate,
+      });
+    }
+    setSaving(true);
+    try {
+      await onUpdate(
+        selectedTarget,
+        notes.slice(-100),
+        Math.max(Number(selectedTarget.item.progress || 0), safeProgress),
+      );
+      setEditingEntry(null);
+      setEntryText("");
+      setEntryDate(diaryDateValue());
+      setEntryProgress(Math.max(Number(selectedTarget.item.progress || 0), safeProgress));
+      setComposerOpen(false);
+      toast.success(editingEntry ? "Log entry updated" : "Log entry saved");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const editEntry = (entry: (typeof timeline)[number]) => {
+    setSelectedTargetKey(entry.targetKey);
+    setEntryProgress(Number(entry.progress || 0));
+    setEntryDate(diaryDateValue(entry.createdAt));
+    setEntryText(entry.note || "");
+    setComposerOpen(false);
+    setEditingEntry({
+      targetKey: entry.targetKey,
+      sourceIndex: entry.sourceIndex,
+    });
+    setDeleteCandidate("");
+    window.setTimeout(() => entryTextRef.current?.focus(), 60);
+  };
+
+  const deleteEntry = async (entry: (typeof timeline)[number]) => {
+    if (deleteCandidate !== entry.entryKey) {
+      setDeleteCandidate(entry.entryKey);
+      return;
+    }
+    const notes = Array.isArray(entry.target.item.progressNotes)
+      ? entry.target.item.progressNotes.filter(
+          (_, index) => index !== entry.sourceIndex,
+        )
+      : [];
+    setSaving(true);
+    try {
+      await onUpdate(
+        entry.target,
+        notes,
+        Number(entry.target.item.progress || 0),
+      );
+      if (
+        editingEntry?.targetKey === entry.targetKey &&
+        editingEntry.sourceIndex === entry.sourceIndex
+      )
+        resetEditor();
+      setDeleteCandidate("");
+      toast.info("Log entry deleted");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveAfterThought = async () => {
+    if (!selectedTarget) return;
+    setSavingAfterThought(true);
+    try {
+      await onPersonalNoteUpdate(selectedTarget, afterThought.trim().slice(0, 800));
+      setAfterThoughtEditing(false);
+      toast.success("After-thought saved");
+    } finally {
+      setSavingAfterThought(false);
+    }
+  };
+
+  return (
+    <div
+      className="franchise-memory-modal__backdrop"
+      role="presentation"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <section
+        className="franchise-memory-modal series-log-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="series-log-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <span><MessageSquare size={14} /> Series progress log</span>
+            <h2 id="series-log-title">{title}</h2>
+            <p>Every thought is attached to the exact episode or chapter you choose.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close series log"><X size={19} /></button>
+        </header>
+
+        <div className="series-log-modal__diary-body">
+        {composerOpen && !editingEntry && <form className="series-log-modal__composer" onSubmit={saveEntry}>
+          {targets.length > 1 && (
+            <label className="series-log-modal__series">
+              <span>Series</span>
+              <select
+                value={selectedTargetKey}
+                disabled={saving || Boolean(editingEntry)}
+                onChange={(event) => setSelectedTargetKey(event.target.value)}
+              >
+                {targets.map((target) => (
+                  <option key={progressLogTargetKey(target)} value={progressLogTargetKey(target)}>
+                    {target.item.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="series-log-modal__entry-row">
+            <label>
+              <span>Date</span>
+              <input
+                type="date"
+                value={entryDate}
+                disabled={saving}
+                onChange={(event) => setEntryDate(event.target.value)}
+              />
+              <small>Your diary day</small>
+            </label>
+            <label>
+              <span>{selectedUnit}</span>
+              <input
+                type="number"
+                min={0}
+                max={selectedTotal || undefined}
+                value={entryProgress}
+                disabled={saving}
+                onChange={(event) => setEntryProgress(Math.max(0, Number(event.target.value) || 0))}
+              />
+              <small>{selectedTotal > 0 ? `of ${selectedTotal}` : "No confirmed total"}</small>
+            </label>
+            <label className="series-log-modal__feeling">
+              <span>{editingEntry ? "Edit this memory" : "What happened here?"}</span>
+              <textarea
+                ref={entryTextRef}
+                value={entryText}
+                maxLength={600}
+                rows={3}
+                disabled={saving}
+                onChange={(event) => setEntryText(event.target.value)}
+                placeholder={`Your thoughts at ${selectedUnit.toLowerCase()} ${entryProgress}…`}
+              />
+            </label>
+          </div>
+          <div className="series-log-modal__composer-actions">
+            <button type="button" onClick={() => highlightSelection(entryText, setEntryText, entryTextRef)} disabled={saving || !entryText}>
+              <Highlighter size={13} /> Highlight selected
+            </button>
+            <button type="button" onClick={resetEditor} disabled={saving}><X size={13} /> Cancel</button>
+            <button type="submit" className="is-primary" disabled={saving || !entryText.trim()}>
+              <Save size={14} /> {saving ? "Saving…" : editingEntry ? "Save entry" : "Add to log"}
+            </button>
+          </div>
+        </form>}
+
+        <div className="franchise-memory-modal__list series-log-modal__timeline">
+          <div className="series-log-modal__timeline-heading">
+            <div>
+              <strong>Journey so far</strong>
+              <span>{journalEntryCount} {journalEntryCount === 1 ? "entry" : "entries"}</span>
+            </div>
+            {!composerOpen && !editingEntry && <button type="button" onClick={startEntry}><Plus size={13} /> New diary entry</button>}
+          </div>
+          {!timeline.length && (
+            <div className="series-log-modal__empty">
+              <MessageSquare size={25} />
+              <strong>No episode or chapter thoughts yet</strong>
+              <p>Add the first entry above. It will stay with this series in your watchlist.</p>
+            </div>
+          )}
+          {timeline.map((entry) => {
+            const isEditing = editingEntry?.targetKey === entry.targetKey &&
+              editingEntry.sourceIndex === entry.sourceIndex;
+            return <article key={entry.entryKey} className={isEditing ? "is-editing" : undefined}>
+              <div>
+                <time dateTime={entry.createdAt}>
+                  <CalendarDays size={12} />
+                  {entry.createdAt
+                    ? new Date(entry.createdAt).toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })
+                    : "Saved earlier"}
+                </time>
+                <span>{entry.target.mediaType === "manga" ? "Chapter" : "Episode"} {entry.progress}</span>
+              </div>
+              {targets.length > 1 && <strong>{entry.target.item.title}</strong>}
+              {isEditing ? <form className="series-log-modal__inline-editor" onSubmit={saveEntry}>
+                <div className="series-log-modal__entry-row">
+                  <label>
+                    <span>Date</span>
+                    <input
+                      type="date"
+                      value={entryDate}
+                      disabled={saving}
+                      onChange={(event) => setEntryDate(event.target.value)}
+                    />
+                    <small>Your diary day</small>
+                  </label>
+                  <label>
+                    <span>{selectedUnit}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={selectedTotal || undefined}
+                      value={entryProgress}
+                      disabled={saving}
+                      onChange={(event) => setEntryProgress(Math.max(0, Number(event.target.value) || 0))}
+                    />
+                    <small>{selectedTotal > 0 ? `of ${selectedTotal}` : "No confirmed total"}</small>
+                  </label>
+                  <label className="series-log-modal__feeling">
+                    <span>Edit this memory</span>
+                    <textarea
+                      ref={entryTextRef}
+                      value={entryText}
+                      maxLength={600}
+                      rows={3}
+                      disabled={saving}
+                      onChange={(event) => setEntryText(event.target.value)}
+                      placeholder={`Your thoughts at ${selectedUnit.toLowerCase()} ${entryProgress}…`}
+                    />
+                  </label>
+                </div>
+                <div className="series-log-modal__composer-actions">
+                  <button type="button" onClick={() => highlightSelection(entryText, setEntryText, entryTextRef)} disabled={saving || !entryText}>
+                    <Highlighter size={13} /> Highlight selected
+                  </button>
+                  <button type="button" onClick={resetEditor} disabled={saving}><X size={13} /> Cancel</button>
+                  <button type="submit" className="is-primary" disabled={saving || !entryText.trim()}>
+                    <Save size={14} /> {saving ? "Saving…" : "Save entry"}
+                  </button>
+                </div>
+              </form> : <>
+              <p>{highlightedDiaryText(entry.note)}</p>
+              <footer>
+                <time dateTime={entry.createdAt}>
+                  {entry.updatedAt ? `Edited ${new Date(entry.updatedAt).toLocaleString()}` : "Original entry"}
+                </time>
+                <div>
+                  <button type="button" onClick={() => editEntry(entry)} disabled={saving}><NotebookPen size={12} /> Edit</button>
+                  <button type="button" className="is-delete" onClick={() => void deleteEntry(entry)} disabled={saving}>
+                    <Trash2 size={12} /> {deleteCandidate === entry.entryKey ? "Delete?" : "Delete"}
+                  </button>
+                </div>
+              </footer>
+              </>}
+            </article>;
+          })}
+        </div>
+
+        <section className="series-log-modal__afterthought" aria-labelledby="series-afterthought-title">
+          <div className="series-log-modal__afterthought-heading">
+            <span><NotebookPen size={14} /> After-thought</span>
+            <div>
+              <h3 id="series-afterthought-title">Your overall note</h3>
+              {targets.length > 1 && <small>{selectedTarget?.item.title}</small>}
+            </div>
+          </div>
+          <div className={`series-log-modal__paper ${afterThoughtEditing ? "is-editing" : "is-readonly"}`}>
+            {afterThoughtEditing ? <textarea
+                ref={afterThoughtRef}
+                value={afterThought}
+                maxLength={800}
+                rows={3}
+                disabled={savingAfterThought}
+                onChange={(event) => setAfterThought(event.target.value)}
+                placeholder="What stayed with you after watching or reading this series?"
+                aria-label="Overall personal note"
+              /> : <p>{afterThought ? highlightedDiaryText(afterThought) : "No overall after-thought yet. Add one whenever the story leaves something with you."}</p>}
+            {afterThoughtEditing && <span>{afterThought.length}/800</span>}
+          </div>
+          <div className="series-log-modal__afterthought-actions">
+            {afterThoughtEditing ? <>
+              <button type="button" onClick={() => highlightSelection(afterThought, setAfterThought, afterThoughtRef)} disabled={savingAfterThought || !afterThought}><Highlighter size={13} /> Highlight</button>
+              <button type="button" onClick={() => { setAfterThought(selectedTarget?.item.personalNotes || ""); setAfterThoughtEditing(false); }} disabled={savingAfterThought}><X size={13} /> Cancel</button>
+              <button type="button" className="is-primary" onClick={() => void saveAfterThought()} disabled={savingAfterThought || afterThought.trim() === (selectedTarget?.item.personalNotes || "").trim()}><Save size={13} /> {savingAfterThought ? "Saving…" : "Save"}</button>
+            </> : <button type="button" onClick={() => { setAfterThoughtEditing(true); window.setTimeout(() => afterThoughtRef.current?.focus(), 60); }}><NotebookPen size={13} /> Edit after-thought</button>}
+          </div>
+        </section>
+        </div>
+      </section>
+    </div>
+  );
+};
+
 export const Watchlist: React.FC = () => {
   const {
     watchlist,
@@ -336,13 +840,56 @@ export const Watchlist: React.FC = () => {
   const [mergeFranchises, setMergeFranchises] = useState(false);
   const [franchiseGroups, setFranchiseGroups] = useState<any[]>([]);
   const [franchiseLoading, setFranchiseLoading] = useState(false);
+  const [memoryLog, setMemoryLog] = useState<{
+    title: string;
+    targets: Array<{ id: number; mediaType: "anime" | "manga" }>;
+  } | null>(null);
+
+  const openSeriesMemories = (
+    item: WatchlistItem | MangaWatchlistItem,
+    itemMedia: "anime" | "manga",
+  ) => {
+    setMemoryLog({
+      title: item.title,
+      targets: [{ id: item.mal_id, mediaType: itemMedia }],
+    });
+  };
+
+  const openFranchiseMemories = (item: any) => {
+    setMemoryLog({
+      title: item.title,
+      targets: (item.members || []).map((member: WatchlistItem) => ({
+        id: member.mal_id,
+        mediaType: "anime" as const,
+      })),
+    });
+  };
+
+  const activeLogTargets = useMemo<ProgressLogTarget[]>(() => {
+    if (!memoryLog) return [];
+    return memoryLog.targets
+      .map((target) => {
+        const source = target.mediaType === "manga" ? mangaWatchlist : watchlist;
+        const item = source.find((entry) => entry.mal_id === target.id);
+        return item ? { ...target, item } : null;
+      })
+      .filter(Boolean) as ProgressLogTarget[];
+  }, [memoryLog, mangaWatchlist, watchlist]);
 
   useEffect(() => {
+    const requestedMedia = searchParams.get("media");
+    if (requestedMedia === "anime" || requestedMedia === "manga") setMediaTab(requestedMedia);
     const editId = Number(searchParams.get("edit"));
-    if (!Number.isFinite(editId) || !watchlist.some((item) => item.mal_id === editId)) return;
-    setMediaTab("anime");
-    setExpandedTracker(`anime-${editId}`);
-  }, [searchParams, watchlist]);
+    if (!Number.isFinite(editId)) return;
+    if (requestedMedia === "manga" && mangaWatchlist.some((item) => item.mal_id === editId)) {
+      setExpandedTracker(`manga-${editId}`);
+      return;
+    }
+    if (watchlist.some((item) => item.mal_id === editId)) {
+      setMediaTab("anime");
+      setExpandedTracker(`anime-${editId}`);
+    }
+  }, [searchParams, watchlist, mangaWatchlist]);
 
   const closeTracker = () => {
     setExpandedTracker(null);
@@ -536,8 +1083,16 @@ export const Watchlist: React.FC = () => {
           .filter(Boolean)
           .sort();
         const notes = members
-          .filter((item) => item.personalNotes)
-          .map((item) => ({ title: item.title, note: item.personalNotes }));
+          .flatMap((item) =>
+            (Array.isArray(item.progressNotes) ? item.progressNotes : []).map((entry) => ({
+              title: item.title,
+              note: entry.note,
+              progress: Number(entry.progress || 0),
+              createdAt: entry.createdAt || "",
+              unit: "Episode",
+            })),
+          )
+          .sort((a, b) => Date.parse(b.createdAt || "") - Date.parse(a.createdAt || ""));
         const statuses = [
           ...new Set(members.map((item) => item.status || "Plan to Watch")),
         ];
@@ -574,9 +1129,15 @@ export const Watchlist: React.FC = () => {
       .forEach((item) =>
         combined.push({
           ...item,
-          notes: item.personalNotes
-            ? [{ title: item.title, note: item.personalNotes }]
-            : [],
+          notes: (Array.isArray(item.progressNotes) ? item.progressNotes : [])
+            .map((entry) => ({
+              title: item.title,
+              note: entry.note,
+              progress: Number(entry.progress || 0),
+              createdAt: entry.createdAt || "",
+              unit: "Episode",
+            }))
+            .sort((a, b) => Date.parse(b.createdAt || "") - Date.parse(a.createdAt || "")),
           members: [item],
         }),
       );
@@ -1050,16 +1611,23 @@ export const Watchlist: React.FC = () => {
                           : "No start date"}
                         {item.endDate ? ` · through ${item.endDate}` : ""}
                       </small>
-                      {item.notes.length > 0 && (
-                        <div className="tracker-franchise-card__notes">
-                          {item.notes.map((note: any) => (
-                            <span key={`${note.title}-${note.note}`}>
-                              <strong>{note.title}</strong>
-                              {note.note}
+                      <div className="tracker-franchise-card__notes">
+                        {item.notes.length > 0 && (
+                          <>
+                          {item.notes.slice(0, 2).map((note: any) => (
+                            <span key={`${note.title}-${note.progress}-${note.createdAt}`}>
+                              <strong>{note.title} · Episode {note.progress}</strong>
+                              <i>{note.note}</i>
                             </span>
                           ))}
-                        </div>
-                      )}
+                          </>
+                        )}
+                        <button type="button" onClick={() => openFranchiseMemories(item)} aria-haspopup="dialog">
+                          <MessageSquare size={12} />
+                          Franchise log ({item.notes.length})
+                          {item.notes.length > 2 && <b>+{item.notes.length - 2} more</b>}
+                        </button>
+                      </div>
                     </div>
                     <div className="tracker-card__actions">
                       <Link to={`/franchise/${item.mal_id}`}>
@@ -1096,13 +1664,27 @@ export const Watchlist: React.FC = () => {
                 <div className="tracker-card__content">
                   <div className="tracker-card__summary">
                     <div className="tracker-card__topline">
-                      <span>{item.status || "Plan to Watch"}</span>
+                      <div className="tracker-card__status-group">
+                        <span>{item.status || "Plan to Watch"}</span>
+                        {item.status === "Watching" && (
+                          <button
+                            type="button"
+                            className={`tracker-card__current-toggle ${item.isCurrent ? "is-current" : ""}`}
+                            aria-pressed={Boolean(item.isCurrent)}
+                            title={item.isCurrent ? "Remove from the top of your home progress deck" : "Show first in your home progress deck"}
+                            onClick={() => void setCurrentAnime(item.isCurrent ? null : item.mal_id)}
+                          >
+                            <Pin size={11} fill={item.isCurrent ? "currentColor" : "none"} />
+                            Current
+                          </button>
+                        )}
+                      </div>
                       <b className={`tracker-card__user-score ${Number(item.userScore) > 0 ? "" : "is-empty"}`} title="Your personal rating">
                         <Star size={12} fill={Number(item.userScore) > 0 ? "currentColor" : "none"} />
                         {personalScoreLabel(item.userScore)}
                       </b>
                     </div>
-                    <p>{item.personalNotes || "No personal note yet"}</p>
+                    <p>{item.personalNotes ? plainDiaryText(item.personalNotes) : "No personal note yet"}</p>
                     <small>
                       <b className={`tracker-card__progress-tag ${Number(item.episodes) > 0 && Number(item.progress) >= Number(item.episodes) ? "is-complete" : ""}`}>
                         {item.progress || 0}
@@ -1117,18 +1699,10 @@ export const Watchlist: React.FC = () => {
                     </small>
                   </div>
                   <div className="tracker-card__actions">
-                    {item.status === "Watching" && (
-                      <button
-                        type="button"
-                        className={item.isCurrent ? "is-current" : ""}
-                        aria-pressed={Boolean(item.isCurrent)}
-                        title={item.isCurrent ? "Remove from the top of your home progress deck" : "Show first in your home progress deck"}
-                        onClick={() => void setCurrentAnime(item.isCurrent ? null : item.mal_id)}
-                      >
-                        <Pin size={13} fill={item.isCurrent ? "currentColor" : "none"} />
-                        {item.isCurrent ? "Current" : "Set current"}
-                      </button>
-                    )}
+                    <button type="button" className="is-memory" aria-haspopup="dialog" onClick={() => openSeriesMemories(item, "anime")}>
+                      <MessageSquare size={13} />
+                      Episode log ({item.progressNotes?.length || 0})
+                    </button>
                     <button
                       type="button"
                       aria-haspopup="dialog"
@@ -1193,7 +1767,7 @@ export const Watchlist: React.FC = () => {
                         {personalScoreLabel(item.userScore)}
                       </b>
                     </div>
-                    <p>{item.personalNotes || "No personal note yet"}</p>
+                    <p>{item.personalNotes ? plainDiaryText(item.personalNotes) : "No personal note yet"}</p>
                     <small>
                       <b className={`tracker-card__progress-tag ${Number(item.chapters) > 0 && Number(item.progress) >= Number(item.chapters) ? "is-complete" : ""}`}>
                         {item.progress || 0}
@@ -1208,6 +1782,10 @@ export const Watchlist: React.FC = () => {
                     </small>
                   </div>
                   <div className="tracker-card__actions">
+                    <button type="button" className="is-memory" aria-haspopup="dialog" onClick={() => openSeriesMemories(item, "manga")}>
+                      <MessageSquare size={13} />
+                      Chapter log ({item.progressNotes?.length || 0})
+                    </button>
                     <button
                       type="button"
                       aria-haspopup="dialog"
@@ -1375,6 +1953,28 @@ export const Watchlist: React.FC = () => {
           </div>
         )}
 
+        {memoryLog && activeLogTargets.length > 0 &&
+          createPortal(
+            <ProgressLogDialog
+              title={memoryLog.title}
+              targets={activeLogTargets}
+              onClose={() => setMemoryLog(null)}
+              onUpdate={async (target, progressNotes, progress) => {
+                if (target.mediaType === "manga")
+                  await updateMangaWatchlistEntry(target.id, { progressNotes, progress });
+                else
+                  await updateWatchlistEntry(target.id, { progressNotes, progress });
+              }}
+              onPersonalNoteUpdate={async (target, personalNotes) => {
+                if (target.mediaType === "manga")
+                  await updateMangaWatchlistEntry(target.id, { personalNotes });
+                else
+                  await updateWatchlistEntry(target.id, { personalNotes });
+              }}
+            />,
+            document.body,
+          )}
+
         {trackerItem &&
           createPortal(
             <div
@@ -1419,6 +2019,21 @@ export const Watchlist: React.FC = () => {
                     <X size={19} />
                   </button>
                 </header>
+                <button
+                  type="button"
+                  className="tracker-editor-modal__series-log"
+                  aria-haspopup="dialog"
+                  onClick={() => openSeriesMemories(trackerItem, trackerMediaType)}
+                >
+                  <span>
+                    <MessageSquare size={17} />
+                    <span>
+                      <b>{trackerMediaType === "manga" ? "Open chapter log" : "Open episode log"}</b>
+                      <small>Add or revisit thoughts saved throughout this {trackerMediaType === "manga" ? "manga" : "series"}.</small>
+                    </span>
+                  </span>
+                  <strong>{trackerItem.progressNotes?.length || 0}</strong>
+                </button>
                 <TrackerFields
                   key={expandedTracker}
                   mediaType={trackerMediaType}

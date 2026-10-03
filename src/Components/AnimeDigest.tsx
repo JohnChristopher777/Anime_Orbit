@@ -1,11 +1,12 @@
 import React from "react";
-import { AlertTriangle, Bell, CheckCheck, ExternalLink, Heart, Lightbulb, MessageSquareReply, Newspaper, Quote, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, Bell, CheckCheck, ExternalLink, Heart, Lightbulb, MessageSquareReply, Newspaper, RefreshCw, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import Footer from "./Footer";
 import ProgressiveImage from "./ProgressiveImage";
 import SEO from "./SEO";
 import { useAuth } from "../context/AuthContext";
 import { useNotifications } from "../hooks/useNotifications";
+import { serverApiUrl } from "../services/serverApi";
 
 interface DigestData {
   quote: { content: string; anime: string; character: string; characterImage?: string; characterId?: number; source: string } | null;
@@ -26,7 +27,8 @@ const AnimeDigest: React.FC = () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(refresh ? `/api/anime-digest?refresh=1&t=${Date.now()}` : "/api/anime-digest", { headers: { Accept: "application/json" }, cache: refresh ? "no-store" : "default" });
+      const params = refresh ? new URLSearchParams({ refresh: "1", t: String(Date.now()) }) : undefined;
+      const response = await fetch(serverApiUrl("anime-digest", params), { headers: { Accept: "application/json" }, cache: refresh ? "no-store" : "default" });
       if (!response.ok) throw new Error("Digest unavailable");
       const payload = await response.json();
       const next = {
@@ -89,7 +91,7 @@ const AnimeDigest: React.FC = () => {
 
             <aside className="digest-side">
               {digest.quote && <article className="digest-quote">
-                <div className="digest-quote__portrait">{digest.quote.characterImage ? <ProgressiveImage src={digest.quote.characterImage} alt={digest.quote.character} wrapperClassName="h-full w-full" className="h-full w-full object-cover" /> : <Quote size={30} />}</div>
+                <div className="digest-quote__portrait"><ProgressiveImage src={digest.quote.characterImage} fallbackSrc="/noimage.jpg" alt={digest.quote.character || "Character placeholder artwork"} wrapperClassName="h-full w-full" className="h-full w-full object-cover" /></div>
                 <div><span><Sparkles size={14} />Quote of the moment</span><blockquote>“{digest.quote.content}”</blockquote><p>{digest.quote.character}</p><small>{digest.quote.anime} · {digest.quote.source}</small>{digest.quote.characterId && <Link to={`/character/${digest.quote.characterId}`}>View character</Link>}</div>
               </article>}
 

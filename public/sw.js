@@ -1,4 +1,4 @@
-const CACHE_VERSION = "anime-orbit-shell-v2";
+const CACHE_VERSION = "anime-orbit-shell-v6";
 const APP_SHELL = ["/", "/manifest.json", "/pwa-icon-192.png", "/pwa-icon-512.png"];
 
 self.addEventListener("install", (event) => {

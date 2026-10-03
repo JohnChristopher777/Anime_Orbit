@@ -147,10 +147,11 @@ export const Gallery: React.FC = () => {
         </header>
 
         <section className="character-gallery-stage" aria-label={`${characterName} image gallery`}>
-          {currentImage ? (
+          {currentImage || !loading ? (
             <ProgressiveImage
               src={currentImage}
-              alt={`${characterName} artwork ${index + 1}`}
+              fallbackSrc="/noimage.jpg"
+              alt={currentImage ? `${characterName} artwork ${index + 1}` : `${characterName} placeholder artwork`}
               wrapperClassName="character-gallery-image"
               className="h-full w-full object-contain"
             />
@@ -193,7 +194,7 @@ export const Gallery: React.FC = () => {
         <section className="character-voice-section">
           <header><div><span><Mic2 size={14} />{voiceLanguage === "JAPANESE" ? "Japanese" : "English"} voice cast</span><h2>Voices behind {characterName}</h2><p>Choose a language, then open an actor to see their complete role history.</p></div><div className="character-voice-language" role="group" aria-label="Voice language"><button type="button" className={voiceLanguage === "JAPANESE" ? "is-active" : ""} onClick={() => setVoiceLanguage("JAPANESE")}>Japanese</button><button type="button" className={voiceLanguage === "ENGLISH" ? "is-active" : ""} onClick={() => setVoiceLanguage("ENGLISH")}>English</button></div><b>{voiceActors.length} actors</b></header>
           {voiceActors.length ? <div className="character-voice-grid">{voiceActors.map((actor) => <Link to={`/voice-actor/${actor.id}`} key={actor.id}>
-            <ProgressiveImage src={actor.image?.large || actor.image?.medium} alt={actor.name?.full} wrapperClassName="character-voice-image" className="h-full w-full object-cover" />
+            <ProgressiveImage src={actor.image?.large || actor.image?.medium} fallbackSrc="/noimage.jpg" alt={actor.name?.full} wrapperClassName="character-voice-image" className="h-full w-full object-cover" />
             <div><span>{actor.languageV2 || "Japanese"}</span><h3>{actor.name?.full}</h3><p><Calendar size={13} />{actor.latestMedia?.startDate?.year || "Year unknown"} · {actor.latestMedia?.title?.english || actor.latestMedia?.title?.romaji || "Anime role"}</p></div><ArrowRight size={17} />
           </Link>)}</div> : <div className="finder-empty">No voice cast allowed by the current mature-content preference was returned.</div>}
         </section>
