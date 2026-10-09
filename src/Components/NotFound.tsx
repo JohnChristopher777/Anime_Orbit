@@ -10,7 +10,7 @@ export const NotFound: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col"><main className="min-h-[75vh] flex flex-1 items-center justify-center px-5 py-16">
-      <SEO title="Page Not Found" description="This page could not be found on Anime Orbit." noIndex />
+      <SEO title="Page Not Found" description="This page could not be found on Anime Helix." noIndex />
       <div className="w-full max-w-lg text-center">
         <ProgressiveImage
           src="/lost.jpg"
@@ -19,7 +19,7 @@ export const NotFound: React.FC = () => {
           wrapperClassName="w-44 h-44 sm:w-52 sm:h-52 mx-auto rounded-full bg-white border border-white/10 shadow-2xl"
           className="w-full h-full object-contain p-5"
         />
-        <span className="mt-7 block text-xs font-bold uppercase tracking-[0.2em] text-[#ffd700]">404 · Lost in orbit</span>
+        <span className="mt-7 block text-xs font-bold uppercase tracking-[0.2em] text-[#ffd700]">404 · Strand not found</span>
         <h1 className="mt-2 font-montserrat text-2xl sm:text-4xl font-bold tracking-tight">Even Zoro couldn’t find this page.</h1>
         <p className="mt-3 text-sm leading-relaxed text-neutral-400">The anime or manga address may have changed, or this route never existed.</p>
         <div className="mt-7 flex flex-wrap items-center justify-center gap-3">

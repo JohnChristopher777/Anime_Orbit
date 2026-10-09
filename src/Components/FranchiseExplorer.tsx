@@ -112,26 +112,26 @@ export default function FranchiseExplorer() {
   return (
     <div className="min-h-screen bg-transparent text-white">
       <SEO
-        title="Anime Franchise Rankings | Anime Orbit"
+        title="Anime Franchise Rankings | Anime Helix"
         description="Explore connected anime seasons, movies, OVAs and source manga as complete franchises."
         keywords="anime franchises, anime watch order, connected anime seasons"
-        url="https://animeorbit.web.app/franchises"
+        url="https://animehelix.web.app/franchises"
         pageType="CollectionPage"
         structuredData={{
           "@type": "ItemList",
-          "@id": "https://animeorbit.web.app/franchises#franchise-list",
+          "@id": "https://animehelix.web.app/franchises#franchise-list",
           name: "Anime franchise guides",
           numberOfItems: visible.length,
           itemListElement: visible.slice(0, 50).map((group, index) => ({
             "@type": "ListItem",
             position: index + 1,
             name: group.title_english || group.title,
-            url: `https://animeorbit.web.app/franchise/${group.mal_id}`,
+            url: `https://animehelix.web.app/franchise/${group.mal_id}`,
           })),
         }}
         breadcrumbs={[
-          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
-          { name: "Franchise library", url: "https://animeorbit.web.app/franchises" },
+          { name: "Anime Helix", url: "https://animehelix.web.app/" },
+          { name: "Franchise library", url: "https://animehelix.web.app/franchises" },
         ]}
       />
       <main className="franchise-page">

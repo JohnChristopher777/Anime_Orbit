@@ -16,23 +16,23 @@ export const AboutUs: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col"><main className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-10 sm:space-y-12 flex-1">
       <SEO
-        title="About Anime Orbit"
-        description="Anime Orbit is a state-of-the-art anime discovery hub featuring real-time ratings, chronological relations, episode guides, community reviews, and watchlist sync across all genres."
-        keywords="about anime orbit, anime database, anime guide, anime compass"
-        url="https://animeorbit.web.app/about"
+        title="About Anime Helix"
+        description="Anime Helix connects every strand of your anime and manga journey with watchlists, episode and chapter notes, chronological guides, reviews, ratings, and tier lists."
+        keywords="about Anime Helix, anime tracker, manga tracker, anime guide, episode notes, tier lists"
+        url="https://animehelix.web.app/about"
         noIndex
       />
       {/* Hero Section */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
         <div className="inline-flex items-center gap-2 bg-[#ffd700]/15 border border-[#ffd700]/40 text-[#ffd700] px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider font-montserrat">
           <Sparkles size={14} />
-          <span>About Anime Orbit</span>
+          <span>About Anime Helix</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-bold font-staatliches uppercase tracking-wider text-white">
           The Ultimate Interactive Anime Database
         </h1>
         <p className="text-neutral-300 text-sm sm:text-base leading-relaxed">
-          Anime Orbit is a state-of-the-art anime multiverse discovery hub. Featuring real-time ratings, full chronological relation timelines, episode guides for 1000+ episode series, community discussions, and personal watchlist sync.
+          Anime Helix connects every strand of your anime and manga journey: real-time ratings, chronological franchise paths, episode and chapter logs, reviews, tier lists, and a personal watchlist that syncs across devices.
         </p>
       </div>
 

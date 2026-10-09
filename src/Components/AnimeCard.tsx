@@ -3,6 +3,19 @@ import { Link } from "react-router-dom";
 import { Star, Trash } from "lucide-react";
 import ProgressiveImage from "./ProgressiveImage";
 
+const prefetchedDetails = new Set<string>();
+
+const prefetchDetails = (mediaType: "anime" | "manga", id: number) => {
+  const key = `${mediaType}-${id}`;
+  if (prefetchedDetails.has(key)) return;
+  prefetchedDetails.add(key);
+  void import("../services/anilist")
+    .then((service) => mediaType === "manga"
+      ? service.getMangaDetailsCombined(id)
+      : service.getAnimeDetailsCombined(id))
+    .catch(() => prefetchedDetails.delete(key));
+};
+
 export interface AnimeCardProps {
   anime: {
     mal_id: number;
@@ -52,6 +65,8 @@ export const AnimeCard = React.forwardRef<HTMLDivElement, AnimeCardProps>(
       >
         <Link
           to={`/${mediaType}/${anime.mal_id}`}
+          onPointerEnter={() => prefetchDetails(mediaType, anime.mal_id)}
+          onFocus={() => prefetchDetails(mediaType, anime.mal_id)}
           className={`flex flex-col text-inherit no-underline ${compact ? "" : "flex-grow"}`}
         >
           {/* Cover Image Wrapper */}

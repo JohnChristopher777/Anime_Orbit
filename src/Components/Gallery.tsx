@@ -85,23 +85,23 @@ export const Gallery: React.FC = () => {
     ? [
         {
           "@type": "Person",
-          "@id": `https://animeorbit.web.app/character/${id}#character`,
+          "@id": `https://animehelix.web.app/character/${id}#character`,
           name: characterName,
           alternateName: characterDetails.name?.native || undefined,
           description: characterSummary,
           image: characterImage || undefined,
-          url: `https://animeorbit.web.app/character/${id}`,
+          url: `https://animehelix.web.app/character/${id}`,
         },
         {
           "@type": "ItemList",
-          "@id": `https://animeorbit.web.app/character/${id}#voice-cast`,
+          "@id": `https://animehelix.web.app/character/${id}#voice-cast`,
           name: `Voice actors for ${characterName}`,
           numberOfItems: voiceActors.length,
           itemListElement: voiceActors.map((actor, actorIndex) => ({
             "@type": "ListItem",
             position: actorIndex + 1,
             name: actor.name?.full || "Voice actor",
-            url: `https://animeorbit.web.app/voice-actor/${actor.id}`,
+            url: `https://animehelix.web.app/voice-actor/${actor.id}`,
           })),
         },
       ]
@@ -112,15 +112,15 @@ export const Gallery: React.FC = () => {
       <SEO
         title={`${characterName} - Character Artwork & Gallery`}
         description={characterSummary}
-        keywords={`${characterName}, anime character, ${characterName} voice actor, anime artwork, character gallery, Anime Orbit`}
-        image={characterImage || "https://animeorbit.web.app/animeorbit.jpg"}
-        url={`https://animeorbit.web.app/character/${id}`}
+        keywords={`${characterName}, anime character, ${characterName} voice actor, anime artwork, character gallery, Anime Helix`}
+        image={characterImage || "https://animehelix.web.app/animehelix.jpg"}
+        url={`https://animehelix.web.app/character/${id}`}
         pageType="ItemPage"
         structuredData={characterStructuredData}
         breadcrumbs={[
-          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
-          { name: "Character finder", url: "https://animeorbit.web.app/discovery/characters" },
-          { name: characterName, url: `https://animeorbit.web.app/character/${id}` },
+          { name: "Anime Helix", url: "https://animehelix.web.app/" },
+          { name: "Character finder", url: "https://animehelix.web.app/discovery/characters" },
+          { name: characterName, url: `https://animehelix.web.app/character/${id}` },
         ]}
         noIndex={detailsUnavailable && !loading && !optimizedPictures.length}
       />

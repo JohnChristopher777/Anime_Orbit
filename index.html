@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-icon-192.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#ffd700" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#000000" />
     <meta name="color-scheme" content="dark" />
@@ -16,61 +19,67 @@
     </style>
 
     <!-- Primary Meta Tags for Search Engines & SEO -->
-    <title>Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking</title>
+    <title>Anime Helix | Track Anime &amp; Manga, Notes, Reviews &amp; Tier Lists</title>
     <meta
       name="title"
-      content="Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking"
+      content="Anime Helix | Track Anime &amp; Manga, Notes, Reviews &amp; Tier Lists"
     />
     <meta
       name="description"
-      content="Anime Orbit helps you discover anime and manga, browse episode and chapter guides, track watchlists, build tier lists, and join community discussions."
+      content="Anime Helix is your anime and manga tracking DNA: keep watchlists, episode and chapter notes, reviews, ratings, tier lists, franchise guides, and discovery tools in one place."
     />
     <meta
       name="keywords"
-      content="Anime Orbit, anime database, all genre anime, anime compass, One Piece, Naruto Shippuden, Bleach Thousand-Year Blood War, Vinland Saga, Jujutsu Kaisen, Attack on Titan, Solo Leveling, Demon Slayer, Frieren, anime episode guide, anime characters, anime reviews, anime watchlist"
+      content="Anime Helix, anime tracker, manga tracker, anime watchlist, episode notes, manga chapter log, anime tier list, anime reviews, anime ratings, franchise watch order, One Piece, Naruto, Attack on Titan, Jujutsu Kaisen, Solo Leveling, Demon Slayer, Frieren, anime characters, voice actors"
     />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-    <meta name="author" content="Anime Orbit" />
+    <meta name="author" content="Anime Helix" />
     <!-- Route-specific canonicals are injected by the application after routing.
          Keeping a root canonical here would incorrectly canonicalize every SPA detail URL. -->
 
     <!-- Open Graph / Facebook / Discord SEO -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://animeorbit.web.app/" />
+    <meta property="og:url" content="https://animehelix.web.app/" />
     <meta
       property="og:title"
-      content="Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking"
+      content="Anime Helix | Track Anime &amp; Manga, Notes, Reviews &amp; Tier Lists"
     />
     <meta
       property="og:description"
       content="Discover anime and manga, browse episode and chapter guides, track watchlists, build tier lists, and join community discussions."
     />
-    <meta property="og:image" content="https://animeorbit.web.app/animeorbit.jpg" />
-    <meta property="og:image:alt" content="Anime Orbit - Anime Compass Logo" />
-    <meta property="og:site_name" content="Anime Orbit" />
+    <meta property="og:image" content="https://animehelix.web.app/icon/one-piece-luffy-5.png" />
+    <meta property="og:image:secure_url" content="https://animehelix.web.app/icon/one-piece-luffy-5.png" />
+    <meta property="og:image:alt" content="Monkey D. Luffy from One Piece on Anime Helix" />
+    <meta property="og:site_name" content="Anime Helix" />
 
     <!-- Twitter Card SEO -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://animeorbit.web.app/" />
+    <meta name="twitter:url" content="https://animehelix.web.app/" />
     <meta
       name="twitter:title"
-      content="Anime Orbit | Anime &amp; Manga Discovery, Guides &amp; Tracking"
+      content="Anime Helix | Track Anime &amp; Manga, Notes, Reviews &amp; Tier Lists"
     />
     <meta
       name="twitter:description"
-      content="Discover anime and manga, browse guides, track watchlists, build tier lists, and join the Anime Orbit community."
+      content="Discover anime and manga, browse guides, track watchlists, build tier lists, and join the Anime Helix community."
     />
-    <meta name="twitter:image" content="https://animeorbit.web.app/animeorbit.jpg" />
+    <meta name="twitter:image" content="https://animehelix.web.app/icon/one-piece-luffy-5.png" />
+    <meta name="twitter:image:alt" content="Monkey D. Luffy from One Piece on Anime Helix" />
+    <meta name="thumbnail" content="https://animehelix.web.app/icon/one-piece-luffy-5.png" />
+    <link rel="image_src" href="https://animehelix.web.app/icon/one-piece-luffy-5.png" />
 
     <!-- Mobile & PWA Optimization -->
-    <meta name="application-name" content="Anime Orbit" />
+    <meta name="application-name" content="Anime Helix" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Anime Orbit" />
+    <meta name="apple-mobile-web-app-title" content="Anime Helix" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="msapplication-TileColor" content="#000000" />
-    <link rel="apple-touch-icon" sizes="192x192" href="/pwa-icon-192.png" />
+    <meta name="msapplication-TileImage" content="/pwa-icon-192.png" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json" />
@@ -81,7 +90,7 @@
     <link rel="preconnect" href="https://s4.anilist.co" crossorigin />
     <link rel="dns-prefetch" href="https://graphql.anilist.co" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Staatliches&family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Montserrat:wght@400;500;600;700&family=Staatliches&family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
@@ -92,23 +101,26 @@
         "@graph": [
           {
             "@type": "WebSite",
-            "@id": "https://animeorbit.web.app/#website",
-            "url": "https://animeorbit.web.app/",
-            "name": "Anime Orbit",
-            "alternateName": ["AnimeOrbit", "Anime Orbit App"],
-            "description": "Anime and manga discovery, episode and chapter guides, watchlists, tier lists, and community discussions.",
+            "@id": "https://animehelix.web.app/#website",
+            "url": "https://animehelix.web.app/",
+            "name": "Anime Helix",
+            "alternateName": ["AnimeHelix", "Anime Helix App", "animehelix.web.app"],
+            "description": "Anime and manga tracking with episode and chapter notes, watchlists, ratings, tier lists, reviews, franchise guides, and discovery tools.",
             "inLanguage": "en",
-            "publisher": { "@id": "https://animeorbit.web.app/#organization" }
+            "publisher": { "@id": "https://animehelix.web.app/#organization" }
           },
           {
             "@type": "Organization",
-            "@id": "https://animeorbit.web.app/#organization",
-            "name": "Anime Orbit",
-            "alternateName": ["AnimeOrbit", "Anime Orbit App"],
-            "url": "https://animeorbit.web.app/",
+            "@id": "https://animehelix.web.app/#organization",
+            "name": "Anime Helix",
+            "alternateName": ["AnimeHelix", "Anime Helix App"],
+            "url": "https://animehelix.web.app/",
             "logo": {
               "@type": "ImageObject",
-              "url": "https://animeorbit.web.app/icon.png"
+              "url": "https://animehelix.web.app/pwa-icon-512.png",
+              "contentUrl": "https://animehelix.web.app/pwa-icon-512.png",
+              "width": 512,
+              "height": 512
             }
           }
         ]
@@ -116,7 +128,7 @@
     </script>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to experience Anime Orbit.</noscript>
+    <noscript>You need to enable JavaScript to experience Anime Helix.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
   </body>

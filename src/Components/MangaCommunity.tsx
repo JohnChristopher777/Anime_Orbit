@@ -253,7 +253,7 @@ const MangaCommunity: React.FC<MangaCommunityProps> = ({ mangaId, title, image }
         });
         if (!disliked && nextCount >= 10) notify(comment.userId, `controversial-${comment.id}`, {
           type: "controversial",
-          actorName: "Anime Orbit",
+          actorName: "Anime Helix",
           actorAvatar: "/icon.png",
           commentId: comment.id,
           parentId: comment.parentId || comment.id,

@@ -18,6 +18,7 @@ import {
   BookOpen,
   Layers3,
   Flame,
+  Bell,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useGlobalContext } from "../context/global";
@@ -88,8 +89,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Drawer */}
       <div
-        className={`fixed top-0 right-0 md:right-auto md:left-0 w-72 h-[100dvh] bg-[#121214]/95 backdrop-blur-xl border-l md:border-l-0 md:border-r border-white/10 text-white z-[1110] flex flex-col transition-transform duration-300 ease-out shadow-2xl overflow-hidden ${
-          isOpen ? "translate-x-0" : "translate-x-full md:-translate-x-full"
+        aria-hidden={!isOpen}
+        className={`fixed top-0 right-0 md:right-auto md:left-0 w-72 h-[100dvh] bg-[#121214]/95 backdrop-blur-xl border-l md:border-l-0 md:border-r border-white/10 text-white z-[1110] flex flex-col transition-[transform,opacity] duration-300 ease-out shadow-2xl overflow-hidden ${
+          isOpen
+            ? "translate-x-0 opacity-100 pointer-events-auto"
+            : "translate-x-full md:-translate-x-full opacity-0 pointer-events-none"
         }`}
       >
         <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-white/10 bg-[#121214] px-5">
@@ -164,6 +168,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Search size={18} className="text-[#ffd700]" />
             <span>Anime Discover</span>
+          </Link>
+
+          <Link
+            to="/digest"
+            onClick={() => handleLinkClick("/digest")}
+            className={navClass("/digest")}
+          >
+            <Bell size={18} className="text-[#ffd700]" />
+            <span>Notifications & Digest</span>
           </Link>
 
           <Link

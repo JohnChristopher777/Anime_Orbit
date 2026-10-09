@@ -19,7 +19,7 @@ export interface MediaGuideEntry {
 
 interface MediaEntryDialogProps {
   entry: MediaGuideEntry | null;
-  kind: "episode" | "chapter";
+  kind: "episode" | "chapter" | "movie";
   seriesTitle: string;
   fallbackImage?: string;
   onClose: () => void;
@@ -27,6 +27,8 @@ interface MediaEntryDialogProps {
   onNext?: () => void;
   hasPrevious?: boolean;
   hasNext?: boolean;
+  presentation?: "dialog" | "side-file";
+  stackedOverDialog?: boolean;
 }
 
 const readableDate = (value?: string | null) => {
@@ -47,6 +49,8 @@ const MediaEntryDialog: React.FC<MediaEntryDialogProps> = ({
   onNext,
   hasPrevious = false,
   hasNext = false,
+  presentation = "dialog",
+  stackedOverDialog = false,
 }) => {
   useEffect(() => {
     if (!entry) return;
@@ -66,7 +70,7 @@ const MediaEntryDialog: React.FC<MediaEntryDialogProps> = ({
 
   if (!entry || typeof document === "undefined") return null;
 
-  const label = kind === "episode" ? "Episode" : "Chapter";
+  const label = kind === "movie" ? "Movie" : kind === "episode" ? "Episode" : "Chapter";
   const publishedDate = readableDate(entry.aired);
   const visual = entry.thumbnail || fallbackImage;
   const summary = entry.summary?.trim()
@@ -75,10 +79,10 @@ const MediaEntryDialog: React.FC<MediaEntryDialogProps> = ({
       : `No published synopsis is available for this ${kind}.`);
 
   return createPortal(
-    <div className="media-entry-dialog__backdrop" role="presentation" onMouseDown={onClose}>
+    <div className={`media-entry-dialog__backdrop ${presentation === "side-file" ? "is-side-file" : ""} ${stackedOverDialog ? "is-over-dialog" : ""}`} role="presentation" onMouseDown={onClose}>
       <div className="media-entry-dialog__shell" onMouseDown={(event) => event.stopPropagation()}>
         <section
-          className="media-entry-dialog"
+          className={`media-entry-dialog ${presentation === "side-file" ? "is-side-file" : ""}`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="media-entry-dialog-title"
@@ -98,11 +102,11 @@ const MediaEntryDialog: React.FC<MediaEntryDialogProps> = ({
             />
           ) : (
             <div className="media-entry-dialog__placeholder">
-              {kind === "episode" ? <Film size={34} /> : <BookOpen size={34} />}
+              {kind === "chapter" ? <BookOpen size={34} /> : <Film size={34} />}
             </div>
           )}
           <div className="media-entry-dialog__visual-shade" />
-          <span className="media-entry-dialog__number">{label} {entry.number}</span>
+          <span className="media-entry-dialog__number">{kind === "movie" ? label : `${label} ${entry.number}`}</span>
         </div>
 
         <div className="media-entry-dialog__content">
@@ -110,17 +114,17 @@ const MediaEntryDialog: React.FC<MediaEntryDialogProps> = ({
           <h2 id="media-entry-dialog-title">{entry.title || `${label} ${entry.number}`}</h2>
           <div className="media-entry-dialog__meta">
             {publishedDate && <span><CalendarDays size={15} /> {publishedDate}</span>}
-            {kind === "episode" && Number(entry.length) > 0 && <span><Clock3 size={15} /> {entry.length} min</span>}
+            {(kind === "episode" || kind === "movie") && Number(entry.length) > 0 && <span><Clock3 size={15} /> {entry.length} min</span>}
             {kind === "chapter" && Number(entry.pages) > 0 && <span><BookOpen size={15} /> {entry.pages} pages</span>}
             {(entry.source || entry.site) && <span>Source: {entry.source || entry.site}</span>}
           </div>
           <p className="media-entry-dialog__summary">{summary}</p>
 
           <div className="media-entry-dialog__footer">
-            <div className="media-entry-dialog__nav media-entry-dialog__nav--desktop">
+            {kind !== "movie" && <div className="media-entry-dialog__nav media-entry-dialog__nav--desktop">
               <button type="button" onClick={onPrevious} disabled={!hasPrevious}><ChevronLeft size={16} /> Previous</button>
               <button type="button" onClick={onNext} disabled={!hasNext}>Next <ChevronRight size={16} /></button>
-            </div>
+            </div>}
             {entry.externalUrl && (
               <a href={entry.externalUrl} target="_blank" rel="noopener noreferrer">
                 Open source <ExternalLink size={15} />
@@ -129,10 +133,10 @@ const MediaEntryDialog: React.FC<MediaEntryDialogProps> = ({
           </div>
         </div>
         </section>
-        <div className="media-entry-dialog__nav media-entry-dialog__nav--mobile" aria-label={`${label} navigation`}>
+        {kind !== "movie" && <div className="media-entry-dialog__nav media-entry-dialog__nav--mobile" aria-label={`${label} navigation`}>
           <button type="button" onClick={onPrevious} disabled={!hasPrevious}><ChevronLeft size={18} /> Previous</button>
           <button type="button" onClick={onNext} disabled={!hasNext}>Next <ChevronRight size={18} /></button>
-        </div>
+        </div>}
       </div>
     </div>,
     document.body,

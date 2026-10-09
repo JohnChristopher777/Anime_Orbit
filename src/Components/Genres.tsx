@@ -320,20 +320,20 @@ export const Genres: React.FC = () => {
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
       <SEO
         title={`${activeGenre} ${activeMedia === "manga" ? "Manga" : "Anime"} - Popular Titles`}
-        description={`Browse top-rated ${activeGenre} ${activeMedia} on Anime Orbit.`}
-        keywords={`${activeGenre} ${activeMedia}, top ${activeGenre} ${activeMedia}, ${activeMedia} genres, Anime Orbit`}
-        url={`https://animeorbit.web.app/genres?genre=${encodeURIComponent(activeGenre)}&media=${activeMedia}`}
+        description={`Browse top-rated ${activeGenre} ${activeMedia} on Anime Helix.`}
+        keywords={`${activeGenre} ${activeMedia}, top ${activeGenre} ${activeMedia}, ${activeMedia} genres, Anime Helix`}
+        url={`https://animehelix.web.app/genres?genre=${encodeURIComponent(activeGenre)}&media=${activeMedia}`}
         pageType="CollectionPage"
         structuredData={{
           "@type": "ItemList",
-          "@id": `https://animeorbit.web.app/genres?genre=${encodeURIComponent(activeGenre)}&media=${activeMedia}#titles`,
+          "@id": `https://animehelix.web.app/genres?genre=${encodeURIComponent(activeGenre)}&media=${activeMedia}#titles`,
           name: `${activeGenre} ${activeMedia} titles`,
           numberOfItems: animeList.length,
           itemListElement: animeList.slice(0, 50).map((item: any, index: number) => ({
             "@type": "ListItem",
             position: index + 1,
             name: item.title_english || item.title,
-            url: `https://animeorbit.web.app/${activeMedia === "manga" ? "manga" : "anime"}/${item.mal_id}`,
+            url: `https://animehelix.web.app/${activeMedia === "manga" ? "manga" : "anime"}/${item.mal_id}`,
           })),
         }}
       />

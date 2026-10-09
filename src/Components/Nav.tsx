@@ -214,7 +214,7 @@ export const Nav: React.FC = () => {
                 ANiME
               </span>
               <span className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                Orbit
+                Helix
               </span>
             </Link>
           </div>
@@ -283,7 +283,7 @@ export const Nav: React.FC = () => {
           </div>
 
           {/* Right Section: Search & User Auth */}
-          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+          <div className="mr-11 flex flex-shrink-0 items-center gap-1.5 sm:gap-3 md:mr-0">
             {/* Desktop / Tablet Search Input (md and up) */}
             <div ref={searchRef} className="hidden md:block relative">
               <form
@@ -485,26 +485,28 @@ export const Nav: React.FC = () => {
             ) : (
               <button
                 onClick={() => setAuthModalOpen(true)}
+                aria-label="Sign in"
                 className="flex items-center gap-1.5 bg-gradient-to-r from-[#ffd700] to-[#ffea00] text-neutral-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-montserrat font-bold text-xs sm:text-sm hover:scale-105 hover:shadow-[0_0_20px_rgba(255,215,0,0.5)] active:scale-95 transition-all duration-200 flex-shrink-0 cursor-pointer whitespace-nowrap"
               >
                 <User size={14} className="sm:w-4 sm:h-4" />
-                <span>Sign In</span>
+                <span className="hidden sm:inline">Sign In</span>
               </button>
             )}
 
-            {/* Mobile catalogue trigger stays at the far-right edge, matching
-                the direction from which the drawer enters. */}
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open Navigation Menu"
-              aria-expanded={sidebarOpen}
-              className="md:hidden inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-[#ffd700]/35 bg-[#ffd700]/10 text-[#ffd700] transition-all duration-200 hover:border-[#ffd700] hover:bg-[#ffd700]/20 active:scale-95"
-            >
-              <Menu size={18} />
-            </button>
           </div>
         </div>
+
+        {/* This is a direct child of the navbar so auth/search flex overflow can
+            never move or cover the mobile drawer control. */}
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open Navigation Menu"
+          aria-expanded={sidebarOpen}
+          className="mobile-sidebar-trigger absolute right-2 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl border border-[#ffd700]/35 bg-[#121214]/95 text-[#ffd700] shadow-lg transition-all duration-200 hover:border-[#ffd700] hover:bg-[#ffd700]/20 active:scale-95 md:hidden"
+        >
+          <Menu size={18} />
+        </button>
 
         {/* Compact mobile search below the navbar */}
         {mobileSearchOpen && (

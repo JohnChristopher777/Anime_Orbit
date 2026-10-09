@@ -128,9 +128,9 @@ export const MyComments: React.FC = () => {
       <div className="min-h-screen flex flex-col"><main className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 flex-1">
         <SEO
           title="My Comments - Anime Community Discussions"
-          description="View and manage your anime and manga community comments on Anime Orbit."
-          keywords="my anime comments, manga comments, community discussions, Anime Orbit"
-          url="https://animeorbit.web.app/my-comments"
+          description="View and manage your anime and manga community comments on Anime Helix."
+          keywords="my anime comments, manga comments, community discussions, Anime Helix"
+          url="https://animehelix.web.app/my-comments"
           noIndex
         />
         <MessageSquare size={56} className="mx-auto text-[#ffd700]" />
@@ -156,9 +156,9 @@ export const MyComments: React.FC = () => {
     <div className="min-h-screen flex flex-col"><main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6 sm:space-y-8 w-full flex-1">
       <SEO
         title="My Comments - Anime Community Discussions"
-        description="View and manage your anime and manga community comments on Anime Orbit."
-        keywords="my anime comments, manga comments, community discussions, Anime Orbit"
-        url="https://animeorbit.web.app/my-comments"
+        description="View and manage your anime and manga community comments on Anime Helix."
+        keywords="my anime comments, manga comments, community discussions, Anime Helix"
+        url="https://animehelix.web.app/my-comments"
         noIndex
       />
       {/* Header */}

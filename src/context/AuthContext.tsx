@@ -200,12 +200,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                             <i key={index} style={{ "--star-x": `${x}%`, "--star-y": `${y}%`, "--star-size": `${size}px`, "--star-delay": `${delay}s`, "--star-tone": `${tone}, ${tone}, ${tone}` } as React.CSSProperties} />
                         ))}
                     </div>
-                    <div className="auth-restoring__orbit-plane" aria-hidden="true">
-                        <i className="auth-restoring__orbit-ring" />
+                    <div className="auth-restoring__helix" aria-hidden="true">
+                        {Array.from({ length: 9 }, (_, index) => (
+                            <i key={index} style={{
+                                "--helix-step": index,
+                                "--helix-y": `${Math.sin((index / 8) * Math.PI * 2) * 48}px`,
+                            } as React.CSSProperties}>
+                                <b /><b />
+                            </i>
+                        ))}
                     </div>
                     <div className="auth-restoring__content">
-                        <div className="auth-restoring__wordmark" aria-label="Anime Orbit">
-                            <span>ANiME</span><b>Orbit</b>
+                        <div className="auth-restoring__wordmark" aria-label="Anime Helix">
+                            <span>ANiME</span><b>Helix</b>
                         </div>
                     </div>
                 </div>

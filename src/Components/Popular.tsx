@@ -116,20 +116,20 @@ export const Popular: React.FC<PopularProps> = ({ rendered = "popular", popularA
     <div className="min-h-screen flex flex-col"><main className="flex flex-col items-center py-8 px-4 flex-1">
       <SEO
         title={rendered === "search" ? "Search Anime Results" : "Top Rated & Most Popular Anime of All Time"}
-        description="Explore the highest-rated and most popular anime series and movies across all genres. Filter, search, and discover timeless masterpieces on Anime Orbit."
-        keywords="popular anime, top rated anime, best anime of all time, all genres, anime catalog, Anime Orbit"
-        url="https://animeorbit.web.app/popular"
+        description="Explore the highest-rated and most popular anime series and movies across all genres. Filter, search, and discover timeless masterpieces on Anime Helix."
+        keywords="popular anime, top rated anime, best anime of all time, all genres, anime catalog, Anime Helix"
+        url="https://animehelix.web.app/popular"
         pageType="CollectionPage"
         structuredData={{
           "@type": "ItemList",
-          "@id": "https://animeorbit.web.app/popular#anime-list",
+          "@id": "https://animehelix.web.app/popular#anime-list",
           name: "Top rated and popular anime",
           numberOfItems: visibleAnime.length,
           itemListElement: visibleAnime.slice(0, 50).map((anime, index) => ({
             "@type": "ListItem",
             position: index + 1,
             name: anime.title_english || anime.title,
-            url: `https://animeorbit.web.app/anime/${anime.mal_id}`,
+            url: `https://animehelix.web.app/anime/${anime.mal_id}`,
           })),
         }}
       />

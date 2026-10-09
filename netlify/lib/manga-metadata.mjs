@@ -17,7 +17,7 @@ async function fetchJson(url, attempts = 2) {
         signal: controller.signal,
         headers: {
           Accept: "application/json",
-          "User-Agent": "AnimeOrbit/1.0",
+          "User-Agent": "AnimeHelix/1.0",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
       });

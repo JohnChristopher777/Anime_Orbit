@@ -50,7 +50,7 @@ const AnimeDigest: React.FC = () => {
 
   return (
     <div className="digest-page">
-      <SEO title="Anime Digest - Quotes, Facts and Industry News" description="A focused anime news desk with current headlines, character quotes and researched fan facts." keywords="anime news, anime quotes, anime facts, anime digest" url="https://animeorbit.web.app/digest" pageType="CollectionPage" />
+      <SEO title="Anime Digest - Quotes, Facts and Industry News" description="A focused anime news desk with current headlines, character quotes and researched fan facts." keywords="anime news, anime quotes, anime facts, anime digest" url="https://animehelix.web.app/digest" pageType="CollectionPage" />
       <main className="digest-shell">
         <header className="digest-hero">
           <div className="digest-hero__signal"><Bell size={18} /><span>Anime desk</span><i /></div>

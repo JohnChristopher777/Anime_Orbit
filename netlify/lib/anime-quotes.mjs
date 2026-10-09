@@ -1,3 +1,5 @@
+import { repairProviderText } from "./text.mjs";
+
 const SOURCES = [
   "https://animechan.io/api/v1/quotes/random",
   "https://api.animechan.io/v1/quotes/random",
@@ -9,7 +11,12 @@ const normalise = (payload) => {
   const anime = row?.anime?.name || row?.anime || "";
   const character = row?.character?.name || row?.character || "";
   if (!content || !anime || !character) return null;
-  return { line: String(content), anime: String(anime), character: String(character), source: "AnimeChan" };
+  return {
+    line: repairProviderText(content),
+    anime: repairProviderText(anime),
+    character: repairProviderText(character),
+    source: "AnimeChan",
+  };
 };
 
 const normaliseRows = (payload) => {
@@ -28,7 +35,7 @@ const fetchJson = async (url) => {
   const timeout = setTimeout(() => controller.abort(), 7000);
   try {
     const response = await fetch(url, {
-      headers: { Accept: "application/json", "User-Agent": "AnimeOrbit/1.0" },
+      headers: { Accept: "application/json", "User-Agent": "AnimeHelix/1.0" },
       signal: controller.signal,
     });
     if (!response.ok) return null;

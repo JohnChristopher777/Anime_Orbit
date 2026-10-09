@@ -68,21 +68,21 @@ export const Manga: React.FC = () => {
   return (
     <div className="manga-catalog-page min-h-screen bg-[#07070b] text-white flex flex-col font-inter">
       <SEO
-        title="Manga Universe - Popular Series, Origins & Story Genesis | Anime Orbit"
-        description="Explore top-rated manga masterpieces, original source stories, light novels, and character genesis across all genres on Anime Orbit."
-        keywords="manga database, popular manga, manga story genesis, manga origins, read manga info, Anime Orbit"
-        url="https://animeorbit.web.app/manga"
+        title="Manga Universe - Popular Series, Origins & Story Genesis | Anime Helix"
+        description="Explore top-rated manga masterpieces, original source stories, light novels, and character genesis across all genres on Anime Helix."
+        keywords="manga database, popular manga, manga story genesis, manga origins, read manga info, Anime Helix"
+        url="https://animehelix.web.app/manga"
         pageType="CollectionPage"
         structuredData={{
           "@type": "ItemList",
-          "@id": "https://animeorbit.web.app/manga#manga-list",
+          "@id": "https://animehelix.web.app/manga#manga-list",
           name: "Popular manga and light novels",
           numberOfItems: mangaList.length,
           itemListElement: mangaList.slice(0, 50).map((manga, index) => ({
             "@type": "ListItem",
             position: index + 1,
             name: manga.title_english || manga.title,
-            url: `https://animeorbit.web.app/manga/${manga.mal_id}`,
+            url: `https://animehelix.web.app/manga/${manga.mal_id}`,
           })),
         }}
       />

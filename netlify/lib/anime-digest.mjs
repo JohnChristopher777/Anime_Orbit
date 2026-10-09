@@ -1,3 +1,5 @@
+import { repairProviderText } from "./text.mjs";
+
 const REQUEST_TIMEOUT_MS = 7000;
 let cachedDigest = null;
 
@@ -15,7 +17,7 @@ async function fetchRemote(url, type = "json") {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { Accept: type === "json" ? "application/json" : "application/rss+xml, application/xml, text/xml", "User-Agent": "AnimeOrbit/1.0" },
+      headers: { Accept: type === "json" ? "application/json" : "application/rss+xml, application/xml, text/xml", "User-Agent": "AnimeHelix/1.0" },
     });
     if (!response.ok) throw new Error(`Remote provider returned ${response.status}`);
     return type === "json" ? response.json() : response.text();
@@ -60,8 +62,8 @@ async function getQuote() {
     row = ARCHIVE_QUOTES[Math.floor(Date.now() / 86400000) % ARCHIVE_QUOTES.length];
   }
   if (!row?.content) row = ARCHIVE_QUOTES[0];
-  const anime = String(row.anime?.name || row.anime || "Unknown anime");
-  const character = String(row.character?.name || row.character || "Unknown character");
+  const anime = repairProviderText(row.anime?.name || row.anime || "Unknown anime");
+  const character = repairProviderText(row.character?.name || row.character || "Unknown character");
   let characterImage = "";
   let characterId = null;
   try {
@@ -107,12 +109,12 @@ async function getQuote() {
     }
   }
   return {
-    content: String(row.content),
+    content: repairProviderText(row.content),
     anime,
     character,
     characterImage,
     characterId,
-    source: row === ARCHIVE_QUOTES[0] || ARCHIVE_QUOTES.includes(row) ? "Anime Orbit archive" : "AnimeChan",
+    source: row === ARCHIVE_QUOTES[0] || ARCHIVE_QUOTES.includes(row) ? "Anime Helix archive" : "AnimeChan",
   };
 }
 

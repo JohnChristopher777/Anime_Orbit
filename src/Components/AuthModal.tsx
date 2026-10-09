@@ -40,7 +40,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     try {
       if (mode === "login") {
         await login(email, password);
-        toast.success("Welcome back to Anime Orbit!");
+        toast.success("Welcome back to Anime Helix!");
         onClose();
       } else if (mode === "signup") {
         await signup(email, password, displayName, profileHandle);
@@ -103,7 +103,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         <div className="text-center space-y-1">
           <div className="inline-flex items-center gap-1 text-[#ffd700] text-xs font-bold uppercase tracking-wider font-montserrat mb-1">
             <Sparkles size={14} />
-            <span>Anime Orbit</span>
+            <span>Anime Helix</span>
           </div>
           <h2 id="auth-dialog-title" className="text-2xl font-bold font-staatliches uppercase tracking-wide text-white">
             {mode === "login"

@@ -357,24 +357,24 @@ const PublicProfile: React.FC = () => {
   return (
     <div className="public-profile-page">
       <SEO
-        title={`${userData.displayName} - Anime Orbit Profile`}
+        title={`${userData.displayName} - Anime Helix Profile`}
         description={`View ${userData.displayName}'s public anime favourites, watchlist and viewing progress.`}
         keywords="anime user profile, public anime watchlist, anime favourites"
-        url={`https://animeorbit.web.app/user/${id}`}
-        image={userData.avatarUrl || "https://animeorbit.web.app/animeorbit.jpg"}
+        url={`https://animehelix.web.app/user/${id}`}
+        image={userData.avatarUrl || "https://animehelix.web.app/animehelix.jpg"}
         type="profile"
         pageType="ProfilePage"
         structuredData={{
           "@type": "Person",
-          "@id": `https://animeorbit.web.app/user/${id}#person`,
+          "@id": `https://animehelix.web.app/user/${id}#person`,
           name: userData.displayName,
           description: userData.bio || tasteSummary,
           ...(userData.avatarUrl ? { image: userData.avatarUrl } : {}),
-          url: `https://animeorbit.web.app/user/${id}`,
+          url: `https://animehelix.web.app/user/${id}`,
         }}
         breadcrumbs={[
-          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
-          { name: userData.displayName, url: `https://animeorbit.web.app/user/${id}` },
+          { name: "Anime Helix", url: "https://animehelix.web.app/" },
+          { name: userData.displayName, url: `https://animehelix.web.app/user/${id}` },
         ]}
       />
       <main className="public-profile-shell">

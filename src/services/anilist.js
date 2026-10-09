@@ -210,23 +210,24 @@ export async function getMediaGuidePage({ mediaType = "ANIME", malId, title, kit
   let mangaDexCount = 0;
   let mangaDexItems = [];
 
-  if (normalizedType === "ANIME" && malId) {
-    try {
-      jikanItems = await getJikanEpisodeRange(malId, offset, safeLimit);
-    } catch {
-    }
-  }
-  if (normalizedType === "MANGA") {
-    try {
-      const mangaDex = await getMangaDexMetadata(malId, title, offset, safeLimit);
-      mangaDexCount = mangaDex.chapterCount;
-      mangaDexItems = mangaDex.chapters;
-    } catch {
-    }
+  // Resolve the secondary catalogue and Kitsu identity together. Previously
+  // these requests were serial, which made opening one guide entry needlessly slow.
+  const secondaryRequest = normalizedType === "ANIME"
+    ? (malId ? getJikanEpisodeRange(malId, offset, safeLimit).catch(() => []) : Promise.resolve([]))
+    : getMangaDexMetadata(malId, title, offset, safeLimit)
+        .catch(() => ({ chapterCount: 0, chapters: [] }));
+  const [media, secondary] = await Promise.all([
+    resolveKitsuMedia(normalizedType, malId, title, kitsuId).catch(() => null),
+    secondaryRequest,
+  ]);
+  if (normalizedType === "ANIME") {
+    jikanItems = secondary;
+  } else {
+    mangaDexCount = secondary.chapterCount;
+    mangaDexItems = secondary.chapters;
   }
 
   try {
-    const media = await resolveKitsuMedia(normalizedType, malId, title, kitsuId);
     if (!media?.id) return { kitsuId: null, totalCount: positiveNumber(fallbackCount) || mangaDexCount, items: normalizedType === "MANGA" ? mangaDexItems : jikanItems, trailerId: null };
 
     let guide = { data: [], meta: {} };
@@ -335,6 +336,102 @@ async function queryAniList(query, variables = {}) {
 function stripHtml(html) {
   if (!html) return "";
   return html.replace(/<[^>]*>/g, "");
+}
+
+const mediaGuideEntryCache = new Map();
+
+const aniListDate = (date) => {
+  if (!date?.year) return null;
+  return `${date.year}-${String(date.month || 1).padStart(2, "0")}-${String(date.day || 1).padStart(2, "0")}`;
+};
+
+// Focused lookup for a watchlist diary entry. It deliberately avoids the cast,
+// staff, relations, trailer and streaming work needed by a full title page.
+export async function getMediaGuideEntry({ mediaType = "ANIME", id, number = 1, isMovie = false, fallbackImage = "", fallbackTitle = "", fallbackTotal = 0, fallbackDuration = null }) {
+  const normalizedType = mediaType === "MANGA" ? "MANGA" : "ANIME";
+  const safeNumber = Math.max(1, Number(number) || 1);
+  const cacheKey = `${normalizedType}:${id}:${safeNumber}:${isMovie ? "movie" : "entry"}`;
+  const now = Date.now();
+  const cached = mediaGuideEntryCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.promise;
+
+  const request = (async () => {
+    const data = await queryAniList(`
+      query ($id: Int, $type: MediaType) {
+        Media(id: $id, type: $type) {
+          id
+          idMal
+          title { english romaji userPreferred }
+          description
+          format
+          episodes
+          chapters
+          duration
+          startDate { year month day }
+          coverImage { extraLarge large medium }
+        }
+      }
+    `, { id: Number(id), type: normalizedType });
+    const media = data?.Media;
+    if (!media) throw new Error("Catalogue title not found");
+
+    const seriesTitle = media.title?.english || media.title?.romaji || media.title?.userPreferred || fallbackTitle;
+    const cover = media.coverImage?.extraLarge || media.coverImage?.large || media.coverImage?.medium || fallbackImage;
+    if (isMovie) {
+      return {
+        kind: "movie",
+        seriesTitle,
+        fallbackImage: cover,
+        entry: {
+          number: 1,
+          title: seriesTitle || fallbackTitle || "Movie",
+          summary: stripHtml(media.description || "") || "No published synopsis is available for this movie.",
+          thumbnail: cover,
+          aired: aniListDate(media.startDate),
+          length: positiveNumber(media.duration) || positiveNumber(String(fallbackDuration || "").match(/\d+/)?.[0]) || null,
+          metadataAvailable: Boolean(media.description || cover),
+        },
+      };
+    }
+
+    const fallbackCount = positiveNumber(normalizedType === "MANGA" ? media.chapters : media.episodes)
+      || positiveNumber(fallbackTotal);
+    const perPage = 50;
+    const guide = await getMediaGuidePage({
+      mediaType: normalizedType,
+      malId: media.idMal,
+      title: seriesTitle,
+      page: Math.floor((safeNumber - 1) / perPage) + 1,
+      perPage,
+      fallbackCount,
+    });
+    const item = guide.items.find((candidate) => Number(candidate.number || candidate.mal_id) === safeNumber);
+    const kind = normalizedType === "MANGA" ? "chapter" : "episode";
+    const label = kind === "chapter" ? "Chapter" : "Episode";
+    return {
+      kind,
+      seriesTitle,
+      fallbackImage: cover,
+      entry: item ? {
+        ...item,
+        number: safeNumber,
+        thumbnail: item.thumbnail || cover,
+        externalUrl: item.url || null,
+      } : {
+        number: safeNumber,
+        title: `${label} ${safeNumber}`,
+        summary: `${label} details are not published in the connected catalogues.`,
+        thumbnail: cover,
+        metadataAvailable: false,
+      },
+    };
+  })().catch((error) => {
+    mediaGuideEntryCache.delete(cacheKey);
+    throw error;
+  });
+
+  mediaGuideEntryCache.set(cacheKey, { expiresAt: now + QUERY_CACHE_MS, promise: request });
+  return request;
 }
 
 // Helper: Map formats
@@ -963,7 +1060,7 @@ export async function getMangaDetailsCombined(id) {
 }
 
 
-export async function getAnimeDetailsCombined(id) {
+export async function getAnimeDetailsCombined(id, options = {}) {
   const query = `
     query ($id: Int) {
       Media(id: $id, type: ANIME) {
@@ -1114,6 +1211,24 @@ export async function getAnimeDetailsCombined(id) {
     externalLinks: media.externalLinks || []
   };
 
+  const primaryResult = {
+    anime: mappedAnime,
+    characters: mapAniListCharactersToJikan(media.characters?.edges),
+    staff: mapAniListStaffToJikan(media.staff?.edges),
+    relations: mapAniListRelationsToJikan(media.relations?.edges),
+    episodes: mapAniListEpisodesToJikan([], mappedAnime.episodes),
+  };
+  // Let detail pages paint the title, artwork, synopsis, cast, and basic
+  // episode list immediately. The slower cross-catalogue guide enrichment
+  // continues below without keeping the whole screen behind a loader.
+  if (typeof options.onPrimary === "function") {
+    try {
+      options.onPrimary(primaryResult);
+    } catch {
+      // Rendering callbacks must never interrupt catalogue enrichment.
+    }
+  }
+
   const [guide, streamingEpisodes] = await Promise.all([
     getMediaGuidePage({
       mediaType: "ANIME",
@@ -1160,9 +1275,9 @@ export async function getAnimeDetailsCombined(id) {
 
   return {
     anime: mappedAnime,
-    characters: mapAniListCharactersToJikan(media.characters?.edges),
-    staff: mapAniListStaffToJikan(media.staff?.edges),
-    relations: mapAniListRelationsToJikan(media.relations?.edges),
+    characters: primaryResult.characters,
+    staff: primaryResult.staff,
+    relations: primaryResult.relations,
     episodes: episodeList
   };
 }

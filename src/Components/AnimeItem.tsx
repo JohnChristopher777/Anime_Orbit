@@ -61,6 +61,7 @@ import {
   Reply,
   Send,
   Layers3,
+  ListTodo,
   MessageSquare,
   Trash2,
 } from "lucide-react";
@@ -73,6 +74,7 @@ import ProgressiveImage from "./ProgressiveImage";
 import AppDropdown from "./AppDropdown";
 import Footer from "./Footer";
 import MediaEntryDialog from "./MediaEntryDialog";
+import ProgressRoadmapDialog from "./ProgressRoadmapDialog";
 import { statusAtKnownTotal } from "../utils/trackingStatus";
 import ScoreSlider from "./ScoreSlider";
 import { useProfileIdentity } from "../hooks/useProfileIdentity";
@@ -192,6 +194,7 @@ export const AnimeItem: React.FC = () => {
     useWatchlist();
   const [detailProgress, setDetailProgress] = useState(0);
   const [progressSaving, setProgressSaving] = useState(false);
+  const [roadmapOpen, setRoadmapOpen] = useState(false);
 
   useEffect(() => {
     if (!currentUserReview) {
@@ -332,6 +335,16 @@ export const AnimeItem: React.FC = () => {
 
   // Fetch anime data
   useEffect(() => {
+    let active = true;
+    const applyData = (data: any) => {
+      if (!active) return;
+      setAnime(data.anime || {});
+      setCharacters(data.characters || []);
+      setEpisodes(data.episodes || []);
+      setRelations(data.relations || []);
+      setStaff(data.staff || []);
+      setLoading(false);
+    };
     const fetchAllData = async () => {
       if (!id) return;
       setLoading(true);
@@ -344,20 +357,21 @@ export const AnimeItem: React.FC = () => {
       setVisibleCharCount(24);
       setVisibleStaffCount(16);
       try {
-        const data = await getAnimeDetailsCombined(parseInt(id, 10));
-        setAnime(data.anime || {});
-        setCharacters(data.characters || []);
-        setEpisodes(data.episodes || []);
-        setRelations(data.relations || []);
-        setStaff(data.staff || []);
+        const data = await getAnimeDetailsCombined(parseInt(id, 10), {
+          onPrimary: applyData,
+        });
+        applyData(data);
       } catch {
-        setLoadError(true);
+        if (active) setLoadError(true);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    fetchAllData();
+    void fetchAllData();
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   // Auto-fetch all remaining character pages when user searches
@@ -710,7 +724,7 @@ export const AnimeItem: React.FC = () => {
               mediaType: "ANIME",
               recipientId: comment.userId,
               actorId: currentUser.uid,
-              actorName: "Anime Orbit",
+              actorName: "Anime Helix",
               actorAvatar: "/icon.png",
               animeId: id?.toString() || "",
               animeTitle: displayTitle,
@@ -894,7 +908,7 @@ export const AnimeItem: React.FC = () => {
         .join(" • ");
       const summary = (synopsis || "").replace(/<[^>]+>/g, "").slice(0, 180);
       const shareData = {
-        title: `${displayTitle} | Anime Orbit`,
+        title: `${displayTitle} | Anime Helix`,
         text: `${displayTitle}${score ? ` • ${score}/10` : ""}${genreNames ? ` • ${genreNames}` : ""}\n${summary}${summary ? "…" : ""}`,
         url: window.location.href,
       };
@@ -914,7 +928,7 @@ export const AnimeItem: React.FC = () => {
 
   const cleanSynopsis = useMemo(() => {
     if (!synopsis)
-      return "Explore full episode guides, characters, reviews, and stats on Anime Orbit.";
+      return "Explore full episode guides, characters, reviews, and stats on Anime Helix.";
     const text = synopsis.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     return text.length > 180 ? `${text.slice(0, 177).trimEnd()}...` : text;
   }, [synopsis]);
@@ -922,7 +936,7 @@ export const AnimeItem: React.FC = () => {
   const animeStructuredData = useMemo(() => {
     return {
       "@type": type === "Movie" ? "Movie" : "TVSeries",
-      "@id": `https://animeorbit.web.app/anime/${id}#anime`,
+      "@id": `https://animehelix.web.app/anime/${id}#anime`,
       name: displayTitle,
       alternateName: title_japanese || undefined,
       description: cleanSynopsis,
@@ -943,7 +957,7 @@ export const AnimeItem: React.FC = () => {
         "@type": "Organization",
         name: studio?.name || studio,
       })),
-      url: `https://animeorbit.web.app/anime/${id}`,
+      url: `https://animehelix.web.app/anime/${id}`,
     };
   }, [
     displayTitle,
@@ -1073,7 +1087,7 @@ export const AnimeItem: React.FC = () => {
         <SEO
           title="Anime title unavailable"
           description="This anime detail page could not be found in the current catalogue."
-          url={`https://animeorbit.web.app/anime/${id}`}
+          url={`https://animehelix.web.app/anime/${id}`}
           noIndex
         />
         <div className="min-h-[70vh] flex items-center justify-center px-5">
@@ -1086,7 +1100,7 @@ export const AnimeItem: React.FC = () => {
               loading="eager"
             />
             <h1 className="font-montserrat text-2xl font-bold">
-              This title is off orbit
+              This title is outside the catalogue
             </h1>
             <p className="text-neutral-400 text-sm mt-2">
               This ID may belong to manga, or the anime catalogue may be temporarily unavailable.
@@ -1106,16 +1120,16 @@ export const AnimeItem: React.FC = () => {
       <SEO
         title={`${displayTitle} - Episodes, Characters & Reviews`}
         description={`${displayTitle}: ${cleanSynopsis}`}
-        keywords={`${displayTitle}, ${genres?.map((g: any) => g.name || g).join(", ")}, anime episodes, anime characters, anime reviews, Anime Orbit`}
+        keywords={`${displayTitle}, ${genres?.map((g: any) => g.name || g).join(", ")}, anime episodes, anime characters, anime reviews, Anime Helix`}
         image={images?.jpg?.large_image_url || "/lost.jpg"}
-        url={`https://animeorbit.web.app/anime/${id}`}
+        url={`https://animehelix.web.app/anime/${id}`}
         type={type === "Movie" ? "video.movie" : "video.tv_show"}
         pageType="ItemPage"
         structuredData={animeStructuredData}
         breadcrumbs={[
-          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
-          { name: "Anime library", url: "https://animeorbit.web.app/popular" },
-          { name: displayTitle, url: `https://animeorbit.web.app/anime/${id}` },
+          { name: "Anime Helix", url: "https://animehelix.web.app/" },
+          { name: "Anime library", url: "https://animehelix.web.app/popular" },
+          { name: displayTitle, url: `https://animehelix.web.app/anime/${id}` },
         ]}
       />
       <BackgroundImage
@@ -1334,6 +1348,13 @@ export const AnimeItem: React.FC = () => {
                     : trackedAnime.status || "Watching"}
                 </span>
               </div>
+              <button
+                type="button"
+                className="media-progress__watchlist-link"
+                onClick={() => setRoadmapOpen(true)}
+              >
+                <ListTodo size={15} /> Roadmap
+              </button>
             </div>
           )}
         </HeroDetails>
@@ -2636,6 +2657,11 @@ export const AnimeItem: React.FC = () => {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
       />
+      <ProgressRoadmapDialog
+        item={roadmapOpen ? trackedAnime : null}
+        mediaType="anime"
+        onClose={() => setRoadmapOpen(false)}
+      />
      <div className="anime-detail-footer">
         <Footer />
       </div>
@@ -2920,40 +2946,6 @@ const EpisodesView: React.FC<{
             })}
           </EpisodeGrid>
 
-          {/* Infinite Scroll Trigger Anchor */}
-          <div
-            ref={observerRef}
-            style={{
-              height: "40px",
-              margin: "1rem 0",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            {renderLimit < allFilteredEpisodes.length && (
-              <button
-                onClick={() =>
-                  setRenderLimit((prev) =>
-                    Math.min(prev + 24, allFilteredEpisodes.length),
-                  )
-                }
-                style={{
-                  background: "rgba(255, 215, 0, 0.15)",
-                  border: "1px solid rgba(255, 215, 0, 0.4)",
-                  color: "#ffd700",
-                  padding: "0.5rem 1.5rem",
-                  borderRadius: "20px",
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Showing {renderLimit} of {allFilteredEpisodes.length} Episodes —
-                Load More
-              </button>
-            )}
-          </div>
           {batches.length > 1 && !searchQuery.trim() && (
             <EpisodeBottomPager aria-label="Episode range navigation">
               <button

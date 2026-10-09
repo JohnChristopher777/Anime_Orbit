@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
 
-const SITE_URL = "https://animeorbit.web.app";
-const SITE_NAME = "Anime Orbit";
-const DEFAULT_IMAGE = `${SITE_URL}/animeorbit.jpg`;
+const SITE_URL = "https://animehelix.web.app";
+const SITE_NAME = "Anime Helix";
+const DEFAULT_IMAGE = `${SITE_URL}/pwa-icon-512.png`;
 
 type SchemaNode = Record<string, unknown>;
 
@@ -48,7 +48,7 @@ const schemaNodes = (value?: SchemaNode | SchemaNode[]) => {
 export const SEO: React.FC<SEOProps> = ({
   title,
   description,
-  keywords = "Anime Orbit, anime database, manga database, anime discovery, anime guide, episode guide, chapter guide, characters, voice actors, franchises, anime reviews",
+  keywords = "Anime Helix, anime tracker, manga tracker, anime watchlist, episode notes, chapter log, anime tier list, anime reviews, anime ratings, franchise watch order, characters, voice actors",
   image = DEFAULT_IMAGE,
   url = typeof window !== "undefined" ? `${SITE_URL}${window.location.pathname}` : `${SITE_URL}/`,
   type = "website",
@@ -114,6 +114,15 @@ export const SEO: React.FC<SEOProps> = ({
     updateMetaTag('meta[name="twitter:image:alt"]', "name", "twitter:image:alt", resolvedImageAlt);
     updateMetaTag('meta[name="twitter:url"]', "name", "twitter:url", canonicalUrl);
     updateMetaTag('meta[name="twitter:card"]', "name", "twitter:card", "summary_large_image");
+    updateMetaTag('meta[name="thumbnail"]', "name", "thumbnail", absoluteImage);
+
+    let imageSource = document.querySelector('link[rel="image_src"]') as HTMLLinkElement | null;
+    if (!imageSource) {
+      imageSource = document.createElement("link");
+      imageSource.rel = "image_src";
+      document.head.appendChild(imageSource);
+    }
+    imageSource.href = absoluteImage;
 
     let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
     if (!canonicalLink) {

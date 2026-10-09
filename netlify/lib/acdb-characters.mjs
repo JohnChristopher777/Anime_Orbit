@@ -16,7 +16,7 @@ export async function searchAcdbCharacters(query) {
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch(`${ACDB_ENDPOINT}?character_q=${encodeURIComponent(clean)}`, {
-      headers: { Accept: "application/json", "User-Agent": "AnimeOrbit/1.0" },
+      headers: { Accept: "application/json", "User-Agent": "AnimeHelix/1.0" },
       signal: controller.signal,
     });
     if (!response.ok) return [];

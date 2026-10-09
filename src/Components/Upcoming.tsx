@@ -35,20 +35,20 @@ export const Upcoming: React.FC = () => {
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
       <SEO
         title="Most Anticipated Upcoming Anime & New Seasons"
-        description="Discover upcoming anime releases, new seasonal broadcasts, and highly anticipated movies across all genres on Anime Orbit."
-        keywords="upcoming anime, new anime seasons, upcoming anime movies, anime release schedule, Anime Orbit"
-        url="https://animeorbit.web.app/upcoming"
+        description="Discover upcoming anime releases, new seasonal broadcasts, and highly anticipated movies across all genres on Anime Helix."
+        keywords="upcoming anime, new anime seasons, upcoming anime movies, anime release schedule, Anime Helix"
+        url="https://animehelix.web.app/upcoming"
         pageType="CollectionPage"
         structuredData={{
           "@type": "ItemList",
-          "@id": "https://animeorbit.web.app/upcoming#anime-list",
+          "@id": "https://animehelix.web.app/upcoming#anime-list",
           name: "Upcoming anime releases",
           numberOfItems: visibleAnime.length,
           itemListElement: visibleAnime.slice(0, 50).map((anime, index) => ({
             "@type": "ListItem",
             position: index + 1,
             name: anime.title_english || anime.title,
-            url: `https://animeorbit.web.app/anime/${anime.mal_id}`,
+            url: `https://animehelix.web.app/anime/${anime.mal_id}`,
           })),
         }}
       />

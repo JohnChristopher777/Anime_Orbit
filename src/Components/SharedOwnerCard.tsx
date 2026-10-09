@@ -24,7 +24,7 @@ const SharedOwnerCard: React.FC<{ owner: SharedOwner | null }> = ({ owner }) => 
       <div>
         <span>Shared by</span>
         <h2>{owner.displayName}</h2>
-        <p>This is the sender's published Anime Orbit identity.</p>
+        <p>This is the sender's published Anime Helix identity.</p>
       </div>
       {owner.profileHandle ? (
         <span className="shared-owner-action">

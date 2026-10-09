@@ -31,6 +31,7 @@ import CatalogGenreFilter from "./CatalogGenreFilter";
 import { getPopularVoiceActors } from "../services/anilist";
 import { useWatchlist, type MangaWatchlistItem, type WatchlistItem } from "../context/WatchlistContext";
 import ScoreSlider from "./ScoreSlider";
+import ProgressRoadmapDialog from "./ProgressRoadmapDialog";
 import { nextLinearItem, POPULAR_QUOTE_ROTATION } from "../data/popularQuotes";
 
 import Footer from "./Footer";
@@ -168,6 +169,7 @@ const HomeProgressDeck: React.FC = () => {
   const mediaChosenByUser = React.useRef(false);
   const [mediaSwitching, setMediaSwitching] = React.useState(false);
   const [editingItem, setEditingItem] = React.useState<WatchlistItem | MangaWatchlistItem | null>(null);
+  const [roadmapItem, setRoadmapItem] = React.useState<WatchlistItem | MangaWatchlistItem | null>(null);
 
   React.useEffect(() => {
     if (loading || mediaChosenByUser.current) return;
@@ -317,9 +319,19 @@ const HomeProgressDeck: React.FC = () => {
                   <h3><Link to={`/${mediaType}/${item.mal_id}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>{item.title}</Link></h3>
                   <p>{progress}{total > 0 ? ` of ${total}` : ""} {mediaType === "manga" ? "chapters read" : "episodes watched"}</p>
                   <div className="home-progress__bar" aria-label={`${Math.round(percent)} percent complete`}><i style={{ width: `${percent}%` }} /></div>
-                  <button type="button" className="home-progress__log" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setEditingItem(item); }}>
-                    <NotebookPen size={16} /> Log progress
-                  </button>
+                  <div className="home-progress__card-actions">
+                    <button type="button" className="home-progress__log" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setEditingItem(item); }}>
+                      <NotebookPen size={16} />Edit Log
+                    </button>
+                    <button
+                      type="button"
+                      className="home-progress__roadmap"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => { event.stopPropagation(); setRoadmapItem(item); }}
+                    >
+                      <ListTodo size={16} /> Roadmap
+                    </button>
+                  </div>
                 </div>
               </article>
             );
@@ -327,6 +339,7 @@ const HomeProgressDeck: React.FC = () => {
         </div>
       </div>
       {editingItem && <HomeProgressEditor key={`${mediaType}-${editingItem.mal_id}`} item={editingItem} mediaType={mediaType} onClose={() => setEditingItem(null)} onSave={(updates) => mediaType === "manga" ? updateMangaWatchlistEntry(editingItem.mal_id, updates) : updateWatchlistEntry(editingItem.mal_id, updates)} />}
+      <ProgressRoadmapDialog item={roadmapItem} mediaType={mediaType} onClose={() => setRoadmapItem(null)} />
     </section>
   );
 };
@@ -641,11 +654,11 @@ const FEATURE_LINKS = [
   {
     to: "/about",
     icon: Info,
-    eyebrow: "Anime Orbit",
+    eyebrow: "Anime Helix",
     title: "About this project",
-    copy: "Learn what Anime Orbit includes, how recommendations work, and how account data is handled.",
+    copy: "Learn what Anime Helix includes, how recommendations work, and how account data is handled.",
     details: ["Features", "Data & privacy", "Project details"],
-    action: "About Anime Orbit",
+    action: "About Anime Helix",
     artworkIndex: 0,
     layout: "banner",
   },
@@ -903,7 +916,7 @@ export function Homepage() {
           aria-labelledby="feature-guide-title"
         >
           <header className="home-feature-stories__intro">
-            <h2 id="feature-guide-title">Explore Anime Orbit</h2>
+            <h2 id="feature-guide-title">Explore Anime Helix</h2>
             <p>
               Discover anime and manga, follow episode and chapter guides, and
               keep your watchlists, reviews, and community activity together.
@@ -967,10 +980,12 @@ export function Homepage() {
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col relative">
       <SEO
-        title="Anime Orbit | Anime & Manga Discovery, Guides & Tracking"
-        description="Anime Orbit helps you discover anime and manga, browse episode and chapter guides, track watchlists, build tier lists, and join community discussions."
-        keywords="Anime Orbit, anime and manga discovery, anime database, manga database, episode guides, chapter guides, anime watchlist, manga tracker, anime tier lists"
-        url="https://animeorbit.web.app/"
+        title="Anime Helix | Track Anime & Manga, Notes, Reviews & Tier Lists"
+        description="Anime Helix is your anime and manga tracking DNA: keep watchlists, episode and chapter notes, reviews, ratings, tier lists, franchise guides, and discovery tools in one place."
+        keywords="Anime Helix, anime tracker, manga tracker, anime watchlist, episode notes, manga chapter log, anime reviews, anime ratings, anime tier lists, franchise watch order, One Piece, Naruto, Attack on Titan, Jujutsu Kaisen, Solo Leveling, Demon Slayer, Frieren"
+        image="/icon/one-piece-luffy-5.png"
+        imageAlt="Monkey D. Luffy from One Piece on Anime Helix"
+        url="https://animehelix.web.app/"
       />
       {!search && (
         <HeroCarousel trendingAnime={topAiringAnime} loading={homeLoading} />

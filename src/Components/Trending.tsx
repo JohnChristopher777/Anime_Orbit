@@ -49,19 +49,19 @@ export const Trending: React.FC<TrendingProps> = ({ mode = "trending" }) => {
       <SEO
         title={isAiring ? "Currently Airing Anime This Season" : "Trending Anime Right Now"}
         description={isAiring ? "Keep up with anime currently broadcasting this season." : "Explore anime gaining momentum across the community right now."}
-        keywords="airing anime, trending anime, current anime season, weekly anime episodes, Anime Orbit"
-        url={`https://animeorbit.web.app/${isAiring ? "airing" : "trending"}`}
+        keywords="airing anime, trending anime, current anime season, weekly anime episodes, Anime Helix"
+        url={`https://animehelix.web.app/${isAiring ? "airing" : "trending"}`}
         pageType="CollectionPage"
         structuredData={{
           "@type": "ItemList",
-          "@id": `https://animeorbit.web.app/${isAiring ? "airing" : "trending"}#anime-list`,
+          "@id": `https://animehelix.web.app/${isAiring ? "airing" : "trending"}#anime-list`,
           name: isAiring ? "Currently airing anime" : "Trending anime",
           numberOfItems: visibleItems.length,
           itemListElement: visibleItems.slice(0, 50).map((anime, index) => ({
             "@type": "ListItem",
             position: index + 1,
             name: anime.title_english || anime.title,
-            url: `https://animeorbit.web.app/anime/${anime.mal_id}`,
+            url: `https://animehelix.web.app/anime/${anime.mal_id}`,
           })),
         }}
       />

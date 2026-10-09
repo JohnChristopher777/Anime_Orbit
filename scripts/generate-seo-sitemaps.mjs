@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const SITE_URL = "https://animeorbit.web.app";
+const SITE_URL = "https://animehelix.web.app";
 const ANILIST_ENDPOINT = "https://graphql.anilist.co";
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.resolve(scriptDirectory, "../public");
@@ -99,7 +99,7 @@ const fetchPage = async (page) => {
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "User-Agent": "AnimeOrbit-Sitemap/1.0",
+        "User-Agent": "AnimeHelix-Sitemap/1.0",
       },
       body: JSON.stringify({ query, variables: { page, perPage: 50 } }),
       signal: controller.signal,
@@ -141,7 +141,7 @@ const animeRoute = (item) => {
   const description = truncate(item.description) || `Explore ${name}: synopsis, episodes, characters, voice cast, reviews, discussions, related titles and watchlist tracking.`;
   return compact({
     path: route,
-    title: `${name} Anime Details | Anime Orbit`,
+    title: `${name} Anime Details | Anime Helix`,
     description,
     image: mediaImage(item),
     heading: name,
@@ -167,10 +167,10 @@ const animeRoute = (item) => {
 const franchiseRoute = (item) => {
   const name = mediaTitle(item);
   const route = `/franchise/${item.id}`;
-  const description = `Explore the complete ${name} franchise: connected anime entries, release order, chronology and direct series links on Anime Orbit.`;
+  const description = `Explore the complete ${name} franchise: connected anime entries, release order, chronology and direct series links on Anime Helix.`;
   return compact({
     path: route,
-    title: `${name} Franchise Guide & Watch Order | Anime Orbit`,
+    title: `${name} Franchise Guide & Watch Order | Anime Helix`,
     description,
     image: mediaImage(item),
     heading: `${name} franchise`,
@@ -187,7 +187,7 @@ const mangaRoute = (item) => {
   const creators = (item.staff?.edges || []).map((edge) => edge.node?.name?.full).filter(Boolean);
   return compact({
     path: route,
-    title: `${name} Manga Details | Anime Orbit`,
+    title: `${name} Manga Details | Anime Helix`,
     description,
     image: mediaImage(item),
     heading: name,
@@ -216,7 +216,7 @@ const characterRoute = (item) => {
   const description = truncate(item.description) || `View ${name}'s anime and manga appearances, artwork, profile information and Japanese and English voice cast.`;
   return compact({
     path: route,
-    title: `${name} – Anime Character & Voice Cast | Anime Orbit`,
+    title: `${name} – Anime Character & Voice Cast | Anime Helix`,
     description,
     image: item.image?.large,
     heading: name,
@@ -233,7 +233,7 @@ const staffRoute = (item) => {
   const description = truncate(item.description) || `Explore ${name}'s voice acting profile, Japanese and English roles, characters and complete anime role history.`;
   return compact({
     path: route,
-    title: `${name} – Voice Actor Roles & Characters | Anime Orbit`,
+    title: `${name} – Voice Actor Roles & Characters | Anime Helix`,
     description,
     image: item.image?.large,
     heading: name,

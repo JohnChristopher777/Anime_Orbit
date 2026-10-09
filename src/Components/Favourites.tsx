@@ -1372,7 +1372,7 @@ export const Favourites: React.FC = () => {
       if (navigator.share) {
         await navigator.share({
           title: `${activeSheetName} - ${mediaLabel} Favourites`,
-          text: `${activeFavourites.length} ranked favourites from Anime Orbit`,
+          text: `${activeFavourites.length} ranked favourites from Anime Helix`,
           url,
         });
       } else {
@@ -1437,9 +1437,9 @@ export const Favourites: React.FC = () => {
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
       <SEO
         title="My Favorites & Custom Anime Tier List"
-        description="Build, organize, and customize your personal anime tier lists and favorite series across all genres on Anime Orbit."
-        keywords="anime tier list, anime favorites, custom anime tier rankings, Anime Orbit"
-        url="https://animeorbit.web.app/favourites"
+        description="Build, organize, and customize your personal anime tier lists and favorite series across all genres on Anime Helix."
+        keywords="anime tier list, anime favorites, custom anime tier rankings, Anime Helix"
+        url="https://animehelix.web.app/favourites"
         noIndex
       />
 

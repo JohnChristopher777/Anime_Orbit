@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   useWatchlist,
   type WatchlistItem,
@@ -32,6 +32,11 @@ import {
   MessageSquare,
   Highlighter,
   CalendarDays,
+  Maximize2,
+  Pencil,
+  PlayCircle,
+  BookOpen,
+  Flag,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -40,6 +45,7 @@ import {
   getPopularManga,
   searchAnime,
   searchManga,
+  getMediaGuideEntry,
 } from "../services/anilist";
 import AppDropdown from "./AppDropdown";
 import { statusAtKnownTotal } from "../utils/trackingStatus";
@@ -49,6 +55,7 @@ import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { createSharedListPayload, encodeSharedList, sortSharedListItems } from "../utils/sharedList";
 import { usePublicShareOwner } from "../hooks/usePublicShareOwner";
+import MediaEntryDialog, { type MediaGuideEntry } from "./MediaEntryDialog";
 
 interface TrackerFieldsProps {
   item: WatchlistItem | MangaWatchlistItem;
@@ -371,18 +378,34 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
   );
   const [savingAfterThought, setSavingAfterThought] = useState(false);
   const [afterThoughtEditing, setAfterThoughtEditing] = useState(false);
+  const [guideLoadingKey, setGuideLoadingKey] = useState("");
+  const [guideDialog, setGuideDialog] = useState<{
+    entry: MediaGuideEntry;
+    kind: "episode" | "chapter" | "movie";
+    seriesTitle: string;
+    fallbackImage?: string;
+  } | null>(null);
+  const guideRequestRef = React.useRef(0);
   const entryTextRef = React.useRef<HTMLTextAreaElement>(null);
   const afterThoughtRef = React.useRef<HTMLTextAreaElement>(null);
 
   const selectedTarget =
     targets.find((target) => progressLogTargetKey(target) === selectedTargetKey) ||
     targets[0];
+  const isMovieTarget = (target?: ProgressLogTarget) =>
+    target?.mediaType === "anime" && /movie|film/i.test(String(target.item.type || ""));
   const selectedTotal = Number(
-    selectedTarget?.mediaType === "manga"
+    isMovieTarget(selectedTarget)
+      ? 1
+      : selectedTarget?.mediaType === "manga"
       ? (selectedTarget.item as MangaWatchlistItem).chapters || 0
       : selectedTarget?.item.episodes || 0,
   );
-  const selectedUnit = selectedTarget?.mediaType === "manga" ? "Chapter" : "Episode";
+  const selectedUnit = selectedTarget?.mediaType === "manga"
+    ? "Chapter"
+    : isMovieTarget(selectedTarget)
+      ? "Movie"
+      : "Episode";
 
   const timeline = useMemo(
     () =>
@@ -430,7 +453,7 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
   useEffect(() => {
     if (!selectedTarget) return;
     if (!editingEntry)
-      setEntryProgress(Number(selectedTarget.item.progress || 0));
+      setEntryProgress(isMovieTarget(selectedTarget) ? 1 : Number(selectedTarget.item.progress || 0));
   }, [selectedTargetKey, selectedTarget?.item.progress, editingEntry]);
 
   useEffect(() => {
@@ -442,7 +465,7 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
     setEditingEntry(null);
     setEntryText("");
     setEntryDate(diaryDateValue());
-    setEntryProgress(Number(selectedTarget?.item.progress || 0));
+    setEntryProgress(isMovieTarget(selectedTarget) ? 1 : Number(selectedTarget?.item.progress || 0));
     setComposerOpen(false);
   };
 
@@ -450,7 +473,7 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
     setEditingEntry(null);
     setEntryText("");
     setEntryDate(diaryDateValue());
-    setEntryProgress(Number(selectedTarget?.item.progress || 0));
+    setEntryProgress(isMovieTarget(selectedTarget) ? 1 : Number(selectedTarget?.item.progress || 0));
     setComposerOpen(true);
     window.setTimeout(() => entryTextRef.current?.focus(), 60);
   };
@@ -585,6 +608,70 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
     }
   };
 
+  const closeEntryGuide = () => {
+    guideRequestRef.current += 1;
+    setGuideLoadingKey("");
+    setGuideDialog(null);
+  };
+
+  const openEntryGuide = async (entry: (typeof timeline)[number]) => {
+    const number = Math.max(1, Number(entry.progress || 1));
+    const key = `${entry.targetKey}-${number}`;
+    const requestId = ++guideRequestRef.current;
+    setGuideLoadingKey(key);
+    try {
+      const fallbackImage = (entry.target.item as any).image_url || (entry.target.item as any).image || "";
+      const initialKind = entry.target.mediaType === "manga"
+        ? "chapter"
+        : isMovieTarget(entry.target)
+          ? "movie"
+          : "episode";
+      // Open the same guide dialog used by Anime Item immediately. The diary
+      // stays mounted behind it while focused metadata replaces the fallback.
+      setGuideDialog({
+        kind: initialKind,
+        seriesTitle: entry.target.item.title,
+        fallbackImage,
+        entry: {
+          number,
+          title: initialKind === "movie"
+            ? entry.target.item.title
+            : `${initialKind === "chapter" ? "Chapter" : "Episode"} ${number}`,
+          summary: `Loading ${initialKind} details…`,
+          thumbnail: fallbackImage,
+          metadataAvailable: false,
+        },
+      });
+      const result = await getMediaGuideEntry({
+        mediaType: entry.target.mediaType === "manga" ? "MANGA" : "ANIME",
+        id: entry.target.id,
+        number,
+        isMovie: isMovieTarget(entry.target),
+        fallbackImage,
+        fallbackTitle: entry.target.item.title,
+        fallbackTotal: entry.target.mediaType === "manga"
+          ? Number((entry.target.item as MangaWatchlistItem).chapters || 0)
+          : Number(entry.target.item.episodes || 0),
+        fallbackDuration: entry.target.item.duration,
+      });
+      if (guideRequestRef.current !== requestId) return;
+      setGuideDialog(result);
+    } catch {
+      if (guideRequestRef.current !== requestId) return;
+      setGuideDialog((current) => current ? {
+        ...current,
+        entry: {
+          ...current.entry,
+          summary: "No published catalogue details are available for this entry yet.",
+          metadataAvailable: false,
+        },
+      } : current);
+      toast.info("The catalogue details for this entry are not available yet");
+    } finally {
+      if (guideRequestRef.current === requestId) setGuideLoadingKey("");
+    }
+  };
+
   return (
     <div
       className="franchise-memory-modal__backdrop"
@@ -602,7 +689,7 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
           <div>
             <span><MessageSquare size={14} /> Series progress log</span>
             <h2 id="series-log-title">{title}</h2>
-            <p>Every thought is attached to the exact episode or chapter you choose.</p>
+            <p>Every thought is attached to the exact episode, movie, or chapter you choose.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close series log"><X size={19} /></button>
         </header>
@@ -684,7 +771,7 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
             <div className="series-log-modal__empty">
               <MessageSquare size={25} />
               <strong>No episode or chapter thoughts yet</strong>
-              <p>Add the first entry above. It will stay with this series in your watchlist.</p>
+              <p>Add the first entry above. It will stay with this title in your watchlist.</p>
             </div>
           )}
           {timeline.map((entry) => {
@@ -698,7 +785,19 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
                     ? new Date(entry.createdAt).toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" })
                     : "Saved earlier"}
                 </time>
-                <span>{entry.target.mediaType === "manga" ? "Chapter" : "Episode"} {entry.progress}</span>
+                <button
+                  type="button"
+                  className="series-log-modal__entry-tag"
+                  disabled={guideLoadingKey === `${entry.targetKey}-${Math.max(1, Number(entry.progress || 1))}`}
+                  onClick={() => void openEntryGuide(entry)}
+                  title="Open catalogue details"
+                >
+                  {guideLoadingKey === `${entry.targetKey}-${Math.max(1, Number(entry.progress || 1))}`
+                    ? "Opening…"
+                    : isMovieTarget(entry.target)
+                      ? "Movie details"
+                      : `${entry.target.mediaType === "manga" ? "Chapter" : "Episode"} ${entry.progress}`}
+                </button>
               </div>
               {targets.length > 1 && <strong>{entry.target.item.title}</strong>}
               {isEditing ? <form className="series-log-modal__inline-editor" onSubmit={saveEntry}>
@@ -796,11 +895,20 @@ const ProgressLogDialog: React.FC<ProgressLogDialogProps> = ({
         </section>
         </div>
       </section>
+      {guideDialog && <MediaEntryDialog
+        entry={guideDialog.entry}
+        kind={guideDialog.kind}
+        seriesTitle={guideDialog.seriesTitle}
+        fallbackImage={guideDialog.fallbackImage}
+        onClose={closeEntryGuide}
+        stackedOverDialog
+      />}
     </div>
   );
 };
 
 export const Watchlist: React.FC = () => {
+  const navigate = useNavigate();
   const {
     watchlist,
     mangaWatchlist,
@@ -833,6 +941,7 @@ export const Watchlist: React.FC = () => {
   const [addLoading, setAddLoading] = useState(false);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [expandedTracker, setExpandedTracker] = useState<string | null>(null);
+  const [trackerEditing, setTrackerEditing] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [reviewedAnimeIds, setReviewedAnimeIds] = useState<Set<number>>(
     new Set(),
@@ -882,17 +991,20 @@ export const Watchlist: React.FC = () => {
     const editId = Number(searchParams.get("edit"));
     if (!Number.isFinite(editId)) return;
     if (requestedMedia === "manga" && mangaWatchlist.some((item) => item.mal_id === editId)) {
+      setTrackerEditing(false);
       setExpandedTracker(`manga-${editId}`);
       return;
     }
     if (watchlist.some((item) => item.mal_id === editId)) {
       setMediaTab("anime");
+      setTrackerEditing(false);
       setExpandedTracker(`anime-${editId}`);
     }
   }, [searchParams, watchlist, mangaWatchlist]);
 
   const closeTracker = () => {
     setExpandedTracker(null);
+    setTrackerEditing(false);
     if (searchParams.has("edit")) {
       const next = new URLSearchParams(searchParams);
       next.delete("edit");
@@ -1150,9 +1262,9 @@ export const Watchlist: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4 flex-1">
           <SEO
             title="My Watchlist - Anime Tracker & History"
-            description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Orbit."
-            keywords="anime watchlist, anime tracker, anime watch progress, Anime Orbit"
-            url="https://animeorbit.web.app/watchlist"
+            description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Helix."
+            keywords="anime watchlist, anime tracker, anime watch progress, Anime Helix"
+            url="https://animehelix.web.app/watchlist"
             noIndex
           />
           <ListTodo size={56} className="mx-auto text-[#ffd700]" />
@@ -1235,7 +1347,7 @@ export const Watchlist: React.FC = () => {
     }
     try {
       if (navigator.share) {
-        await navigator.share({ title: `My ${sharedListLabel}`, text: `${sharedItems.length} titles from Anime Orbit`, url });
+        await navigator.share({ title: `My ${sharedListLabel}`, text: `${sharedItems.length} titles from Anime Helix`, url });
       } else {
         await navigator.clipboard.writeText(url);
         toast.success("Private share link copied!");
@@ -1276,9 +1388,9 @@ export const Watchlist: React.FC = () => {
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-8 pb-12 space-y-6 sm:space-y-8 w-full flex-1">
         <SEO
           title="My Watchlist - Anime Tracker & History"
-          description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Orbit."
-          keywords="anime watchlist, anime tracker, anime watch progress, Anime Orbit"
-          url="https://animeorbit.web.app/watchlist"
+          description="Track your personal anime watchlist, manage watching status, and save your progress across devices on Anime Helix."
+          keywords="anime watchlist, anime tracker, anime watch progress, Anime Helix"
+          url="https://animehelix.web.app/watchlist"
           noIndex
         />
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
@@ -1662,7 +1774,21 @@ export const Watchlist: React.FC = () => {
                   <AnimeCard compact anime={item as any} />
                 </div>
                 <div className="tracker-card__content">
-                  <div className="tracker-card__summary">
+                  <div
+                    className="tracker-card__summary"
+                    role="link"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      if (!(event.target as HTMLElement).closest("button, a, input, select, textarea"))
+                        navigate(`/anime/${item.mal_id}`);
+                    }}
+                    onKeyDown={(event) => {
+                      if ((event.key === "Enter" || event.key === " ") && event.target === event.currentTarget) {
+                        event.preventDefault();
+                        navigate(`/anime/${item.mal_id}`);
+                      }
+                    }}
+                  >
                     <div className="tracker-card__topline">
                       <div className="tracker-card__status-group">
                         <span>{item.status || "Plan to Watch"}</span>
@@ -1707,10 +1833,10 @@ export const Watchlist: React.FC = () => {
                       type="button"
                       aria-haspopup="dialog"
                       aria-expanded={expandedTracker === `anime-${item.mal_id}`}
-                      onClick={() => setExpandedTracker(`anime-${item.mal_id}`)}
+                      onClick={() => { setTrackerEditing(false); setExpandedTracker(`anime-${item.mal_id}`); }}
                     >
-                      <NotebookPen size={13} />
-                      Edit details
+                      <Maximize2 size={13} />
+                      timeline
                     </button>
                     <button
                       type="button"
@@ -1759,7 +1885,21 @@ export const Watchlist: React.FC = () => {
                   </Link>
                 </div>
                 <div className="tracker-card__content">
-                  <div className="tracker-card__summary">
+                  <div
+                    className="tracker-card__summary"
+                    role="link"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      if (!(event.target as HTMLElement).closest("button, a, input, select, textarea"))
+                        navigate(`/manga/${item.mal_id}`);
+                    }}
+                    onKeyDown={(event) => {
+                      if ((event.key === "Enter" || event.key === " ") && event.target === event.currentTarget) {
+                        event.preventDefault();
+                        navigate(`/manga/${item.mal_id}`);
+                      }
+                    }}
+                  >
                     <div className="tracker-card__topline">
                       <span>{item.status || "Plan to Read"}</span>
                       <b className={`tracker-card__user-score ${Number(item.userScore) > 0 ? "" : "is-empty"}`} title="Your personal rating">
@@ -1790,10 +1930,10 @@ export const Watchlist: React.FC = () => {
                       type="button"
                       aria-haspopup="dialog"
                       aria-expanded={expandedTracker === `manga-${item.mal_id}`}
-                      onClick={() => setExpandedTracker(`manga-${item.mal_id}`)}
+                      onClick={() => { setTrackerEditing(false); setExpandedTracker(`manga-${item.mal_id}`); }}
                     >
-                      <NotebookPen size={13} />
-                      Edit details
+                      <Maximize2 size={13} />
+                      timeline
                     </button>
                     <button
                       type="button"
@@ -2007,8 +2147,9 @@ export const Watchlist: React.FC = () => {
                     </span>
                     <h2 id="tracker-editor-title">{trackerItem.title}</h2>
                     <p>
-                      Edit status, progress, dates, score, and your private
-                      note.
+                      {trackerEditing
+                        ? "Change status, progress, dates, score, and your private note."
+                        : "Your progress, memories, and dates in one timeline."}
                     </p>
                   </div>
                   <button
@@ -2019,11 +2160,15 @@ export const Watchlist: React.FC = () => {
                     <X size={19} />
                   </button>
                 </header>
-                <button
+                {!trackerEditing && <button
                   type="button"
                   className="tracker-editor-modal__series-log"
                   aria-haspopup="dialog"
-                  onClick={() => openSeriesMemories(trackerItem, trackerMediaType)}
+                  onClick={() => {
+                    setExpandedTracker(null);
+                    setTrackerEditing(false);
+                    openSeriesMemories(trackerItem, trackerMediaType);
+                  }}
                 >
                   <span>
                     <MessageSquare size={17} />
@@ -2033,8 +2178,8 @@ export const Watchlist: React.FC = () => {
                     </span>
                   </span>
                   <strong>{trackerItem.progressNotes?.length || 0}</strong>
-                </button>
-                <TrackerFields
+                </button>}
+                {trackerEditing ? <TrackerFields
                   key={expandedTracker}
                   mediaType={trackerMediaType}
                   item={trackerItem}
@@ -2050,9 +2195,58 @@ export const Watchlist: React.FC = () => {
                         trackerItem.mal_id,
                         updates as any,
                       );
-                    closeTracker();
+                    setTrackerEditing(false);
                   }}
-                />
+                /> : <div className="tracker-timeline-view">
+                  <div className="tracker-timeline-view__summary">
+                    <div><PlayCircle size={18} /><span>Status</span><strong>{trackerItem.status || (trackerMediaType === "manga" ? "Plan to Read" : "Plan to Watch")}</strong></div>
+                    <div><Layers3 size={18} /><span>Progress</span><strong>{Number(trackerItem.progress || 0)}{trackerMediaType === "manga" ? (Number((trackerItem as MangaWatchlistItem).chapters || 0) > 0 ? ` / ${(trackerItem as MangaWatchlistItem).chapters}` : "") : (Number(trackerItem.episodes || 0) > 0 ? ` / ${trackerItem.episodes}` : "")}</strong></div>
+                    <div><Star size={18} /><span>Your score</span><strong>{personalScoreLabel(trackerItem.userScore)}</strong></div>
+                  </div>
+
+                  <section className="tracker-timeline-view__journey" aria-label="Tracking timeline">
+                    <div className="tracker-timeline-view__roadmap-title">
+                      <span>Your story roadmap</span>
+                      <small>Every milestone and memory stays connected</small>
+                    </div>
+                    <svg className="tracker-timeline-view__road" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                      <path d="M50 -5 C 10 8, 10 25, 50 34 S 90 58, 50 67 S 10 89, 50 105" />
+                      <path className="is-centre-line" d="M50 -5 C 10 8, 10 25, 50 34 S 90 58, 50 67 S 10 89, 50 105" />
+                    </svg>
+                    <article>
+                      <i><Flag size={14} /></i>
+                      <div><span>Added to your library</span><strong>{trackerItem.addedAt ? new Date(trackerItem.addedAt).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "Saved earlier"}</strong></div>
+                    </article>
+                    {trackerItem.startDate && <article>
+                      <i><PlayCircle size={14} /></i>
+                      <div><span>{trackerMediaType === "manga" ? "Started reading" : "Started watching"}</span><strong>{new Date(`${trackerItem.startDate}T12:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</strong></div>
+                    </article>}
+                    {[...(trackerItem.progressNotes || [])]
+                      .sort((left, right) => Date.parse(left.createdAt || "") - Date.parse(right.createdAt || ""))
+                      .map((entry, index) => <article key={entry.id || `${entry.createdAt}-${index}`} className="is-memory">
+                        <i><MessageSquare size={14} /></i>
+                        <div>
+                          <span>{/movie|film/i.test(String(trackerItem.type || "")) ? "Movie memory" : `${trackerMediaType === "manga" ? "Chapter" : "Episode"} ${entry.progress}`}</span>
+                          <strong>{entry.createdAt ? new Date(entry.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "Saved earlier"}</strong>
+                          <p>{plainDiaryText(entry.note)}</p>
+                        </div>
+                      </article>)}
+                    {trackerItem.endDate && <article>
+                      <i><Check size={14} /></i>
+                      <div><span>Completed</span><strong>{new Date(`${trackerItem.endDate}T12:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}</strong></div>
+                    </article>}
+                  </section>
+
+                  {trackerItem.personalNotes && <section className="tracker-timeline-view__afterthought">
+                    <BookOpen size={17} />
+                    <div><span>After-thought</span><p>{plainDiaryText(trackerItem.personalNotes)}</p></div>
+                  </section>}
+
+                  <footer className="tracker-timeline-view__footer">
+                    <Link to={`/${trackerMediaType}/${trackerItem.mal_id}`}>Open title <ExternalLink size={13} /></Link>
+                    <button type="button" onClick={() => setTrackerEditing(true)}><Pencil size={13} /> Edit details</button>
+                  </footer>
+                </div>}
               </section>
             </div>,
             document.body,

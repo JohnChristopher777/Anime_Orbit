@@ -68,7 +68,7 @@ export default function FranchiseDetails() {
         <SEO
           title="Franchise guide unavailable"
           description="This anime or manga franchise guide could not be found."
-          url={`https://animeorbit.web.app/franchise/${id}`}
+          url={`https://animehelix.web.app/franchise/${id}`}
           noIndex
         />
         <Layers3 size={44} />
@@ -115,23 +115,23 @@ export default function FranchiseDetails() {
   const franchiseStructuredData = [
     {
       "@type": "CreativeWorkSeries",
-      "@id": `https://animeorbit.web.app/franchise/${id}#franchise`,
+      "@id": `https://animehelix.web.app/franchise/${id}#franchise`,
       name: `${data.title} franchise`,
       description: franchiseDescription,
       image: data.banner || data.root?.image || undefined,
       genre: data.root?.genres || undefined,
       startDate: data.firstRelease?.year ? `${data.firstRelease.year}` : undefined,
       endDate: data.latestRelease?.year ? `${data.latestRelease.year}` : undefined,
-      url: `https://animeorbit.web.app/franchise/${id}`,
+      url: `https://animehelix.web.app/franchise/${id}`,
       hasPart: data.entries.slice(0, 50).map((entry: any) => ({
         "@type": entry.mediaType === "MANGA" ? "BookSeries" : entry.format === "Movie" ? "Movie" : "TVSeries",
         name: entry.title,
-        url: `https://animeorbit.web.app/${entry.mediaType === "MANGA" ? "manga" : "anime"}/${entry.mal_id}`,
+        url: `https://animehelix.web.app/${entry.mediaType === "MANGA" ? "manga" : "anime"}/${entry.mal_id}`,
       })),
     },
     {
       "@type": "ItemList",
-      "@id": `https://animeorbit.web.app/franchise/${id}#release-order`,
+      "@id": `https://animehelix.web.app/franchise/${id}#release-order`,
       name: `${data.title} release order`,
       numberOfItems: data.entries.length,
       itemListOrder: "https://schema.org/ItemListOrderAscending",
@@ -139,7 +139,7 @@ export default function FranchiseDetails() {
         "@type": "ListItem",
         position: index + 1,
         name: entry.title,
-        url: `https://animeorbit.web.app/${entry.mediaType === "MANGA" ? "manga" : "anime"}/${entry.mal_id}`,
+        url: `https://animehelix.web.app/${entry.mediaType === "MANGA" ? "manga" : "anime"}/${entry.mal_id}`,
       })),
     },
   ];
@@ -147,17 +147,17 @@ export default function FranchiseDetails() {
   return (
     <div className="min-h-screen bg-transparent text-white">
       <SEO
-        title={`${data.title} Franchise Guide & Release Order | Anime Orbit`}
+        title={`${data.title} Franchise Guide & Release Order | Anime Helix`}
         description={franchiseDescription}
         keywords={`${data.title}, ${data.title} watch order, ${data.title} release order, anime franchise guide, manga adaptations`}
-        url={`https://animeorbit.web.app/franchise/${id}`}
+        url={`https://animehelix.web.app/franchise/${id}`}
         image={data.banner}
         pageType="CollectionPage"
         structuredData={franchiseStructuredData}
         breadcrumbs={[
-          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
-          { name: "Franchise library", url: "https://animeorbit.web.app/franchises" },
-          { name: data.title, url: `https://animeorbit.web.app/franchise/${id}` },
+          { name: "Anime Helix", url: "https://animehelix.web.app/" },
+          { name: "Franchise library", url: "https://animehelix.web.app/franchises" },
+          { name: data.title, url: `https://animehelix.web.app/franchise/${id}` },
         ]}
       />
       <main className="franchise-detail">

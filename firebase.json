@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "animeorbit",
+    "site": "animehelix",
     "public": "build",
     "cleanUrls": true,
     "trailingSlash": false,
@@ -120,6 +120,10 @@
           {
             "key": "X-Permitted-Cross-Domain-Policies",
             "value": "none"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
           }
         ]
       },

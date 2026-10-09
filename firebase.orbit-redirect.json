@@ -1,0 +1,35 @@
+{
+  "hosting": {
+    "site": "animeorbit",
+    "public": "netlify-redirect",
+    "cleanUrls": false,
+    "trailingSlash": false,
+    "ignore": [
+      "firebase.orbit-redirect.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "https://animehelix.web.app/",
+        "type": 301
+      },
+      {
+        "source": "/:path*",
+        "destination": "https://animehelix.web.app/:path",
+        "type": 301
+      }
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
+        ]
+      }
+    ]
+  }
+}

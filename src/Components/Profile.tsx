@@ -90,7 +90,7 @@ const ProfileAssetDialog: React.FC<ProfileAssetDialogProps> = ({
   const title = isAvatar ? "Choose your profile avatar" : "Choose your profile cover";
   const description = isAvatar
     ? "Pick a character image or keep the clean name-initial avatar."
-    : "Choose a wide banner for the top of your profile, or use the Anime Orbit signature.";
+    : "Choose a wide banner for the top of your profile, or use the Anime Helix signature.";
   const initial = (fallbackLabel.trim() || "A").charAt(0).toUpperCase();
 
   return createPortal(
@@ -128,7 +128,7 @@ const ProfileAssetDialog: React.FC<ProfileAssetDialogProps> = ({
             {isAvatar ? (
               <span className="profile-asset-dialog__initial">{initial}</span>
             ) : (
-              <span className="profile-asset-dialog__empty-cover">ANIME ORBIT</span>
+              <span className="profile-asset-dialog__empty-cover">ANIME HELIX</span>
             )}
             <span className="profile-asset-dialog__choice-label">
               {isAvatar ? "Use name initial" : "Use signature cover"}
@@ -652,10 +652,10 @@ export const Profile: React.FC = () => {
     return (
       <div className="min-h-screen bg-transparent text-white flex flex-col items-center justify-center p-4">
         <SEO
-          title="User Profile - Anime Orbit"
-          description="Manage your anime profile, account settings, watchlist, and personalized tier list on Anime Orbit."
-          keywords="anime profile, anime watchlist, anime account, Anime Orbit"
-          url="https://animeorbit.web.app/profile"
+          title="User Profile - Anime Helix"
+          description="Manage your anime profile, account settings, watchlist, and personalized tier list on Anime Helix."
+          keywords="anime profile, anime watchlist, anime account, Anime Helix"
+          url="https://animehelix.web.app/profile"
           noIndex
         />
         <div className="bg-[#12121c]/90 border border-white/10 p-8 rounded-3xl text-center max-w-md w-full backdrop-blur-xl shadow-2xl space-y-6">
@@ -664,7 +664,7 @@ export const Profile: React.FC = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold font-montserrat text-white mb-2">
-              Sign In to Your Orbit
+              Sign In to Your Helix
             </h1>
             <p className="text-neutral-400 text-sm">
               Sign in to manage your profile, favorites, and watchlist.
@@ -792,10 +792,10 @@ export const Profile: React.FC = () => {
   return (
     <div className="min-h-screen bg-transparent text-white font-sans flex flex-col">
       <SEO
-        title={`${displayName || "User"}'s Orbit Profile - Anime Orbit`}
-        description={`Explore ${displayName || "User"}'s anime watchlist, favorite tier list, and activity on Anime Orbit.`}
-        keywords="anime profile, anime favorites, user watchlist, Anime Orbit"
-        url="https://animeorbit.web.app/profile"
+        title={`${displayName || "User"}'s Helix Profile - Anime Helix`}
+        description={`Explore ${displayName || "User"}'s anime watchlist, favorite tier list, and activity on Anime Helix.`}
+        keywords="anime profile, anime favorites, user watchlist, Anime Helix"
+        url="https://animehelix.web.app/profile"
         noIndex
       />
 
@@ -940,7 +940,7 @@ export const Profile: React.FC = () => {
                     className="profile-identity-stamp"
                     aria-label="Anime profile identity"
                   >
-                    <span>Anime Orbit profile</span>
+                    <span>Anime Helix profile</span>
                     <strong>{identityGenre} fan</strong>
                     <small>
                       {completedCount} completed ·{" "}
@@ -1200,7 +1200,7 @@ export const Profile: React.FC = () => {
           >
             <header className="profile-application-form__header">
               <div>
-                <span><Sparkles size={15} /> Anime Orbit profile form</span>
+                <span><Sparkles size={15} /> Anime Helix profile form</span>
                 <h2>Edit your profile</h2>
                 <p>Complete the sections below, then save once to return to your finished profile.</p>
               </div>
@@ -1231,7 +1231,7 @@ export const Profile: React.FC = () => {
 
                 <button type="button" className="profile-form-media-choice is-banner" onClick={() => openAssetPicker("banner")}>
                   <span className="profile-form-media-choice__preview">
-                    {bannerUrl ? <img src={bannerUrl} alt="Selected profile cover" /> : <strong>ANIME ORBIT</strong>}
+                    {bannerUrl ? <img src={bannerUrl} alt="Selected profile cover" /> : <strong>ANIME HELIX</strong>}
                   </span>
                   <span className="profile-form-media-choice__copy">
                     <strong>Header cover</strong>

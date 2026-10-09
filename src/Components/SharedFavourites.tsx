@@ -35,7 +35,7 @@ const SharedFavourites: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col text-white">
-      <SEO title={`Shared ${isManga ? "Manga" : "Anime"} Favourites Tier List`} description={`A privacy-safe ${isManga ? "manga" : "anime"} favourites tier list shared from Anime Orbit.`} url="https://animeorbit.web.app/shared-favourites" noIndex />
+      <SEO title={`Shared ${isManga ? "Manga" : "Anime"} Favourites Tier List`} description={`A privacy-safe ${isManga ? "manga" : "anime"} favourites tier list shared from Anime Helix.`} url="https://animehelix.web.app/shared-favourites" noIndex />
       <main className="shared-favourites-page flex-1">
         <nav className="shared-page-toolbar" aria-label="Shared tier-list navigation">
           <Link to="/favourites"><ArrowLeft size={18} /> Back to My Favourites</Link>

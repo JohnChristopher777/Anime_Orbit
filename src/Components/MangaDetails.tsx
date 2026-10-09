@@ -27,6 +27,7 @@ import {
   Hash,
   ListOrdered,
   Heart,
+  ListTodo,
 } from "lucide-react";
 import ProgressiveImage from "./ProgressiveImage";
 import { toast } from "react-toastify";
@@ -34,6 +35,7 @@ import { useWatchlist } from "../context/WatchlistContext";
 import AppDropdown from "./AppDropdown";
 import { useFavourites } from "../context/FavouritesContext";
 import MediaEntryDialog from "./MediaEntryDialog";
+import ProgressRoadmapDialog from "./ProgressRoadmapDialog";
 import MangaCommunity from "./MangaCommunity";
 import { statusAtKnownTotal } from "../utils/trackingStatus";
 
@@ -53,6 +55,7 @@ export const MangaDetails: React.FC = () => {
   const [selectedChapterNumber, setSelectedChapterNumber] = useState<number | null>(null);
   const [chapterProgress, setChapterProgress] = useState(0);
   const [progressSaving, setProgressSaving] = useState(false);
+  const [roadmapOpen, setRoadmapOpen] = useState(false);
   const { mangaWatchlist, addMangaToWatchlist, removeMangaFromWatchlist, updateMangaWatchlistEntry } = useWatchlist();
   const { addMangaToFavourites, removeMangaFromFavourites, isMangaFavourite } = useFavourites();
   const trackedMangaEntry = mangaWatchlist.find((item) => item.mal_id === Number(id));
@@ -146,7 +149,7 @@ export const MangaDetails: React.FC = () => {
     if (!manga) return;
     const summary = (manga.synopsis || "").replace(/<[^>]+>/g, "").slice(0, 180);
     const shareData = {
-      title: `${manga.title} | Anime Orbit`,
+      title: `${manga.title} | Anime Helix`,
       text: `${manga.title}${manga.score ? ` • ${manga.score}/10` : ""}${manga.format ? ` • ${manga.format}` : ""}\n${summary}${summary ? "…" : ""}`,
       url: window.location.href,
     };
@@ -182,7 +185,7 @@ export const MangaDetails: React.FC = () => {
         <SEO
           title="Manga title unavailable"
           description="This manga detail page could not be found in the current catalogue."
-          url={`https://animeorbit.web.app/manga/${id}`}
+          url={`https://animehelix.web.app/manga/${id}`}
           noIndex
         />
         <div className="max-w-md mx-auto px-4 py-32 text-center space-y-4 flex-1">
@@ -281,7 +284,7 @@ export const MangaDetails: React.FC = () => {
     : `Explore chapters, publication details, adaptations, characters, and community reviews for ${manga.title}.`;
   const mangaStructuredData = {
     "@type": "BookSeries",
-    "@id": `https://animeorbit.web.app/manga/${id}#manga`,
+    "@id": `https://animehelix.web.app/manga/${id}#manga`,
     name: manga.title,
     alternateName: manga.title_japanese || undefined,
     description: mangaDescription,
@@ -297,24 +300,24 @@ export const MangaDetails: React.FC = () => {
           name: author?.name || author?.node?.name?.full || author,
         }))
       : undefined,
-    url: `https://animeorbit.web.app/manga/${id}`,
+    url: `https://animehelix.web.app/manga/${id}`,
   };
 
   return (
     <div className="manga-detail-page min-h-screen bg-[#0a0a0e] text-white font-inter flex flex-col overflow-x-hidden">
       <SEO
-        title={`${manga.title} - Chapters, Story & Adaptations | Anime Orbit`}
+        title={`${manga.title} - Chapters, Story & Adaptations | Anime Helix`}
         description={mangaDescription}
-        keywords={`${manga.title}, ${manga.genres?.join(", ") || "manga"}, manga chapters, manga characters, manga adaptations, Anime Orbit`}
+        keywords={`${manga.title}, ${manga.genres?.join(", ") || "manga"}, manga chapters, manga characters, manga adaptations, Anime Helix`}
         image={posterImg}
-        url={`https://animeorbit.web.app/manga/${id}`}
+        url={`https://animehelix.web.app/manga/${id}`}
         type="article"
         pageType="ItemPage"
         structuredData={mangaStructuredData}
         breadcrumbs={[
-          { name: "Anime Orbit", url: "https://animeorbit.web.app/" },
-          { name: "Manga library", url: "https://animeorbit.web.app/manga" },
-          { name: manga.title, url: `https://animeorbit.web.app/manga/${id}` },
+          { name: "Anime Helix", url: "https://animehelix.web.app/" },
+          { name: "Manga library", url: "https://animehelix.web.app/manga" },
+          { name: manga.title, url: `https://animehelix.web.app/manga/${id}` },
         ]}
       />
 
@@ -418,6 +421,13 @@ export const MangaDetails: React.FC = () => {
                 <button type="button" disabled={progressSaving || Boolean(knownChapterCount && chapterProgress >= knownChapterCount)} onClick={() => void saveChapterProgress(chapterProgress + 1)}>+</button>
                 <span>{progressSaving ? "Saving…" : trackedManga.status || "Reading"}</span>
               </div>
+              <button
+                type="button"
+                className="media-progress__watchlist-link"
+                onClick={() => setRoadmapOpen(true)}
+              >
+                <ListTodo size={15} /> Roadmap
+              </button>
             </div>
           )}
 
@@ -730,6 +740,11 @@ export const MangaDetails: React.FC = () => {
             setSelectedChapterNumber(Number(visibleChapters[selectedChapterIndex + 1].number));
           }
         }}
+      />
+      <ProgressRoadmapDialog
+        item={roadmapOpen ? trackedManga : null}
+        mediaType="manga"
+        onClose={() => setRoadmapOpen(false)}
       />
 
       <Footer />

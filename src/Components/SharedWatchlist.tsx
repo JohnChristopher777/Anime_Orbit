@@ -21,8 +21,8 @@ const SharedWatchlist: React.FC = () => {
     <div className="min-h-screen flex flex-col text-white">
       <SEO
         title={`Shared ${isManga ? "Manga Reading List" : "Anime Watchlist"}`}
-        description={`A privacy-safe ${isManga ? "manga reading list" : "anime watchlist"} shared from Anime Orbit.`}
-        url="https://animeorbit.web.app/shared-list"
+        description={`A privacy-safe ${isManga ? "manga reading list" : "anime watchlist"} shared from Anime Helix.`}
+        url="https://animehelix.web.app/shared-list"
         noIndex
       />
       <main className="shared-list-page flex-1">

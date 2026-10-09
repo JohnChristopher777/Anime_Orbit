@@ -15,7 +15,7 @@ const projectId = requiredPublicConfig(
 const configuredAuthDomain = String(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "").trim();
 
 // Keep OAuth on Firebase's canonical helper domain. The application itself
-// remains on animeorbit.web.app, but Google validates this exact callback:
+// is served from animehelix.web.app, but Google validates this exact callback:
 // https://<project-id>.firebaseapp.com/__/auth/handler
 // A web.app value is ignored here because it causes redirect_uri_mismatch
 // unless that second callback was manually added to the Google OAuth client.

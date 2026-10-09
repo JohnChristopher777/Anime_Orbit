@@ -25,11 +25,11 @@ export const Footer: React.FC = () => {
               ANIME
             </span>
             <span className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-              Orbit
+              Helix
             </span>
           </Link>
           <p className="text-sm text-neutral-300 leading-relaxed max-w-xs">
-            Your cosmic universe compass across every anime genre. Explore episode guides, character artwork, tier list rankings, and synced community tracking.
+            Follow every strand of your anime and manga journey. Track episodes and chapters, keep notes, build tier lists, and explore connected stories.
           </p>
           <div className="pt-1 flex items-center gap-2 text-sm font-bold text-[#ffd700]">
             <Sparkles size={14} className="text-[#ffd700] animate-pulse" />
@@ -105,7 +105,7 @@ export const Footer: React.FC = () => {
             <li>
               <Link to="/about" onClick={handleScrollTop} className="hover:text-[#ffd700] transition-colors flex items-center gap-2">
                 <Compass size={13} className="text-[#ffd700]" />
-                <span>About Anime Orbit</span>
+                <span>About Anime Helix</span>
               </Link>
             </li>
           </ul>
@@ -160,7 +160,7 @@ export const Footer: React.FC = () => {
 
       <div className="max-w-7xl mx-auto border-t border-[#ffd700]/20 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left text-sm text-neutral-400">
         <div>
-          © {new Date().getFullYear()} <span className="text-[#ffd700] font-bold">Anime Orbit</span> | All anime, manga artwork, and metadata belong to their respective creators.
+          © {new Date().getFullYear()} <span className="text-[#ffd700] font-bold">Anime Helix</span> | All anime, manga artwork, and metadata belong to their respective creators.
         </div>
      
       </div>

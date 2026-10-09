@@ -74,8 +74,8 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ trendingAnime = [], 
   if (!slides.length) {
     if (!loading) {
       return (
-        <section className="hero-shell" aria-label="Explore Anime Orbit">
-          <ProgressiveImage src="/animeorbit.jpg" alt="" aria-hidden="true" loading="eager" fetchPriority="high" wrapperClassName="hero-media" className="hero-media__image" />
+        <section className="hero-shell" aria-label="Explore Anime Helix">
+          <ProgressiveImage src="/animehelix.jpg" alt="" aria-hidden="true" loading="eager" fetchPriority="high" wrapperClassName="hero-media" className="hero-media__image" />
           <div className="hero-shade" />
           <div className="hero-content"><h1>Find your next anime</h1><p>Browse new episodes, fan favorites, manga, complete franchises, and recommendations made from your list.</p><Link to="/discovery" className="hero-action"><TrendingUp size={17} /><span>Start exploring</span></Link></div>
         </section>
